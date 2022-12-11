@@ -177,4 +177,4 @@ async function queryAPI() {
   }
 }
 
-setInterval(queryAPI, 60 * 1000);
+setInterval(queryAPI, 50 * 1000);
