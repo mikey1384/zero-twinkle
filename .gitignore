@@ -1,0 +1,6 @@
+node_modules
+.env
+api_err.log
+api_out.log
+yarn-error.log
+yarn.lock
