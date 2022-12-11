@@ -1,4 +1,4 @@
-const { writePool, readPool } = require("./pool");
+const { writePool, readPool } = require("../pool");
 
 function poolQuery(query, params) {
   return new Promise((resolve, reject) => {

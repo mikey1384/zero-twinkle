@@ -25,7 +25,7 @@ let processingQuery = false;
 let processingSave = false;
 const myComment = `who made you?`;
 
-async function queryAPI() {
+async function checkAndRespondToProfileMessages() {
   if (processingQuery) return;
   processingQuery = true;
   try {
@@ -177,4 +177,4 @@ async function queryAPI() {
   }
 }
 
-setInterval(queryAPI, 50 * 1000);
+setInterval(checkAndRespondToProfileMessages, 50 * 1000);
