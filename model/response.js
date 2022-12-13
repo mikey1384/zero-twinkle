@@ -123,7 +123,7 @@ async function checkAndRespondToProfileMessages() {
     );
     if (comment.id) {
       await poolQuery(
-        `INSERT INTO comments (id, userId, prompt, response, timeStamp, imported) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE prompt = ?, response = ?, timeStamp = ?`,
+        `INSERT INTO prompts (platform, contentType, contentId, userId, prompt, response, timeStamp, imported) VALUES ('twinkle', 'comment', ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE prompt = ?, response = ?, timeStamp = ?`,
         [
           comment.id,
           comment.userId,
