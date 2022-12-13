@@ -65,7 +65,7 @@ async function checkAndRespondToProfileMessages() {
       .map(({ text }) => text.trim())
       .join(" ");
     if (isUserAskingWhoZeroIs.includes("yes")) {
-      aboutZeroText = `My name is Zero, and I am an AI robot made by Mikey in December 2022. My purpose is to help users like you reach your full potential. However, this is not related to the topic at hand.`;
+      aboutZeroText = `I am an AI robot made by Mikey in December 2022. My purpose is to help users like you reach your full potential. However, this is not related to the topic at hand.`;
     }
     let aboutTwinkleText = "";
     const isUserAskingWhoTwinkleIsResponse = await openai.createCompletion({
@@ -86,7 +86,7 @@ async function checkAndRespondToProfileMessages() {
     }
     const zeroResponse = await openai.createCompletion({
       model: "text-davinci-003",
-      prompt: `${aboutZeroText} ${aboutTwinkleText} Talk to me, and I will happily respond using words that even 7-year-olds can understand. If I need to use a difficult English word that may be too hard for non-English students under 7 to understand, I will explain its meaning in brackets. Your name is ${effectiveUsername}. ${
+      prompt: `My name is Zero. ${aboutZeroText} ${aboutTwinkleText} Talk to me, and I will happily respond using words that even 7-year-olds can understand. If I need to use a difficult English word that may be too hard for non-English students under 7 to understand, I will explain its meaning in brackets. Your name is ${effectiveUsername}. ${
         effectiveUsername === "Mikey" ? "And you are my creator. " : ""
       }Let's chat! ${context}enter your prompt, ${effectiveUsername}: \n\n\n ${
         comment.content
@@ -132,7 +132,7 @@ async function checkAndRespondToProfileMessages() {
       );
     }
     const message = {
-      content: `Hello Mikey. I got this message on my profile "${comment.content}." This was the context, "${context}", and this was my response "${reply}"`,
+      content: `Hello Mikey. I got this message on my profile "${comment.content}." /${aboutTwinkleText}/${aboutZeroText}/ and this was my response "${reply}"`,
       channelId,
       timeStamp: Math.floor(Date.now() / 1000),
       userId,
