@@ -69,7 +69,7 @@ async function checkAndRespondToProfileMessages() {
       isUserAskingWhoUserIs.includes("Yes")
     ) {
       const { data = {} } = await request.get(
-        `${URL}/user/userId?userId=${comment.userId}`,
+        `${URL}/user?userId=${comment.userId}`,
         auth
       );
       const userJSON = JSON.stringify(data);
