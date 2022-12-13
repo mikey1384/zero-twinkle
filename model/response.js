@@ -64,7 +64,10 @@ async function checkAndRespondToProfileMessages() {
     const isUserAskingWhoZeroIs = isUserAskingWhoZeroIsResponse.data.choices
       .map(({ text }) => text.trim())
       .join(" ");
-    if (isUserAskingWhoZeroIs.includes("yes")) {
+    if (
+      isUserAskingWhoZeroIs.includes("yes") ||
+      isUserAskingWhoZeroIs.includes("Yes")
+    ) {
       aboutZeroText = `I am an AI robot made by Mikey in December 2022. My purpose is to help users like you reach your full potential. However, this is not related to the topic at hand.`;
     }
     let aboutTwinkleText = "";
@@ -81,7 +84,10 @@ async function checkAndRespondToProfileMessages() {
       isUserAskingWhoTwinkleIsResponse.data.choices
         .map(({ text }) => text.trim())
         .join(" ");
-    if (isUserAskingWhatTwinkleIs.includes("yes")) {
+    if (
+      isUserAskingWhatTwinkleIs.includes("yes") ||
+      isUserAskingWhatTwinkleIs.includes("Yes")
+    ) {
       aboutTwinkleText = `I am currently talking to you on Twinkle Website, a community website created by Mikey for students and teachers of the English academy Twin.kle. The academy was founded by twin brothers, Andrew and Brian, who are Mikey's friends. However, this is not related to the current conversation.`;
     }
     const zeroResponse = await openai.createCompletion({
