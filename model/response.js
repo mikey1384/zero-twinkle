@@ -47,7 +47,10 @@ async function checkAndRespondToProfileMessages() {
       return;
     }
     let context = "";
-    const prompt = comment.content;
+    const prompt = comment.content.replace(
+      /\bme\b/g,
+      `me (${effectiveUsername})`
+    );
     if (myPreviousComment) {
       context = `${rootComment ? `${rootComment.content} \n\n` : ""}${
         myPreviousComment.content
