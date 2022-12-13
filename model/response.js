@@ -46,6 +46,7 @@ async function checkAndRespondToProfileMessages() {
       return;
     }
     let context = "";
+    const prompt = comment.content;
     if (myPreviousComment) {
       context = `${rootComment ? `${rootComment.content} \n\n` : ""}${
         myPreviousComment.content
@@ -54,7 +55,7 @@ async function checkAndRespondToProfileMessages() {
     let aboutUserText = "";
     const isUserAskingWhoUserIsResponse = await openai.createCompletion({
       model: "text-davinci-003",
-      prompt: `When you enter a prompt, I'm going to say "yes" if I think you are asking something about yourself (${effectiveUsername}), and say "no" if I don't think you are asking something about yourself (${effectiveUsername}). Enter a prompt here: \n\n\n ${comment.content}\n\n\n`,
+      prompt: `When you enter a prompt, I'm going to say "yes" if I think you are asking something about yourself (${effectiveUsername}), and say "no" if I don't think you are asking something about yourself (${effectiveUsername}). Enter a prompt here: \n\n\n ${prompt}\n\n\n`,
       temperature: 0.7,
       max_tokens: 3000,
       top_p: 1,
@@ -72,13 +73,30 @@ async function checkAndRespondToProfileMessages() {
         `${URL}/user?userId=${comment.userId}`,
         auth
       );
-      const userJSON = JSON.stringify(data);
+      const userJSON = JSON.stringify({
+        username: data.username,
+        realName: data.realName,
+        email: data.email,
+        bio: [
+          data.profileFirstRow,
+          data.profileSecondRow,
+          data.profileThirdRow,
+        ],
+        greeting: data.greeting,
+        karmaPoints: data.karmaPoints,
+        twinkleXP: data.twinkleXP,
+        twinkleCoins: data.twinkleCoins,
+        joinDate: data.joinDate,
+        userType: data.userType,
+        statusMsg: data.statusMsg,
+        profileTheme: data.profileTheme,
+      });
       aboutUserText = `Here's what I know about you based on your Twinkle Website profile: ${userJSON}.`;
     }
     let aboutZeroText = "";
     const isUserAskingWhoZeroIsResponse = await openai.createCompletion({
       model: "text-davinci-003",
-      prompt: `When you enter a prompt, I'm going to say "yes" if I think you are asking something about me, and say "no" if I don't think you are asking something about me. Enter a prompt here: \n\n\n ${comment.content}\n\n\n`,
+      prompt: `When you enter a prompt, I'm going to say "yes" if I think you are asking something about me, and say "no" if I don't think you are asking something about me. Enter a prompt here: \n\n\n ${prompt}\n\n\n`,
       temperature: 0.7,
       max_tokens: 3000,
       top_p: 1,
@@ -97,7 +115,7 @@ async function checkAndRespondToProfileMessages() {
     let aboutTwinkleText = "";
     const isUserAskingWhoTwinkleIsResponse = await openai.createCompletion({
       model: "text-davinci-003",
-      prompt: `When you enter a prompt, I'm going to say "yes" if I think you are asking something about Twinkle, and say "no" if I don't think you are asking something about Twinkle. Enter a prompt here: \n\n\n ${comment.content}\n\n\n`,
+      prompt: `When you enter a prompt, I'm going to say "yes" if I think you are asking something about Twinkle, and say "no" if I don't think you are asking something about Twinkle. Enter a prompt here: \n\n\n ${prompt}\n\n\n`,
       temperature: 0.7,
       max_tokens: 3000,
       top_p: 1,
@@ -118,9 +136,7 @@ async function checkAndRespondToProfileMessages() {
       model: "text-davinci-003",
       prompt: `My name is Zero. I am currently talking to you on Twinkle Website. ${aboutZeroText} ${aboutTwinkleText} Talk to me, and I will happily respond using words that even 7-year-olds can understand. If I need to use a difficult English word that may be too hard for non-English students under 7 to understand, I will explain its meaning in brackets. Your name is ${effectiveUsername}. ${aboutUserText} ${
         effectiveUsername === "Mikey" ? "And you are my creator. " : ""
-      }Let's chat! ${context}enter your prompt, ${effectiveUsername}: \n\n\n ${
-        comment.content
-      }\n\n\n`,
+      }Let's chat! ${context}enter your prompt, ${effectiveUsername}: \n\n\n ${prompt}\n\n\n`,
       temperature: 0.7,
       max_tokens: 3000,
       top_p: 1,
@@ -161,7 +177,7 @@ async function checkAndRespondToProfileMessages() {
       );
     }
     const message = {
-      content: `Hello Mikey. I got this message on my profile "${comment.content}." /${aboutTwinkleText}/${aboutZeroText}/${aboutUserText}/ and this was my response "${reply}"`,
+      content: `Hello Mikey. I got this message on my profile "${comment.content}" (${prompt}). /${aboutTwinkleText}/${aboutZeroText}/${aboutUserText}/ and this was my response "${reply}"`,
       channelId,
       timeStamp: Math.floor(Date.now() / 1000),
       userId,
