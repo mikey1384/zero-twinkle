@@ -2,6 +2,7 @@ const request = require("axios");
 const io = require("socket.io-client");
 const URL = process.env.TWINKLE_URL;
 const socket = io.connect(URL);
+const moment = require("moment");
 const { Configuration, OpenAIApi } = require("openai");
 const configuration = new Configuration({
   apiKey: process.env.OPENAI_API_KEY,
@@ -86,7 +87,7 @@ async function checkAndRespondToProfileMessages() {
         karmaPoints: data.karmaPoints,
         twinkleXP: data.twinkleXP,
         twinkleCoins: data.twinkleCoins,
-        joinDate: data.joinDate,
+        joinDate: moment.unix(data.joinDate).format("lll"),
         userType: data.userType,
         statusMsg: data.statusMsg,
         profileTheme: data.profileTheme,
