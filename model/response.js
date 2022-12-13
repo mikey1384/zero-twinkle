@@ -94,6 +94,8 @@ async function checkAndRespondToProfileMessages() {
         userType: data.userType,
         statusMsg: (data.statusMsg || "").replace(/[^\w\s]/gi, ""),
         profileTheme: data.profileTheme,
+        youtubeUrl: data.youtubeUrl,
+        website: data.website,
       });
       aboutUserText = `Here's what I know about you based on your Twinkle Website profile: ${userJSON}.`;
     }
