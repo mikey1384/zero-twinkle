@@ -142,7 +142,7 @@ async function checkAndRespondToProfileMessages() {
         effectiveUsername === "Mikey" ? "And you are my creator. " : ""
       }Let's chat! ${context}enter your prompt, ${effectiveUsername}: \n\n\n ${prompt}\n\n\n`,
       temperature: 0.7,
-      max_tokens: 3000,
+      max_tokens: 3000 - prompt.length,
       top_p: 1,
       frequency_penalty: 0,
       presence_penalty: 0,
