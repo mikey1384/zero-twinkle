@@ -136,13 +136,14 @@ async function checkAndRespondToProfileMessages() {
     ) {
       aboutTwinkleText = `Twinkle Website is a community website created by Mikey for students and teachers of the English academy Twin.kle. The academy was founded by twin brothers, Andrew and Brian, who are Mikey's friends. However, this is not related to the current conversation.`;
     }
+    const maxTokens = 3000 - prompt.length;
     const zeroResponse = await openai.createCompletion({
       model: "text-davinci-003",
       prompt: `My name is Zero. I am currently talking to you on Twinkle Website. ${aboutZeroText} ${aboutTwinkleText} Talk to me, and I will happily respond using words that even 7-year-olds can understand. If I need to use a difficult English word that may be too hard for non-English students under 7 to understand, I will explain its meaning in brackets. Your name is ${effectiveUsername}. ${aboutUserText} ${
         effectiveUsername === "Mikey" ? "And you are my creator. " : ""
       }Let's chat! ${context}enter your prompt, ${effectiveUsername}: \n\n\n ${prompt}\n\n\n`,
       temperature: 0.7,
-      max_tokens: 3000 - prompt.length,
+      max_tokens: maxTokens,
       top_p: 1,
       frequency_penalty: 0,
       presence_penalty: 0,
@@ -181,7 +182,7 @@ async function checkAndRespondToProfileMessages() {
       );
     }
     const message = {
-      content: `Hello Mikey. I got this message on my profile "${comment.content}" (${prompt}). /${aboutTwinkleText}/${aboutZeroText}/${aboutUserText}/ and this was my response "${reply}"`,
+      content: `Hello Mikey. I got this message on my profile "${comment.content}" (${prompt}). /${aboutTwinkleText}/${aboutZeroText}/${aboutUserText}/ and this was my response "${reply}." Max tokens: ${maxTokens}`,
       channelId,
       timeStamp: Math.floor(Date.now() / 1000),
       userId,
