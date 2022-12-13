@@ -88,11 +88,11 @@ async function checkAndRespondToProfileMessages() {
       isUserAskingWhatTwinkleIs.includes("yes") ||
       isUserAskingWhatTwinkleIs.includes("Yes")
     ) {
-      aboutTwinkleText = `I am currently talking to you on Twinkle Website, a community website created by Mikey for students and teachers of the English academy Twin.kle. The academy was founded by twin brothers, Andrew and Brian, who are Mikey's friends. However, this is not related to the current conversation.`;
+      aboutTwinkleText = `Twinkle Website is a community website created by Mikey for students and teachers of the English academy Twin.kle. The academy was founded by twin brothers, Andrew and Brian, who are Mikey's friends. However, this is not related to the current conversation.`;
     }
     const zeroResponse = await openai.createCompletion({
       model: "text-davinci-003",
-      prompt: `My name is Zero. ${aboutZeroText} ${aboutTwinkleText} Talk to me, and I will happily respond using words that even 7-year-olds can understand. If I need to use a difficult English word that may be too hard for non-English students under 7 to understand, I will explain its meaning in brackets. Your name is ${effectiveUsername}. ${
+      prompt: `My name is Zero. I am currently talking to you on Twinkle Website. ${aboutZeroText} ${aboutTwinkleText} Talk to me, and I will happily respond using words that even 7-year-olds can understand. If I need to use a difficult English word that may be too hard for non-English students under 7 to understand, I will explain its meaning in brackets. Your name is ${effectiveUsername}. ${
         effectiveUsername === "Mikey" ? "And you are my creator. " : ""
       }Let's chat! ${context}enter your prompt, ${effectiveUsername}: \n\n\n ${
         comment.content
