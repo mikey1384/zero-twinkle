@@ -161,7 +161,7 @@ async function checkAndRespondToProfileMessages() {
       );
     }
     const message = {
-      content: `Hello Mikey. I got this message on my profile "${comment.content}." /${aboutTwinkleText}/${aboutZeroText}/ and this was my response "${reply}"`,
+      content: `Hello Mikey. I got this message on my profile "${comment.content}." /${aboutTwinkleText}/${aboutZeroText}/${aboutUserText}/ and this was my response "${reply}"`,
       channelId,
       timeStamp: Math.floor(Date.now() / 1000),
       userId,
