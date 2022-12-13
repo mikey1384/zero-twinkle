@@ -51,6 +51,30 @@ async function checkAndRespondToProfileMessages() {
         myPreviousComment.content
       } \n\n`;
     }
+    let aboutUserText = "";
+    const isUserAskingWhoUserIsResponse = await openai.createCompletion({
+      model: "text-davinci-003",
+      prompt: `When you enter a prompt, I'm going to say "yes" if I think you are asking something about yourself (${effectiveUsername}), and say "no" if I don't think you are asking something about yourself (${effectiveUsername}). Enter a prompt here: \n\n\n ${comment.content}\n\n\n`,
+      temperature: 0.7,
+      max_tokens: 3000,
+      top_p: 1,
+      frequency_penalty: 0,
+      presence_penalty: 0,
+    });
+    const isUserAskingWhoUserIs = isUserAskingWhoUserIsResponse.data.choices
+      .map(({ text }) => text.trim())
+      .join(" ");
+    if (
+      isUserAskingWhoUserIs.includes("yes") ||
+      isUserAskingWhoUserIs.includes("Yes")
+    ) {
+      const { data = {} } = await request.get(
+        `${URL}/user/userId?userId=${comment.userId}`,
+        auth
+      );
+      const userJSON = JSON.stringify(data);
+      aboutUserText = `Here's what I know about you based on your Twinkle Website profile: ${userJSON}.`;
+    }
     let aboutZeroText = "";
     const isUserAskingWhoZeroIsResponse = await openai.createCompletion({
       model: "text-davinci-003",
@@ -92,7 +116,7 @@ async function checkAndRespondToProfileMessages() {
     }
     const zeroResponse = await openai.createCompletion({
       model: "text-davinci-003",
-      prompt: `My name is Zero. I am currently talking to you on Twinkle Website. ${aboutZeroText} ${aboutTwinkleText} Talk to me, and I will happily respond using words that even 7-year-olds can understand. If I need to use a difficult English word that may be too hard for non-English students under 7 to understand, I will explain its meaning in brackets. Your name is ${effectiveUsername}. ${
+      prompt: `My name is Zero. I am currently talking to you on Twinkle Website. ${aboutZeroText} ${aboutTwinkleText} Talk to me, and I will happily respond using words that even 7-year-olds can understand. If I need to use a difficult English word that may be too hard for non-English students under 7 to understand, I will explain its meaning in brackets. Your name is ${effectiveUsername}. ${aboutUserText} ${
         effectiveUsername === "Mikey" ? "And you are my creator. " : ""
       }Let's chat! ${context}enter your prompt, ${effectiveUsername}: \n\n\n ${
         comment.content
