@@ -82,17 +82,17 @@ async function checkAndRespondToProfileMessages() {
         realName: data.realName,
         email: data.email,
         bio: [
-          data.profileFirstRow,
-          data.profileSecondRow,
-          data.profileThirdRow,
+          (data.profileFirstRow || "").replace(/[^\w\s]/gi, ""),
+          (data.profileSecondRow || "").replace(/[^\w\s]/gi, ""),
+          (data.profileThirdRow || "").replace(/[^\w\s]/gi, ""),
         ],
-        greeting: data.greeting,
+        greeting: (data.greeting || "").replace(/[^\w\s]/gi, ""),
         karmaPoints: data.karmaPoints,
         twinkleXP: data.twinkleXP,
         twinkleCoins: data.twinkleCoins,
         joinDate: moment.unix(data.joinDate).format("lll"),
         userType: data.userType,
-        statusMsg: data.statusMsg,
+        statusMsg: (data.statusMsg || "").replace(/[^\w\s]/gi, ""),
         profileTheme: data.profileTheme,
       });
       aboutUserText = `Here's what I know about you based on your Twinkle Website profile: ${userJSON}.`;
