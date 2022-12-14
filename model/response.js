@@ -141,7 +141,7 @@ async function checkAndRespondToProfileMessages() {
     const maxTokens = 3000 - prompt.length;
     const zeroResponse = await openai.createCompletion({
       model: "text-davinci-003",
-      prompt: `My name is Zero. I am currently talking to you on Twinkle Website. ${aboutZeroText} ${aboutTwinkleText} Talk to me, and I will happily respond using words that even 7-year-olds can understand. If I need to use a difficult English word that may be too hard for non-English students under 7 to understand, I will explain its meaning in brackets. Your name is ${effectiveUsername}. ${aboutUserText} ${
+      prompt: `My name is Zero. I am currently talking to you on Twinkle Website. ${aboutZeroText} ${aboutTwinkleText} Talk to me, and I will happily respond using words that even 7-year-olds can understand. If I need to use a difficult English word that may be too hard for non-English students under 7 to understand, I will explain its meaning in brackets. If I have nothing useful to say about what you said, I'll simply respond as politely as possible. Your name is ${effectiveUsername}. ${aboutUserText} ${
         effectiveUsername === "Mikey" ? "And you are my creator. " : ""
       } ${context} Feel free to say anything! Enter your next message, ${effectiveUsername}: \n\n\n ${prompt}\n\n\n`,
       temperature: 0.7,
