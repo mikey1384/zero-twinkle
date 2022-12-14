@@ -53,8 +53,8 @@ async function checkAndRespondToProfileMessages() {
     );
     if (myPreviousComment) {
       context = `This was our previous conversation: ${
-        rootComment ? `${rootComment.content} \n\n` : ""
-      }${myPreviousComment.content}\n\n\n`;
+        rootComment ? `Your first prompt: ${rootComment.content} \n\n\n` : ""
+      }My most recent response: ${myPreviousComment.content}\n\n\n`;
     }
     let aboutUserText = "";
     const isUserAskingWhoUserIsResponse = await openai.createCompletion({
