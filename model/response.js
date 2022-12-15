@@ -56,7 +56,7 @@ async function checkAndRespondToProfileMessages() {
     contextAndPromptLength += prompt.length;
     const recentExchangeRows = await poolQuery(
       `
-      SELECT prompt, response FROM prompts WHERE platform = 'twinkle' AND userId = ? AND timeStamp < ? ORDER BY timeStamp DESC LIMIT 20;
+      SELECT promptSummary, responseSummary FROM prompts WHERE platform = 'twinkle' AND userId = ? AND timeStamp < ? ORDER BY timeStamp DESC LIMIT 20;
     `,
       [comment.userId, comment.timeStamp]
     );
@@ -64,8 +64,8 @@ async function checkAndRespondToProfileMessages() {
     while (contextAndPromptLength < contextAndPromptLengthLimit) {
       recentExchangeArr.push(recentExchangeRows[0]);
       contextAndPromptLength +=
-        (recentExchangeRows[0]?.prompt?.length || 0) +
-        (recentExchangeRows[0]?.response?.length || 0);
+        (recentExchangeRows[0]?.promptSummary?.length || 0) +
+        (recentExchangeRows[0]?.responseSummary?.length || 0);
       recentExchangeRows.shift();
       if (recentExchangeRows.length === 0) break;
     }
