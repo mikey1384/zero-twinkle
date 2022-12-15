@@ -202,9 +202,8 @@ async function checkAndRespondToProfileMessages() {
     const message = {
       content: `Hello Mikey. I got this message on my profile "${
         comment.content
-      }" (${prompt}). /${aboutTwinkleText}/${aboutZeroText}/${aboutUserText}/ and this was my response "${reply}." Data: ${JSON.stringify(
-        zeroResponse.data
-      )}`,
+      }" (${prompt}). /${aboutTwinkleText}/${aboutZeroText}/${aboutUserText}/\n\nMy Response: "${reply}."
+      \n\nContext: ${context}\n\nData: ${JSON.stringify(zeroResponse.data)}`,
       channelId,
       timeStamp: Math.floor(Date.now() / 1000),
       userId,
