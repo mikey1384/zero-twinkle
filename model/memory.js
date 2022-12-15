@@ -57,7 +57,7 @@ async function summarizeMemories() {
 
     const isSummarizedResponseRes = await openai.createCompletion({
       model: "text-davinci-003",
-      prompt: `I am an AI named Zero. We have spoken before but I forgot what my response was. When you remind me of my previous response to your prompt, I am going to summarize it to 3 or fewer sentences, and say it in this format - Summary: [summary goes here]. Enter my previous response here: \n\n"${response}"\n\n\n`,
+      prompt: `I am an AI named Zero. We have spoken before but I forgot what my response was. When you remind me of my previous response to your prompt, I am going to shorten it to 3 or fewer sentences, and say it in this format - Summary: [my shortened response goes here]. Enter my previous response here: \n\n"${response}"\n\n\n`,
       temperature: 0.7,
       max_tokens: 3000,
       top_p: 1,
