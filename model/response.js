@@ -39,23 +39,36 @@ async function checkAndRespondToProfileMessages() {
       channel = data.channel;
     }
     const {
-      data: { comment, username, isReply, myPreviousComment, rootComment },
+      data: { comment, username, isReply },
     } = await request.get(`${URL}/zero/profile`, auth);
     const effectiveUsername = username === "mikey" ? "Mikey" : username;
     if (!comment?.id) {
       processingQuery = false;
       return;
     }
+    const contextAndPromptLengthLimit = 1000;
+    let contextAndPromptLength = 0;
     let context = "";
     const prompt = comment.content.replace(
       /\bme\b/g,
       `me (${effectiveUsername})`
     );
-    if (myPreviousComment) {
-      context = `This was our previous conversation: ${
-        rootComment ? `Your first prompt: ${rootComment.content} \n\n\n` : ""
-      }My most recent response: ${myPreviousComment.content}\n\n\n`;
+    contextAndPromptLength += prompt.length;
+    const recentExchangeRows = await poolQuery(`
+      SELECT prompt, response FROM prompts WHERE platform = 'twinkle' AND userId = ? AND timeStamp < ? ORDER BY timeStamp DESC LIMIT 20;
+    `);
+    const recentExchangeArr = [];
+    while (contextAndPromptLength < contextAndPromptLengthLimit) {
+      recentExchangeArr.push(recentExchangeRows[0]);
+      contextAndPromptLength +=
+        recentExchangeRows[0].prompt.length +
+        recentExchangeRows[0].response.length;
+      recentExchangeRows.shift();
+      if (recentExchangeRows.length === 0) break;
     }
+    context = `Here's a JSON object of our recent conversation: ${JSON.stringify(
+      recentExchangeArr
+    )}`;
     let aboutUserText = "";
     const isUserAskingWhoUserIsResponse = await openai.createCompletion({
       model: "text-davinci-003",
@@ -138,12 +151,12 @@ async function checkAndRespondToProfileMessages() {
     ) {
       aboutTwinkleText = `Twinkle Website is a community website created by Mikey for students and teachers of the English academy Twin.kle. The academy was founded by twin brothers, Andrew and Brian, who are Mikey's friends. However, this is not related to the current conversation.`;
     }
-    const maxTokens = 3000 - prompt.length;
+    const maxTokens = 3000 - contextAndPromptLength;
     const zeroResponse = await openai.createCompletion({
       model: "text-davinci-003",
       prompt: `My name is Zero. I am currently talking to you on Twinkle Website. ${aboutZeroText} ${aboutTwinkleText} Talk to me, and I will happily respond using easy words anyone can understand. If I need to use a difficult English word that may be too hard for non-English students under 7 to understand, I will explain its meaning in brackets. If I have nothing useful to say about what you said, I'll simply respond as politely as possible. Your name is ${effectiveUsername}. ${aboutUserText} ${
         effectiveUsername === "Mikey" ? "And you are my creator. " : ""
-      } ${context} Feel free to say anything! Enter your next message, ${effectiveUsername}: \n\n\n ${prompt}\n\n\n`,
+      }\n\n${context}\n\n Feel free to say anything! Enter your next message, ${effectiveUsername}: \n\n\n ${prompt}\n\n\n`,
       temperature: 0.7,
       max_tokens: maxTokens,
       top_p: 1,
