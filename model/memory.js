@@ -44,7 +44,7 @@ async function summarizeMemories() {
     const { prompt, response } = row;
     const isSummarizedPromptRes = await openai.createCompletion({
       model: "text-davinci-003",
-      prompt: `When you enter a prompt you said to me earlier, If it's a question, I'll simply repeat the question. Otherwise I will summarize it to 3 or fewer sentences, and present it in this format - Summary: [summary goes here]. Enter your prompt here: \n\n"${prompt}"\n\n\n`,
+      prompt: `When you enter a prompt you said to me earlier, I'll first identify whether it's a question or not. If it's a question, I'll simply repeat the question - I will never answer your question. Otherwise I will summarize it to 3 or fewer sentences, and present it in this format - Summary: [summary goes here]. Enter your prompt here: \n\n"${prompt}"\n\n\n`,
       temperature: 0.7,
       max_tokens: 3000,
       top_p: 1,
