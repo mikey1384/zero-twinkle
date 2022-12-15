@@ -64,8 +64,8 @@ async function checkAndRespondToProfileMessages() {
     while (contextAndPromptLength < contextAndPromptLengthLimit) {
       recentExchangeArr.push(recentExchangeRows[0]);
       contextAndPromptLength +=
-        recentExchangeRows[0].prompt.length +
-        recentExchangeRows[0].response.length;
+        (recentExchangeRows[0]?.prompt?.length || 0) +
+        (recentExchangeRows[0]?.response?.length || 0);
       recentExchangeRows.shift();
       if (recentExchangeRows.length === 0) break;
     }
