@@ -44,7 +44,7 @@ async function summarizeMemories() {
     const { prompt, response } = row;
     const isSummarizedPromptRes = await openai.createCompletion({
       model: "text-davinci-003",
-      prompt: `When you enter a prompt, I am going to summarize it to 3 or fewer sentences, and say it in this format - Your prompt: [summary goes here]. Enter your prompt here: \n\n${prompt}\n\n\n`,
+      prompt: `When you enter a prompt you said to me earlier, I am going to summarize it to 3 or fewer sentences, and say it in this format - Your prompt: [summary goes here]. Enter your prompt here: \n\n${prompt}\n\n\n`,
       temperature: 0.7,
       max_tokens: 3000,
       top_p: 1,
@@ -57,7 +57,7 @@ async function summarizeMemories() {
 
     const isSummarizedResponseRes = await openai.createCompletion({
       model: "text-davinci-003",
-      prompt: `When you enter my previous response, I am going to summarize it to 3 or fewer sentences, and say it in this format - My response: [summary goes here]. Enter my previous response here: \n\n${response}\n\n\n`,
+      prompt: `When you enter my previous response to your prompt, I am going to summarize it to 3 or fewer sentences, and say it in this format - My response: [summary goes here]. Enter my previous response here: \n\n${response}\n\n\n`,
       temperature: 0.7,
       max_tokens: 3000,
       top_p: 1,
@@ -69,10 +69,14 @@ async function summarizeMemories() {
       .join(" ");
     await poolQuery(
       `UPDATE prompts SET responseSummary = ?, promptSummary = ? WHERE id = ?`,
-      [isSummarizedResponse, isSummarizedPrompt, row.id]
+      [
+        isSummarizedResponse.replace(/My response: /g, ""),
+        isSummarizedPrompt.replace(/Your prompt: /g, ""),
+        row.id,
+      ]
     );
     const message = {
-      content: `Hello Mikey. I made this summary.\n\nPrompt: ${isSummarizedPrompt}\n\nResponse: ${isSummarizedResponse}`,
+      content: `Hello Mikey. I made this summary.\n\n${isSummarizedPrompt}\n\n${isSummarizedResponse}`,
       channelId,
       timeStamp: Math.floor(Date.now() / 1000),
       userId,
