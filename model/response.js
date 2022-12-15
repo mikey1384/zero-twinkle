@@ -69,9 +69,9 @@ async function checkAndRespondToProfileMessages() {
       recentExchangeRows.shift();
       if (recentExchangeRows.length === 0) break;
     }
-    context = `Here's a JSON object of our recent conversation: ${JSON.stringify(
+    context = `If I need to remember anything from our previous conversation, I will check this JSON object of our recent conversation: ${JSON.stringify(
       recentExchangeArr
-    )}`;
+    )} However, this is not related to the topic at hand.`;
     let aboutUserText = "";
     const isUserAskingWhoUserIsResponse = await openai.createCompletion({
       model: "text-davinci-003",
