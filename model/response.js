@@ -54,9 +54,12 @@ async function checkAndRespondToProfileMessages() {
       `me (${effectiveUsername})`
     );
     contextAndPromptLength += prompt.length;
-    const recentExchangeRows = await poolQuery(`
+    const recentExchangeRows = await poolQuery(
+      `
       SELECT prompt, response FROM prompts WHERE platform = 'twinkle' AND userId = ? AND timeStamp < ? ORDER BY timeStamp DESC LIMIT 20;
-    `);
+    `,
+      [comment.userId, comment.timeStamp]
+    );
     const recentExchangeArr = [];
     while (contextAndPromptLength < contextAndPromptLengthLimit) {
       recentExchangeArr.push(recentExchangeRows[0]);
