@@ -56,7 +56,7 @@ async function checkAndRespondToProfileMessages() {
     contextAndPromptLength += prompt.length;
     const recentExchangeRows = await poolQuery(
       `
-      SELECT promptSummary, responseSummary FROM prompts WHERE platform = 'twinkle' AND userId = ? AND timeStamp < ? ORDER BY timeStamp DESC LIMIT 20;
+      SELECT promptSummary, responseSummary FROM prompts WHERE responseSummary IS NOT NULL AND platform = 'twinkle' AND userId = ? AND timeStamp < ? ORDER BY timeStamp DESC LIMIT 20;
     `,
       [comment.userId, comment.timeStamp]
     );
