@@ -44,7 +44,7 @@ async function summarizeMemories() {
     const { prompt, response } = row;
     const isSummarizedPromptRes = await openai.createCompletion({
       model: "text-davinci-003",
-      prompt: `When you enter a prompt you said to me earlier, I'll not answer the prompt, but I am going to summarize what you said in that prompt to 3 or fewer sentences, and present it in this format - Your prompt: [summary goes here]. Enter your prompt here: \n\n"${prompt}"\n\n\n`,
+      prompt: `When you enter a prompt you said to me earlier, I am going to summarize your prompt/question to 3 or fewer sentences, and present it in this format - Summary: [summary goes here]. Enter your prompt here: \n\n"${prompt}"\n\n\n`,
       temperature: 0.7,
       max_tokens: 3000,
       top_p: 1,
@@ -57,7 +57,7 @@ async function summarizeMemories() {
 
     const isSummarizedResponseRes = await openai.createCompletion({
       model: "text-davinci-003",
-      prompt: `When you enter my previous response to your prompt, I am going to summarize it to 3 or fewer sentences, and say it in this format - My response: [summary goes here]. Enter my previous response here: \n\n"${response}"\n\n\n`,
+      prompt: `When you enter my previous response to your prompt, I am going to summarize it to 3 or fewer sentences, and say it in this format - Summary: [summary goes here]. Enter my previous response here: \n\n"${response}"\n\n\n`,
       temperature: 0.7,
       max_tokens: 3000,
       top_p: 1,
@@ -70,8 +70,8 @@ async function summarizeMemories() {
     await poolQuery(
       `UPDATE prompts SET responseSummary = ?, promptSummary = ? WHERE id = ?`,
       [
-        isSummarizedResponse.replace(/My response: /g, ""),
-        isSummarizedPrompt.replace(/Your prompt: /g, ""),
+        isSummarizedResponse.replace(/Summary: /g, ""),
+        isSummarizedPrompt.replace(/Summary: /g, ""),
         row.id,
       ]
     );
