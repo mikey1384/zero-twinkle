@@ -23,6 +23,7 @@ let processingQuery = false;
 
 async function summarizeMemories() {
   if (processingQuery) return;
+  processingQuery = true;
   try {
     if (!user) {
       const { data } = await request.get(`${URL}/user/session`, auth);
@@ -40,7 +41,10 @@ async function summarizeMemories() {
       SELECT id, prompt, response FROM prompts WHERE responseSummary IS NULL ORDER BY id DESC LIMIT 1;
     `
     );
-    if (!row) return;
+    if (!row) {
+      processingQuery = false;
+      return;
+    }
     const { prompt, response } = row;
     const isSummarizedPromptRes = await openai.createCompletion({
       model: "text-davinci-003",
