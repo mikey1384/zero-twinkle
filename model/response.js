@@ -69,7 +69,7 @@ async function checkAndRespondToProfileMessages() {
       recentExchangeRows.shift();
       if (recentExchangeRows.length === 0) break;
     }
-    context = `If I need to remember anything from our previous conversation, I will check this JSON object of our recent conversation: ${JSON.stringify(
+    context = `I'll keep the information in this JSON object in mind as I respond to your prompt. It acts as my short-term memory: ${JSON.stringify(
       recentExchangeArr
     )} However, this is not related to the topic at hand.`;
     let aboutUserText = "";
