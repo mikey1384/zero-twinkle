@@ -56,13 +56,16 @@ async function checkAndRespondToProfileMessages() {
     contextAndPromptLength += prompt.length;
     const recentExchangeRows = await poolQuery(
       `
-      SELECT promptSummary AS you, responseSummary AS me FROM prompts WHERE responseSummary IS NOT NULL AND platform = 'twinkle' AND userId = ? AND timeStamp < ? ORDER BY timeStamp DESC LIMIT 20;
+      SELECT promptSummary AS you, responseSummary AS me, timeStamp FROM prompts WHERE responseSummary IS NOT NULL AND platform = 'twinkle' AND userId = ? AND timeStamp < ? ORDER BY timeStamp DESC LIMIT 20;
     `,
       [comment.userId, comment.timeStamp]
     );
     const recentExchangeArr = [];
     while (contextAndPromptLength < contextAndPromptLengthLimit) {
-      recentExchangeArr.push(recentExchangeRows[0]);
+      recentExchangeArr.push({
+        ...recentExchangeRows[0],
+        timeStamp: moment.unix(recentExchangeRows[0].timeStamp).format("lll"),
+      });
       contextAndPromptLength +=
         (recentExchangeRows[0]?.you?.length || 0) +
         (recentExchangeRows[0]?.me?.length || 0);
