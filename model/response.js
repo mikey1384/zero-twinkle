@@ -39,7 +39,7 @@ async function checkAndRespondToProfileMessages() {
       channel = data.channel;
     }
     const {
-      data: { comment, username, isReply },
+      data: { comment, username, isReply, myPreviousComment },
     } = await request.get(`${URL}/zero/profile`, auth);
     const effectiveUsername = username === "mikey" ? "Mikey" : username;
     if (!comment?.id) {
@@ -71,7 +71,8 @@ async function checkAndRespondToProfileMessages() {
     }
     context = `I'll keep the information in this JSON object in mind as I respond to your prompt. It acts as my short-term memory: ${JSON.stringify(
       recentExchangeArr
-    )} However, this is not related to the topic at hand.`;
+    )} and this is my previous comment: ${myPreviousComment}`;
+    contextAndPromptLength += myPreviousComment.length;
     let aboutUserText = "";
     const isUserAskingWhoUserIsResponse = await openai.createCompletion({
       model: "text-davinci-003",
