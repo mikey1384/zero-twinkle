@@ -49,10 +49,10 @@ async function checkAndRespondToProfileMessages() {
     const contextAndPromptLengthLimit = 1000;
     let contextAndPromptLength = 0;
     let context = "";
-    const prompt = comment.content.replace(
-      /\bme\b/g,
-      `me (${effectiveUsername})`
-    );
+    const prompt = comment.content
+      .replace(/\bme\b/g, `me (${effectiveUsername})`)
+      .replace(/\bmy\b/g, `my (${effectiveUsername}'s)`);
+
     contextAndPromptLength += prompt.length;
     const recentExchangeRows = await poolQuery(
       `
