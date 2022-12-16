@@ -71,8 +71,8 @@ async function checkAndRespondToProfileMessages() {
     }
     context = `I'll keep the information in this JSON object in mind as I respond to your prompt. It acts as my short-term memory: ${JSON.stringify(
       recentExchangeArr
-    )} and this is my previous comment: ${myPreviousComment}`;
-    contextAndPromptLength += myPreviousComment?.length || 0;
+    )} and this is my previous comment: ${myPreviousComment?.content || ""}`;
+    contextAndPromptLength += myPreviousComment?.content?.length || 0;
     let aboutUserText = "";
     const isUserAskingWhoUserIsResponse = await openai.createCompletion({
       model: "text-davinci-003",
