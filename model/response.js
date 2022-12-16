@@ -77,7 +77,7 @@ async function checkAndRespondToProfileMessages() {
       if (recentExchangeRows.length <= 0) break;
     }
     recentExchangeArr.reverse();
-    context = `Here's what we said so far: ${JSON.stringify(
+    context = `${JSON.stringify(
       recentExchangeArr
     )} and this was my most recent response: ${
       myPreviousComment?.content || ""
@@ -97,7 +97,7 @@ async function checkAndRespondToProfileMessages() {
         .map(({ text }) => text.trim())
         .join(" ");
     contextAndPromptLength += oneSentenceSummaryOfContext.length;
-    context += `\n\n${oneSentenceSummaryOfContext}`;
+    context = `${oneSentenceSummaryOfContext}: ${context}`;
     contextAndPromptLength += myPreviousComment?.content?.length || 0;
     let aboutUserText = "";
     const isUserAskingWhoUserIsResponse = await openai.createCompletion({
