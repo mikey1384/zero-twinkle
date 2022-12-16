@@ -74,10 +74,8 @@ async function summarizeMemories() {
     await poolQuery(
       `UPDATE prompts SET responseSummary = ?, promptSummary = ? WHERE id = ?`,
       [
-        isSummarizedResponse
-          .replace(/Summary: /g, "")
-          .replace(/Question: /g, ""),
-        isSummarizedPrompt.replace(/Summary: /g, ""),
+        isSummarizedResponse.replace(/Summary: /g, ""),
+        isSummarizedPrompt.replace(/Summary: /g, "").replace(/Question: /g, ""),
         row.id,
       ]
     );
