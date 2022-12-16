@@ -82,22 +82,6 @@ async function checkAndRespondToProfileMessages() {
     )} and this was my most recent response: ${
       myPreviousComment?.content || ""
     }`;
-
-    const oneSentenceSummaryOfContextResponse = await openai.createCompletion({
-      model: "text-davinci-003",
-      prompt: `When you enter a context of our previous conversation, I'm going to summarize it in one or two sentences in this format - So far we talked about [summary of our conversation goes here]. Enter a prompt here: \n\n\n ${context}\n\n\n`,
-      temperature: 0.7,
-      max_tokens: 3000,
-      top_p: 1,
-      frequency_penalty: 0,
-      presence_penalty: 0,
-    });
-    const oneSentenceSummaryOfContext =
-      oneSentenceSummaryOfContextResponse.data.choices
-        .map(({ text }) => text.trim())
-        .join(" ");
-    contextAndPromptLength += oneSentenceSummaryOfContext.length;
-    context = `${oneSentenceSummaryOfContext}: ${context}`;
     contextAndPromptLength += myPreviousComment?.content?.length || 0;
     let aboutUserText = "";
     const isUserAskingWhoUserIsResponse = await openai.createCompletion({
@@ -235,9 +219,7 @@ async function checkAndRespondToProfileMessages() {
       content: `Hello Mikey. I got this message on my profile "${
         comment.content
       }" (${prompt}). /${aboutTwinkleText}/${aboutZeroText}/${aboutUserText}/\n\nMy Response: "${reply}."
-      \n\nContext: ${context}\n\nContext Summary: ${oneSentenceSummaryOfContext}\n\nData: ${JSON.stringify(
-        zeroResponse.data
-      )}`,
+      \n\nContext: ${context}\n\nData: ${JSON.stringify(zeroResponse.data)}`,
       channelId,
       timeStamp: Math.floor(Date.now() / 1000),
       userId,
