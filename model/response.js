@@ -62,10 +62,14 @@ async function checkAndRespondToProfileMessages() {
     );
     const recentExchangeArr = [];
     while (contextAndPromptLength < contextAndPromptLengthLimit) {
-      recentExchangeArr.push({
-        ...recentExchangeRows[0],
-        timeStamp: moment.unix(recentExchangeRows[0].timeStamp).format("lll"),
-      });
+      if (recentExchangeRows[0]) {
+        recentExchangeArr.push({
+          ...recentExchangeRows[0],
+          timeStamp: moment
+            .unix(recentExchangeRows[0]?.timeStamp)
+            .format("lll"),
+        });
+      }
       contextAndPromptLength +=
         (recentExchangeRows[0]?.you?.length || 0) +
         (recentExchangeRows[0]?.me?.length || 0);
