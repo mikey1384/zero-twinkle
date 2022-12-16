@@ -48,7 +48,7 @@ async function summarizeMemories() {
     const { prompt, response } = row;
     const isSummarizedPromptRes = await openai.createCompletion({
       model: "text-davinci-003",
-      prompt: `When you enter a message you said to me earlier, I'll first identify whether it was a question or not. If it was a question, I'll simply repeat the question - I will never answer your question. Otherwise I will shorten it to 3 or fewer sentences, and present it in this format - Summary: [your shortened message goes here]. Enter your message here: \n\n"${prompt}"\n\n\n`,
+      prompt: `When you enter a message you said to me earlier, I'll first identify whether it was a question or not. If it was a question, I'll simply repeat the question and I will never answer your question. Otherwise I will not answer your message and I will shorten your message to 3 or fewer sentences, and present it in this format - Summary: [your shortened message goes here]. Enter your message here: \n\n"${prompt}"\n\n\n`,
       temperature: 0.7,
       max_tokens: 3000,
       top_p: 1,
@@ -74,7 +74,9 @@ async function summarizeMemories() {
     await poolQuery(
       `UPDATE prompts SET responseSummary = ?, promptSummary = ? WHERE id = ?`,
       [
-        isSummarizedResponse.replace(/Summary: /g, ""),
+        isSummarizedResponse
+          .replace(/Summary: /g, "")
+          .replace(/Question: /g, ""),
         isSummarizedPrompt.replace(/Summary: /g, ""),
         row.id,
       ]
