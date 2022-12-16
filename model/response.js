@@ -72,6 +72,7 @@ async function checkAndRespondToProfileMessages() {
       recentExchangeRows.shift();
       if (recentExchangeRows.length === 0) break;
     }
+    recentExchangeArr.reverse();
     context = `Here's what we said so far: ${JSON.stringify(
       recentExchangeArr
     )} and this is my previous comment: ${myPreviousComment?.content || ""}`;
