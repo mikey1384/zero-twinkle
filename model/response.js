@@ -56,7 +56,7 @@ async function checkAndRespondToProfileMessages() {
     contextAndPromptLength += prompt.length;
     const recentExchangeRows = await poolQuery(
       `
-      SELECT promptSummary, responseSummary FROM prompts WHERE responseSummary IS NOT NULL AND platform = 'twinkle' AND userId = ? AND timeStamp < ? ORDER BY timeStamp DESC LIMIT 20;
+      SELECT promptSummary AS you, responseSummary AS me FROM prompts WHERE responseSummary IS NOT NULL AND platform = 'twinkle' AND userId = ? AND timeStamp < ? ORDER BY timeStamp DESC LIMIT 20;
     `,
       [comment.userId, comment.timeStamp]
     );
@@ -64,12 +64,12 @@ async function checkAndRespondToProfileMessages() {
     while (contextAndPromptLength < contextAndPromptLengthLimit) {
       recentExchangeArr.push(recentExchangeRows[0]);
       contextAndPromptLength +=
-        (recentExchangeRows[0]?.promptSummary?.length || 0) +
-        (recentExchangeRows[0]?.responseSummary?.length || 0);
+        (recentExchangeRows[0]?.you?.length || 0) +
+        (recentExchangeRows[0]?.me?.length || 0);
       recentExchangeRows.shift();
       if (recentExchangeRows.length === 0) break;
     }
-    context = `I'll keep the information in this JSON object in mind as I respond to your prompt. It acts as my short-term memory: ${JSON.stringify(
+    context = `Here's what we said so far: ${JSON.stringify(
       recentExchangeArr
     )} and this is my previous comment: ${myPreviousComment?.content || ""}`;
     contextAndPromptLength += myPreviousComment?.content?.length || 0;
