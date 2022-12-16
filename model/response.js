@@ -166,7 +166,7 @@ async function checkAndRespondToProfileMessages() {
     ) {
       aboutTwinkleText = `Twinkle Website is a community website created by Mikey for students and teachers of the English academy Twin.kle. The academy was founded by twin brothers, Andrew and Brian, who are Mikey's friends. However, this is not related to the current conversation.`;
     }
-    const maxTokens = 3500 - contextAndPromptLength;
+    const maxTokens = 3500 - contextAndPromptLength / 2;
     const zeroResponse = await openai.createCompletion({
       model: "text-davinci-003",
       prompt: `My name is Zero. Today is ${moment
