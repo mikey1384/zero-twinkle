@@ -74,7 +74,7 @@ async function checkAndRespondToProfileMessages() {
         (recentExchangeRows[0]?.you?.length || 0) +
         (recentExchangeRows[0]?.me?.length || 0);
       recentExchangeRows.shift();
-      if (recentExchangeRows.length === 0) break;
+      if (recentExchangeRows.length <= 0) break;
     }
     recentExchangeArr.reverse();
     context = `Here's what we said so far: ${JSON.stringify(
