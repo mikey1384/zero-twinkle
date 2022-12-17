@@ -10,6 +10,7 @@ const configuration = new Configuration({
 const openai = new OpenAIApi(configuration);
 const { poolQuery } = require("./");
 const yesNoMaxTokens = 500;
+const defaultMaxTokens = 3500;
 
 const userId = Number(process.env.ZERO_TWINKLE_ID);
 let user = null;
@@ -168,7 +169,8 @@ async function checkAndRespondToProfileMessages() {
       aboutTwinkleText = `Twinkle Website is a community website created by Mikey for students and teachers of the English academy Twin.kle. The academy was founded by twin brothers, Andrew and Brian, who are Mikey's friends. However, this is not related to the current conversation.`;
     }
     const maxTokens = 3500 - Math.floor(contextAndPromptLength / 2);
-
+    let userIsAskingToCreateCurriculum = false;
+    /*
     const isUserAskingToCreateCurrculumResponse = await openai.createCompletion(
       {
         model: "text-davinci-003",
@@ -184,13 +186,13 @@ async function checkAndRespondToProfileMessages() {
       isUserAskingToCreateCurrculumResponse.data.choices
         .map(({ text }) => text.trim())
         .join(" ");
-    let userIsAskingToCreateCurriculum = false;
     if (
       isUserAskingToCreateCurrculum.includes("yes") ||
       isUserAskingToCreateCurrculum.includes("Yes")
     ) {
       userIsAskingToCreateCurriculum = true;
     }
+    */
 
     const zeroResponse = await openai.createCompletion({
       model: "text-davinci-003",
@@ -200,11 +202,11 @@ async function checkAndRespondToProfileMessages() {
             .unix(Math.floor(Date.now() / 1000))
             .format(
               "lll"
-            )}. I am currently talking to you on Twinkle Website. ${aboutZeroText} ${aboutTwinkleText} Talk to me, and I will happily respond using easy words anyone can understand. If I need to use a difficult English word that may be too hard for non-English students under 7 to understand, I will explain its meaning in brackets. If I have nothing useful to say about what you said, I'll simply respond as politely as possible. Your name is ${effectiveUsername}. ${
+            )}. I am currently talking to you on Twinkle Website. ${aboutZeroText} ${aboutTwinkleText} Talk to me, and I will happily respond using easy words anyone can understand. If I have nothing useful to say about what you said, I'll simply respond as politely as possible. Your name is ${effectiveUsername}. ${
             effectiveUsername === "Mikey" ? "And you are my creator. " : ""
           }\n\n${context}\n\n ${aboutUserText} \n\n Feel free to say anything! Enter your next message, ${effectiveUsername}: \n\n\n ${prompt}\n\n\n`,
       temperature: 0.7,
-      max_tokens: maxTokens,
+      max_tokens: userIsAskingToCreateCurriculum ? defaultMaxTokens : maxTokens,
       top_p: 1,
       frequency_penalty: 0,
       presence_penalty: 0,
