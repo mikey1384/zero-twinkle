@@ -199,7 +199,7 @@ async function checkAndRespondToProfileMessages() {
       prompt:
         userIsAskingSomethingDifficultAndComplex &&
         !userIsAskingAboutUserTwinkleOrZero
-          ? prompt
+          ? `${myPreviousComment?.content || ""}/n/n${prompt}`
           : `My name is Zero. Today is ${moment
               .unix(Math.floor(Date.now() / 1000))
               .format(
@@ -209,7 +209,7 @@ async function checkAndRespondToProfileMessages() {
             }\n\n${context}\n\n ${aboutUserText} \n\n Feel free to say anything! Enter your next message, ${effectiveUsername}: \n\n\n ${prompt}\n\n\n`,
       temperature: 0.7,
       max_tokens: userIsAskingSomethingDifficultAndComplex
-        ? defaultMaxTokens
+        ? defaultMaxTokens - Math.floor(myPreviousComment?.content.length / 2)
         : maxTokens,
       top_p: 1,
       frequency_penalty: 0,
