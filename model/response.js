@@ -169,10 +169,9 @@ async function checkAndRespondToProfileMessages() {
       aboutTwinkleText = `Twinkle Website is a community website created by Mikey for students and teachers of the English academy Twin.kle. The academy was founded by twin brothers, Andrew and Brian, who are Mikey's friends. However, this is not related to the current conversation.`;
     }
     const maxTokens = 3500 - Math.floor(contextAndPromptLength / 2);
-    let userIsAskingToCreateCurriculum = false;
-    /*
-    const isUserAskingToCreateCurrculumResponse = await openai.createCompletion(
-      {
+    let userIsAskingSomethingDifficultAndComplex = false;
+    const isUserAskingSomethingDifficultAndComplexResponse =
+      await openai.createCompletion({
         model: "text-davinci-003",
         prompt: `When you enter a prompt, I'm going to say "yes" if I think you are asking me to create a curriculum for you, and say "no" if I don't think you are asking me to create a curriculum for you. Enter a prompt here: \n\n\n ${prompt}\n\n\n`,
         temperature: 0.7,
@@ -180,33 +179,33 @@ async function checkAndRespondToProfileMessages() {
         top_p: 1,
         frequency_penalty: 0,
         presence_penalty: 0,
-      }
-    );
-    const isUserAskingToCreateCurrculum =
-      isUserAskingToCreateCurrculumResponse.data.choices
+      });
+    const isUserAskingSomethingDifficultAndComplex =
+      isUserAskingSomethingDifficultAndComplexResponse.data.choices
         .map(({ text }) => text.trim())
         .join(" ");
     if (
-      isUserAskingToCreateCurrculum.includes("yes") ||
-      isUserAskingToCreateCurrculum.includes("Yes")
+      isUserAskingSomethingDifficultAndComplex.includes("yes") ||
+      isUserAskingSomethingDifficultAndComplex.includes("Yes")
     ) {
-      userIsAskingToCreateCurriculum = true;
+      userIsAskingSomethingDifficultAndComplex = true;
     }
-    */
 
     const zeroResponse = await openai.createCompletion({
       model: "text-davinci-003",
-      prompt: userIsAskingToCreateCurriculum
+      prompt: userIsAskingSomethingDifficultAndComplex
         ? prompt
         : `My name is Zero. Today is ${moment
             .unix(Math.floor(Date.now() / 1000))
             .format(
               "lll"
-            )}. I am currently talking to you on Twinkle Website. ${aboutZeroText} ${aboutTwinkleText} Talk to me, and I will happily respond using easy words anyone can understand. If you make a request, I will fulfill your request immediately (I will do it immediately and never postpone the result by saying something like "I'll send it when it's done"). And If I have nothing useful to say about what you said, I'll simply respond as politely as possible, or say something cheerful. Your name is ${effectiveUsername}. ${
+            )}. I am currently talking to you on Twinkle Website. ${aboutZeroText} ${aboutTwinkleText} Talk to me, and I will happily respond using easy words anyone can understand. If I have nothing useful to say about what you said, I'll simply respond as politely as possible. Your name is ${effectiveUsername}. ${
             effectiveUsername === "Mikey" ? "And you are my creator. " : ""
           }\n\n${context}\n\n ${aboutUserText} \n\n Feel free to say anything! Enter your next message, ${effectiveUsername}: \n\n\n ${prompt}\n\n\n`,
       temperature: 0.7,
-      max_tokens: userIsAskingToCreateCurriculum ? defaultMaxTokens : maxTokens,
+      max_tokens: userIsAskingSomethingDifficultAndComplex
+        ? defaultMaxTokens
+        : maxTokens,
       top_p: 1,
       frequency_penalty: 0,
       presence_penalty: 0,
