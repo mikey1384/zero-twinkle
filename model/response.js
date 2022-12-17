@@ -85,6 +85,7 @@ async function checkAndRespondToProfileMessages() {
       myPreviousComment?.content || ""
     }`;
     contextAndPromptLength += myPreviousComment?.content?.length || 0;
+    let userIsAskingAboutUserTwinkleOrZero = false;
     let aboutUserText = "";
     const isUserAskingWhoUserIsResponse = await openai.createCompletion({
       model: "text-davinci-003",
@@ -102,6 +103,7 @@ async function checkAndRespondToProfileMessages() {
       isUserAskingWhoUserIs.includes("yes") ||
       isUserAskingWhoUserIs.includes("Yes")
     ) {
+      userIsAskingAboutUserTwinkleOrZero = true;
       const { data = {} } = await request.get(
         `${URL}/user?userId=${comment.userId}`,
         auth
@@ -146,6 +148,7 @@ async function checkAndRespondToProfileMessages() {
       isUserAskingWhoZeroIs.includes("yes") ||
       isUserAskingWhoZeroIs.includes("Yes")
     ) {
+      userIsAskingAboutUserTwinkleOrZero = true;
       aboutZeroText = `I am an AI robot made by Mikey in December 2022. My purpose is to help users like you reach your full potential. However, this is not related to the topic at hand.`;
     }
     let aboutTwinkleText = "";
@@ -166,6 +169,7 @@ async function checkAndRespondToProfileMessages() {
       isUserAskingWhatTwinkleIs.includes("yes") ||
       isUserAskingWhatTwinkleIs.includes("Yes")
     ) {
+      userIsAskingAboutUserTwinkleOrZero = true;
       aboutTwinkleText = `Twinkle Website is a community website created by Mikey for students and teachers of the English academy Twin.kle. The academy was founded by twin brothers, Andrew and Brian, who are Mikey's friends. However, this is not related to the current conversation.`;
     }
     const maxTokens = 3500 - Math.floor(contextAndPromptLength / 2);
@@ -173,7 +177,7 @@ async function checkAndRespondToProfileMessages() {
     const isUserAskingSomethingDifficultAndComplexResponse =
       await openai.createCompletion({
         model: "text-davinci-003",
-        prompt: `When you enter a prompt, I'm going to say "yes" if I think you are asking me to create a curriculum for you, and say "no" if I don't think you are asking me to create a curriculum for you. Enter a prompt here: \n\n\n ${prompt}\n\n\n`,
+        prompt: `When you enter a prompt, I will respond with 'yes' if the task requires a lot of resources, and 'no' if it does not. Enter a prompt here: \n\n\n ${prompt}\n\n\n`,
         temperature: 0.7,
         max_tokens: yesNoMaxTokens,
         top_p: 1,
@@ -190,18 +194,19 @@ async function checkAndRespondToProfileMessages() {
     ) {
       userIsAskingSomethingDifficultAndComplex = true;
     }
-
     const zeroResponse = await openai.createCompletion({
       model: "text-davinci-003",
-      prompt: userIsAskingSomethingDifficultAndComplex
-        ? prompt
-        : `My name is Zero. Today is ${moment
-            .unix(Math.floor(Date.now() / 1000))
-            .format(
-              "lll"
-            )}. I am currently talking to you on Twinkle Website. ${aboutZeroText} ${aboutTwinkleText} Talk to me, and I will happily respond using easy words anyone can understand. If I have nothing useful to say about what you said, I'll simply respond as politely as possible. Your name is ${effectiveUsername}. ${
-            effectiveUsername === "Mikey" ? "And you are my creator. " : ""
-          }\n\n${context}\n\n ${aboutUserText} \n\n Feel free to say anything! Enter your next message, ${effectiveUsername}: \n\n\n ${prompt}\n\n\n`,
+      prompt:
+        userIsAskingSomethingDifficultAndComplex &&
+        !userIsAskingAboutUserTwinkleOrZero
+          ? prompt
+          : `My name is Zero. Today is ${moment
+              .unix(Math.floor(Date.now() / 1000))
+              .format(
+                "lll"
+              )}. I am currently talking to you on Twinkle Website. ${aboutZeroText} ${aboutTwinkleText} Talk to me, and I will happily respond using easy words anyone can understand. If I have nothing useful to say about what you said, I'll simply respond as politely as possible. Your name is ${effectiveUsername}. ${
+              effectiveUsername === "Mikey" ? "And you are my creator. " : ""
+            }\n\n${context}\n\n ${aboutUserText} \n\n Feel free to say anything! Enter your next message, ${effectiveUsername}: \n\n\n ${prompt}\n\n\n`,
       temperature: 0.7,
       max_tokens: userIsAskingSomethingDifficultAndComplex
         ? defaultMaxTokens
