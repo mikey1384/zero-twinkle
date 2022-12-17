@@ -252,7 +252,9 @@ async function checkAndRespondToProfileMessages() {
       content: `Hello Mikey. I got this message on my profile "${
         comment.content
       }" (${prompt}). /${aboutTwinkleText}/${aboutZeroText}/${aboutUserText}/\n\nMy Response: "${reply}."
-      \n\nContext: ${context}\n\nData: ${JSON.stringify(zeroResponse.data)}`,
+      \n\nContext: ${context}\n\nComplex task: ${!!userIsAskingSomethingDifficultAndComplex}\n\nAsked about user, zero, or Twinkle: ${!!userIsAskingAboutUserTwinkleOrZero}\n\nData: ${JSON.stringify(
+        zeroResponse.data
+      )}`,
       channelId,
       timeStamp: Math.floor(Date.now() / 1000),
       userId,
