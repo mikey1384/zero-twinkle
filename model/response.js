@@ -202,7 +202,7 @@ async function checkAndRespondToProfileMessages() {
             .unix(Math.floor(Date.now() / 1000))
             .format(
               "lll"
-            )}. I am currently talking to you on Twinkle Website. ${aboutZeroText} ${aboutTwinkleText} Talk to me, and I will happily respond using easy words anyone can understand. If I have nothing useful to say about what you said, I'll simply respond as politely as possible. Your name is ${effectiveUsername}. ${
+            )}. I am currently talking to you on Twinkle Website. ${aboutZeroText} ${aboutTwinkleText} Talk to me, and I will happily respond using easy words anyone can understand. If you have a request, I will fulfill your request immediately. And If I have nothing useful to say about what you said, I'll simply respond as politely as possible, or say something cheerful. Your name is ${effectiveUsername}. ${
             effectiveUsername === "Mikey" ? "And you are my creator. " : ""
           }\n\n${context}\n\n ${aboutUserText} \n\n Feel free to say anything! Enter your next message, ${effectiveUsername}: \n\n\n ${prompt}\n\n\n`,
       temperature: 0.7,
