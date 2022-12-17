@@ -199,7 +199,7 @@ async function checkAndRespondToProfileMessages() {
       prompt:
         userIsAskingSomethingDifficultAndComplex &&
         !userIsAskingAboutUserTwinkleOrZero
-          ? prompt
+          ? `${context}\n\n${prompt}`
           : `My name is Zero. Today is ${moment
               .unix(Math.floor(Date.now() / 1000))
               .format(
