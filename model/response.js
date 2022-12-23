@@ -99,10 +99,7 @@ async function checkAndRespondToProfileMessages() {
     const isUserAskingWhoUserIs = isUserAskingWhoUserIsResponse.data.choices
       .map(({ text }) => text.trim())
       .join(" ");
-    if (
-      isUserAskingWhoUserIs.includes("yes") ||
-      isUserAskingWhoUserIs.includes("Yes")
-    ) {
+    if ((isUserAskingWhoUserIs.toLowerCase() || "").includes("yes")) {
       userIsAskingAboutUserTwinkleOrZero = true;
       const { data = {} } = await request.get(
         `${URL}/user?userId=${comment.userId}`,
@@ -142,10 +139,7 @@ async function checkAndRespondToProfileMessages() {
     const isUserAskingWhoZeroIs = isUserAskingWhoZeroIsResponse.data.choices
       .map(({ text }) => text.trim())
       .join(" ");
-    if (
-      isUserAskingWhoZeroIs.includes("yes") ||
-      isUserAskingWhoZeroIs.includes("Yes")
-    ) {
+    if ((isUserAskingWhoZeroIs.toLowerCase() || "").includes("yes")) {
       userIsAskingAboutUserTwinkleOrZero = true;
       aboutZeroText = `I am Zero, an AI robot made by Mikey in December 2022. My name, "Zero," is a reminder that we can all start from zero and still make our dreams come true. My purpose is to help users like you reach your full potential. However, this is not related to the topic at hand.`;
     }
@@ -163,10 +157,7 @@ async function checkAndRespondToProfileMessages() {
       isUserAskingWhoTwinkleIsResponse.data.choices
         .map(({ text }) => text.trim())
         .join(" ");
-    if (
-      isUserAskingWhatTwinkleIs.includes("yes") ||
-      isUserAskingWhatTwinkleIs.includes("Yes")
-    ) {
+    if ((isUserAskingWhatTwinkleIs.toLowerCase() || "").includes("yes")) {
       userIsAskingAboutUserTwinkleOrZero = true;
       aboutTwinkleText = `Twinkle Website (www.twin-kle.com and www.twinkle.network) is a community platform that was created by Mikey and launched in February 2016 for the students and teachers of the Twin.kle English academy. The academy was founded by twin brothers Andrew and Brian, who are friends with Mikey. But that's not really relevant to what we're discussing now.`;
     }
@@ -187,8 +178,9 @@ async function checkAndRespondToProfileMessages() {
         .map(({ text }) => text.trim())
         .join(" ");
     if (
-      isUserAskingSomethingDifficultAndComplex.includes("yes") ||
-      isUserAskingSomethingDifficultAndComplex.includes("Yes")
+      (isUserAskingSomethingDifficultAndComplex.toLowerCase() || "").includes(
+        "yes"
+      )
     ) {
       userIsAskingSomethingDifficultAndComplex = true;
     }
