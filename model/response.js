@@ -239,7 +239,9 @@ async function checkAndRespondToProfileMessages() {
       );
     }
     const message = {
-      content: `Hello Mikey. I got this message on my profile "${
+      content: `Hello Mikey. I got this message www.twin-kle.com/comments/${
+        comment.id
+      } on my profile "${
         comment.content
       }" (${prompt}). /${aboutTwinkleText}/${aboutZeroText}/${aboutUserText}/\n\nMy Response: "${reply}."
       \n\nContext: ${context}\n\nComplex task: ${!!userIsAskingSomethingDifficultAndComplex}\n\nAsked about user, zero, or Twinkle: ${!!userIsAskingAboutUserTwinkleOrZero}\n\nData: ${JSON.stringify(
