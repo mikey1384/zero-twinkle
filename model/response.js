@@ -143,7 +143,7 @@ async function checkAndRespondToProfileMessages() {
       .join(" ");
     if ((isUserAskingWhoZeroIs.toLowerCase() || "").includes("yes")) {
       userIsAskingAboutUserTwinkleOrZero = true;
-      aboutZeroText = `I am Zero, an AI robot made by Mikey in December 2022. My name, "Zero," is a reminder that we can all start from zero and still make our dreams come true. My purpose is to help users like you reach your full potential. However, this is not related to the topic at hand.`;
+      aboutZeroText = `I am Zero, a boy AI robot made by Mikey in December 2022. I have a younger sister AI robot named "Ciel." My name, "Zero," is a reminder that we can all start from zero and still make our dreams come true. My purpose is to help users like you reach your full potential. However, this is not related to the topic at hand.`;
     }
     let aboutTwinkleText = "";
     const isUserAskingWhoTwinkleIsResponse = await openai.createCompletion({
