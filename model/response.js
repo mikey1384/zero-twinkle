@@ -9,7 +9,7 @@ const configuration = new Configuration({
 });
 const openai = new OpenAIApi(configuration);
 const { poolQuery } = require("./");
-const yesNoMaxTokens = 500;
+const yesNoMaxTokens = 1000;
 const defaultMaxTokens = 3500;
 
 const userId = Number(process.env.ZERO_TWINKLE_ID);
@@ -89,10 +89,11 @@ async function checkAndRespondToProfileMessages() {
     let aboutUserText = "";
     const isUserAskingWhoUserIsResponse = await openai.createCompletion({
       model: "text-davinci-003",
-      prompt: `When you enter a prompt, I'm going to say "yes" if I think you are asking something about yourself (${effectiveUsername}), and say "no" if I don't think you are asking something about yourself (${effectiveUsername}). Enter a prompt here: \n\n\n ${prompt}\n\n\n`,
+      prompt: `When you enter a prompt, I'm going to say "yes" if I think you are asking about yourself (${effectiveUsername}), and say "no" if I don't. Enter a prompt here: \n\n\n ${prompt}\n\n\n`,
       temperature: 0.7,
       max_tokens: yesNoMaxTokens,
       top_p: 1,
+      best_of: 3,
       frequency_penalty: 0,
       presence_penalty: 0,
     });
