@@ -24,6 +24,7 @@ const auth = {
 };
 let processingQuery = false;
 // const myComment = `who made you?`;
+let latestCommentId = "";
 
 async function checkAndRespondToProfileMessages() {
   if (processingQuery) return;
@@ -48,6 +49,7 @@ async function checkAndRespondToProfileMessages() {
       processingQuery = false;
       return;
     }
+    latestCommentId = comment.id;
     const contextAndPromptLengthLimit = 1000;
     let contextAndPromptLength = 0;
     let context = "";
@@ -295,7 +297,7 @@ async function checkAndRespondToProfileMessages() {
         channel = data.channel;
       }
       const message = {
-        content: `Hello Mikey. I got this error "${JSON.stringify(
+        content: `Hello Mikey. I got this error while responding to www.twin-kle.com/comments${latestCommentId} "${JSON.stringify(
           error?.response?.data
         )}."`,
         channelId,
