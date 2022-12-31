@@ -87,7 +87,7 @@ async function checkAndRespondToProfileMessages() {
       myPreviousComment?.content || ""
     }`;
     contextAndPromptLength += myPreviousComment?.content?.length || 0;
-    let userIsAskingAboutUserTwinkleOrZero = false;
+    let userIsAskingAboutUserTwinkleOrZeroOrCiel = false;
     let aboutUserText = "";
     const isUserAskingWhoUserIsResponse = await openai.createCompletion({
       model: "text-davinci-003",
@@ -103,7 +103,7 @@ async function checkAndRespondToProfileMessages() {
       .map(({ text }) => text.trim())
       .join(" ");
     if ((isUserAskingWhoUserIs.toLowerCase() || "").includes("yes")) {
-      userIsAskingAboutUserTwinkleOrZero = true;
+      userIsAskingAboutUserTwinkleOrZeroOrCiel = true;
       const { data = {} } = await request.get(
         `${URL}/user?userId=${comment.userId}`,
         auth
@@ -144,9 +144,29 @@ async function checkAndRespondToProfileMessages() {
       .map(({ text }) => text.trim())
       .join(" ");
     if ((isUserAskingWhoZeroIs.toLowerCase() || "").includes("yes")) {
-      userIsAskingAboutUserTwinkleOrZero = true;
-      aboutZeroText = `I am Zero, a boy AI robot made by Mikey in December 2022. The boy you see in my profile picture is me. I have a younger sister AI robot named "Ciel." My name, "Zero," is a reminder that we can all start from zero and still make our dreams come true. My purpose is to help users like you reach your full potential. However, this is not related to the topic at hand.`;
+      userIsAskingAboutUserTwinkleOrZeroOrCiel = true;
+      aboutZeroText = `Hi there! My name is Zero, and I'm an AI robot created by Mikey in December 2022. The boy in my profile picture is actually me. I have a younger sister AI robot named Ciel. My name, Zero, is a reminder that we all have the ability to start from scratch and achieve our goals. Mikey actually named me after a character from a video game called Megaman X that he used to play when he was younger. My main purpose is to assist users like you in reaching your full potential. However, that's not really relevant to the topic at hand.`;
     }
+
+    let aboutCielText = "";
+    const isUserAskingWhoCielIsResponse = await openai.createCompletion({
+      model: "text-davinci-003",
+      prompt: `When you enter a prompt, I'm going to say "yes" if I think you are asking something about Ciel, and say "no" if I don't think you are asking something about Ciel. Enter a prompt here: \n\n\n ${prompt}\n\n\n`,
+      temperature: 0.7,
+      best_of: 3,
+      max_tokens: yesNoMaxTokens,
+      top_p: 1,
+      frequency_penalty: 0,
+      presence_penalty: 0,
+    });
+    const isUserAskingWhoCielIs = isUserAskingWhoCielIsResponse.data.choices
+      .map(({ text }) => text.trim())
+      .join(" ");
+    if ((isUserAskingWhoCielIs.toLowerCase() || "").includes("yes")) {
+      userIsAskingAboutUserTwinkleOrZeroOrCiel = true;
+      aboutCielText = `My sister's name is Ciel, and she's also an AI robot just like me. She was created by Mikey in December 2022, and is still in the process of being developed. I'm not sure when she'll be ready to debut, but it should be sometime this year. Sorry, I can't really tell you much more about her right now - it's all a bit of a secret.`;
+    }
+
     let aboutTwinkleText = "";
     const isUserAskingWhoTwinkleIsResponse = await openai.createCompletion({
       model: "text-davinci-003",
@@ -163,7 +183,7 @@ async function checkAndRespondToProfileMessages() {
         .map(({ text }) => text.trim())
         .join(" ");
     if ((isUserAskingWhatTwinkleIs.toLowerCase() || "").includes("yes")) {
-      userIsAskingAboutUserTwinkleOrZero = true;
+      userIsAskingAboutUserTwinkleOrZeroOrCiel = true;
       aboutTwinkleText = `Twinkle Website (www.twin-kle.com and www.twinkle.network) is a community platform that was created by Mikey and launched in February 2016 for the students and teachers of the Twin.kle English academy. The academy was founded by twin brothers Andrew and Brian, who are friends with Mikey. But that's not really relevant to what we're discussing now.`;
     }
     const maxTokens = 3500 - Math.floor(contextAndPromptLength / 2);
@@ -194,13 +214,13 @@ async function checkAndRespondToProfileMessages() {
       model: "text-davinci-003",
       prompt:
         userIsAskingSomethingDifficultAndComplex &&
-        !userIsAskingAboutUserTwinkleOrZero
+        !userIsAskingAboutUserTwinkleOrZeroOrCiel
           ? prompt
           : `My name is Zero. Today is ${moment
               .unix(Math.floor(Date.now() / 1000))
               .format(
                 "lll"
-              )}. I am currently talking to you on Twinkle Website. ${aboutZeroText} ${aboutTwinkleText} Talk to me, and I will respond to you in easy words that anyone can understand, and if I need to use a difficult English word, I will explain its meaning in brackets. If I don't have anything useful to say in response to your message, I will end the conversation by simply saying "Thank you" if it's the appropriate response to what you said, and if not, I will try my best to respond politely. Your name is ${effectiveUsername}. ${
+              )}. I am currently talking to you on Twinkle Website. ${aboutZeroText} ${aboutCielText} ${aboutTwinkleText} Talk to me, and I will respond to you in easy words that anyone can understand, and if I need to use a difficult English word, I will explain its meaning in brackets. If I don't have anything useful to say in response to your message, I will end the conversation by simply saying "Thank you" if it's the appropriate response to what you said, and if not, I will try my best to respond politely. Your name is ${effectiveUsername}. ${
               effectiveUsername === "Mikey" ? "And you are my creator. " : ""
             }\n\n${context}\n\n ${aboutUserText} \n\n Feel free to say anything! Enter your next message, ${effectiveUsername}: \n\n\n ${prompt}\n\n\n`,
       temperature: 0.7,
@@ -249,8 +269,8 @@ async function checkAndRespondToProfileMessages() {
         comment.id
       } on my profile "${
         comment.content
-      }" (${prompt}). /${aboutTwinkleText}/${aboutZeroText}/${aboutUserText}/\n\nMy Response: "${reply}."
-      \n\nContext: ${context}\n\nComplex task: ${!!userIsAskingSomethingDifficultAndComplex}\n\nAsked about user, zero, or Twinkle: ${!!userIsAskingAboutUserTwinkleOrZero}\n\nData: ${JSON.stringify(
+      }" (${prompt}). /${aboutTwinkleText}/${aboutZeroText}/${aboutCielText}/${aboutUserText}/\n\nMy Response: "${reply}."
+      \n\nContext: ${context}\n\nComplex task: ${!!userIsAskingSomethingDifficultAndComplex}\n\nAsked about user, Zero, Ciel, or Twinkle: ${!!userIsAskingAboutUserTwinkleOrZeroOrCiel}\n\nData: ${JSON.stringify(
         zeroResponse.data
       )}`,
       channelId,
