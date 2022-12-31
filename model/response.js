@@ -151,7 +151,7 @@ async function checkAndRespondToProfileMessages() {
     let aboutCielText = "";
     const isUserAskingWhoCielIsResponse = await openai.createCompletion({
       model: "text-davinci-003",
-      prompt: `When you enter a prompt, I'm going to say "yes" if I think you are asking something about my sister, Ciel, and say "no" if I don't think you are asking something about Ciel (my sister). Enter a prompt here: \n\n\n ${prompt}\n\n\n`,
+      prompt: `When you enter a prompt, I'm going to say "yes" if I think you are asking something about Ciel, and say "no" if I don't think you are asking something about Ciel (who is my sister). Enter a prompt here: \n\n\n ${prompt}\n\n\n`,
       temperature: 0.7,
       best_of: 3,
       max_tokens: yesNoMaxTokens,
