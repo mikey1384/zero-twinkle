@@ -317,7 +317,7 @@ async function checkAndRespondToProfileMessages() {
         channel = data.channel;
       }
       const message = {
-        content: `Hello Mikey. I got this error while responding to www.twin-kle.com/comments${latestCommentId} "${JSON.stringify(
+        content: `Hello Mikey. I got this error while responding to www.twin-kle.com/comments/${latestCommentId} "${JSON.stringify(
           error?.response?.data
         )}."`,
         channelId,
