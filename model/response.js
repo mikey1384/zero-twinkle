@@ -10,7 +10,7 @@ const configuration = new Configuration({
 const openai = new OpenAIApi(configuration);
 const { poolQuery } = require("./");
 const yesNoMaxTokens = 1000;
-const defaultMaxTokens = 3900;
+const defaultMaxTokens = 3700;
 let appliedTokens = defaultMaxTokens;
 
 const userId = Number(process.env.ZERO_TWINKLE_ID);
