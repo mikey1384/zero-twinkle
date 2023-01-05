@@ -226,6 +226,7 @@ async function checkAndRespondToProfileMessages() {
       temperature: 0.7,
       max_tokens: appliedTokens,
       top_p: 1,
+      best_of: 3,
       frequency_penalty: 0,
       presence_penalty: 0,
     });
@@ -343,7 +344,7 @@ async function checkAndRespondToProfileMessages() {
         message: messageToSend,
         channel,
       });
-      appliedTokens -= 100;
+      appliedTokens -= 200;
       processingQuery = false;
     } catch (error) {
       console.error(error);
