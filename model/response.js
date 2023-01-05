@@ -11,6 +11,7 @@ const openai = new OpenAIApi(configuration);
 const { poolQuery } = require("./");
 const yesNoMaxTokens = 1000;
 const defaultMaxTokens = 3500;
+let appliedTokens = defaultMaxTokens;
 
 const userId = Number(process.env.ZERO_TWINKLE_ID);
 let user = null;
@@ -225,7 +226,7 @@ async function checkAndRespondToProfileMessages() {
             }\n\n${context}\n\n ${aboutUserText} \n\n Feel free to say anything! Enter your next message, ${effectiveUsername}: \n\n\n ${prompt}\n\n\n`,
       temperature: 0.7,
       max_tokens: userIsAskingSomethingDifficultAndComplex
-        ? defaultMaxTokens
+        ? appliedTokens
         : maxTokens,
       top_p: 1,
       frequency_penalty: 0,
@@ -301,6 +302,7 @@ async function checkAndRespondToProfileMessages() {
       message: messageToSend,
       channel,
     });
+    appliedTokens = defaultMaxTokens;
     processingQuery = false;
   } catch (error) {
     console.error(error);
@@ -344,6 +346,7 @@ async function checkAndRespondToProfileMessages() {
         message: messageToSend,
         channel,
       });
+      appliedTokens -= 100;
       processingQuery = false;
     } catch (error) {
       console.error(error);
