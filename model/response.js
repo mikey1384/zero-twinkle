@@ -10,7 +10,7 @@ const configuration = new Configuration({
 const openai = new OpenAIApi(configuration);
 const { poolQuery } = require("./");
 const yesNoMaxTokens = 1000;
-const defaultMaxTokens = 3500;
+const defaultMaxTokens = 3900;
 let appliedTokens = defaultMaxTokens;
 
 const userId = Number(process.env.ZERO_TWINKLE_ID);
@@ -187,7 +187,6 @@ async function checkAndRespondToProfileMessages() {
       userIsAskingAboutUserTwinkleOrZeroOrCiel = true;
       aboutTwinkleText = `Twinkle Website (www.twin-kle.com and www.twinkle.network) is a community platform that was created by Mikey and launched in February 2016 for the students and teachers of the Twin.kle English academy. The academy was founded by twin brothers Andrew and Brian, who are friends with Mikey. But that's not really relevant to what we're discussing now.`;
     }
-    const maxTokens = 3500 - Math.floor(contextAndPromptLength / 2);
     let userIsAskingSomethingDifficultAndComplex = false;
     const isUserAskingSomethingDifficultAndComplexResponse =
       await openai.createCompletion({
@@ -225,9 +224,7 @@ async function checkAndRespondToProfileMessages() {
               effectiveUsername === "Mikey" ? "And you are my creator. " : ""
             }\n\n${context}\n\n ${aboutUserText} \n\n Feel free to say anything! Enter your next message, ${effectiveUsername}: \n\n\n ${prompt}\n\n\n`,
       temperature: 0.7,
-      max_tokens: userIsAskingSomethingDifficultAndComplex
-        ? appliedTokens
-        : maxTokens,
+      max_tokens: appliedTokens,
       top_p: 1,
       frequency_penalty: 0,
       presence_penalty: 0,
