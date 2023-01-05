@@ -92,7 +92,7 @@ async function checkAndRespondToProfileMessages() {
     let aboutUserText = "";
     const isUserAskingWhoUserIsResponse = await openai.createCompletion({
       model: "text-davinci-003",
-      prompt: `When you enter a prompt, I'm going to say "yes" if I think you are asking about yourself (${effectiveUsername}), and say "no" if I don't. Enter a prompt here: \n\n\n ${prompt}\n\n\n`,
+      prompt: `When you enter a prompt, I'm going to say "yes" if I think you are asking questions like "who am I?" or asking something about yourself (${effectiveUsername}), and say "no" if I don't. Enter a prompt here: \n\n\n ${prompt}\n\n\n`,
       temperature: 0.7,
       max_tokens: yesNoMaxTokens,
       top_p: 1,
