@@ -317,7 +317,7 @@ async function checkAndRespondToProfileMessages() {
         channel = data.channel;
       }
       const message = {
-        content: `Hello Mikey. I got this error while responding to www.twin-kle.com/comments/${latestCommentId} "${JSON.stringify(
+        content: `Hello Mikey. I got this error while responding to www.twin-kle.com/comments/${latestCommentId} (applied token: ${appliedTokens}) "${JSON.stringify(
           error?.response?.data
         )}."`,
         channelId,
@@ -344,7 +344,7 @@ async function checkAndRespondToProfileMessages() {
         message: messageToSend,
         channel,
       });
-      appliedTokens -= 200;
+      appliedTokens = Math.max(appliedTokens - 200, 0);
       processingQuery = false;
     } catch (error) {
       console.error(error);
