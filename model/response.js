@@ -171,7 +171,7 @@ async function checkAndRespondToProfileMessages() {
     let aboutTwinkleText = "";
     const isUserAskingWhoTwinkleIsResponse = await openai.createCompletion({
       model: "text-davinci-003",
-      prompt: `When you enter a prompt, I'm going to say "yes" if I think you are asking something about Twinkle, and say "no" if I don't think you are asking something about Twinkle. Enter a prompt here: \n\n\n ${prompt}\n\n\n`,
+      prompt: `When you enter a prompt, I'm going to say "yes" if I think you are asking something about Twinkle website, and say "no" if I don't think you are asking something about Twinkle website. Enter a prompt here: \n\n\n ${prompt}\n\n\n`,
       temperature: 0.7,
       max_tokens: yesNoMaxTokens,
       best_of: 3,
