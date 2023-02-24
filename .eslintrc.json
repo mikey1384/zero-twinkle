@@ -12,5 +12,9 @@
   "parserOptions": {
     "ecmaVersion": "latest"
   },
-  "rules": {}
+  "rules": {
+    "no-dupe-keys": "error",
+    "no-undef": "error",
+    "no-duplicate-imports": "error"
+  }
 }

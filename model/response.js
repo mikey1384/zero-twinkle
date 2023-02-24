@@ -1,6 +1,6 @@
 const request = require("axios");
 const io = require("socket.io-client");
-const URL = process.env.TWINKLE_URL;
+const URL = process.env.URL;
 const socket = io.connect(URL);
 const moment = require("moment");
 const { Configuration, OpenAIApi } = require("openai");
@@ -61,7 +61,7 @@ async function checkAndRespondToProfileMessages() {
     contextAndPromptLength += prompt.length;
     const recentExchangeRows = await poolQuery(
       `
-      SELECT promptSummary AS you, responseSummary AS me, timeStamp FROM prompts WHERE responseSummary IS NOT NULL AND platform = 'twinkle' AND userId = ? AND timeStamp < ? ORDER BY timeStamp DESC LIMIT 20;
+      SELECT promptSummary AS you, responseSummary AS me, timeStamp FROM zero_prompts WHERE responseSummary IS NOT NULL AND platform = 'twinkle' AND userId = ? AND timeStamp < ? ORDER BY timeStamp DESC LIMIT 20;
     `,
       [comment.userId, comment.timeStamp]
     );
@@ -250,7 +250,7 @@ async function checkAndRespondToProfileMessages() {
     );
     if (comment.id) {
       await poolQuery(
-        `INSERT INTO prompts (platform, contentType, contentId, userId, prompt, response, timeStamp) VALUES ('twinkle', 'comment', ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE prompt = ?, response = ?, timeStamp = ?`,
+        `INSERT INTO zero_prompts (platform, contentType, contentId, userId, prompt, response, timeStamp) VALUES ('twinkle', 'comment', ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE prompt = ?, response = ?, timeStamp = ?`,
         [
           comment.id,
           comment.userId,

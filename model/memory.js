@@ -1,6 +1,6 @@
 const request = require("axios");
 const io = require("socket.io-client");
-const URL = process.env.TWINKLE_URL;
+const URL = process.env.URL;
 const socket = io.connect(URL);
 const { Configuration, OpenAIApi } = require("openai");
 const configuration = new Configuration({
@@ -72,7 +72,7 @@ async function summarizeMemories() {
       .map(({ text }) => text.trim())
       .join(" ");
     await poolQuery(
-      `UPDATE prompts SET responseSummary = ?, promptSummary = ? WHERE id = ?`,
+      `UPDATE zero_prompts SET responseSummary = ?, promptSummary = ? WHERE id = ?`,
       [
         isSummarizedResponse.replace(/Summary: /g, ""),
         isSummarizedPrompt.replace(/Summary: /g, "").replace(/Question: /g, ""),
