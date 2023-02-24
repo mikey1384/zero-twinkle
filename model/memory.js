@@ -38,7 +38,7 @@ async function summarizeMemories() {
     }
     const [row] = await poolQuery(
       `
-      SELECT id, prompt, response FROM prompts WHERE responseSummary IS NULL ORDER BY id DESC LIMIT 1;
+      SELECT id, prompt, response FROM zero_prompts WHERE responseSummary IS NULL ORDER BY id DESC LIMIT 1;
     `
     );
     if (!row) {
