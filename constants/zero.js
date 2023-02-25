@@ -80,7 +80,13 @@ async function returnResponse({
 
   return Promise.resolve({
     zerosResponse,
-    reportMessage: `Hello Mikey. I got this message www.twin-kle.com/comments/${contentId} on my profile "${content}" (${prompt}). /${aboutTwinkleText}/${aboutZeroText}/${aboutCielText}/${aboutUserText}/\n\nMy Response: "${zerosResponse}."
+    reportMessage: `Hello Mikey. I got this message www.twin-kle.com/comments/${contentId} on my profile "${content}" (${prompt}). /${
+      isAskingAboutTwinkle ? aboutTwinkleText : ""
+    }/${isAskingAboutZero ? aboutZeroText : ""}/${
+      isAskingAboutCiel ? aboutCielText : ""
+    }/${
+      isAskingAboutUser ? aboutUserText : ""
+    }/\n\nMy Response: "${zerosResponse}."
       \n\nContext: ${context}\n\nComplex task: ${!!isRequireComplexAnswer}\n\nAsked about user, Zero, Ciel, or Twinkle: ${!!isAskingAboutUserTwinkleOrZeroOrCiel}\n\nData: ${JSON.stringify(
       responseObj.data
     )}`,
