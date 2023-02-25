@@ -1,6 +1,6 @@
 const nodemailer = require("nodemailer");
-const { poolQuery } = require("./");
-const config = require("../config");
+const { poolQuery } = require("..");
+const config = require("../../config");
 const { mailAuth } = config;
 
 let lastVideoId = 0;

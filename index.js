@@ -1,7 +1,7 @@
 require("dotenv").config();
-const { checkAndRespondToProfileMessages } = require("./model/response");
-const { summarizeMemories } = require("./model/memory");
-const { tagVideosToPlaylist } = require("./model/playlist");
+const { checkAndRespondToProfileMessages } = require("./service/response");
+const { summarizeMemories } = require("./service/memory");
+const { tagVideosToPlaylist } = require("./service/playlist");
 
 setInterval(checkAndRespondToProfileMessages, 60 * 1000);
 setInterval(summarizeMemories, 20 * 1000);

@@ -7,7 +7,7 @@ const configuration = new Configuration({
   apiKey: process.env.OPENAI_API_KEY,
 });
 const openai = new OpenAIApi(configuration);
-const { poolQuery } = require("./");
+const { poolQuery } = require("..");
 
 const userId = Number(process.env.ZERO_TWINKLE_ID);
 let user = null;
