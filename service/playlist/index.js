@@ -1,6 +1,7 @@
 const { poolQuery } = require("..");
 const { sendEmailReport } = require("./model");
 
+const userId = Number(process.env.ZERO_TWINKLE_ID);
 let lastVideoId = 0;
 
 async function tagVideosToPlaylist() {
@@ -40,7 +41,7 @@ async function tagVideosToPlaylist() {
             `INSERT INTO vq_playlists SET ?`,
             {
               title: ytChannelName,
-              creator: 7587,
+              creator: userId,
               timeStamp: Math.floor(Date.now() / 1000),
             }
           );
