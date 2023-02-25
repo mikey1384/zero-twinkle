@@ -1,0 +1,5 @@
+
+ReferenceError: prompt is not defined
+    at returnResponse (/Users/mikey/Developer/zero-twinkle/constants/zero.js:65:128)
+    at Timeout.checkAndRespondToProfileMessages [as _onTimeout] (/Users/mikey/Developer/zero-twinkle/service/response/index.js:152:52)
+    at processTicksAndRejections (node:internal/process/task_queues:96:5)

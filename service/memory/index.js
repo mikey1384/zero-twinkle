@@ -2,23 +2,13 @@ const request = require("axios");
 const io = require("socket.io-client");
 const URL = process.env.URL;
 const socket = io.connect(URL);
-const { Configuration, OpenAIApi } = require("openai");
-const configuration = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-const openai = new OpenAIApi(configuration);
+const config = require("../../config");
+const { auth, openai } = config;
 const { poolQuery } = require("..");
-
 const userId = Number(process.env.ZERO_TWINKLE_ID);
 let user = null;
 let channel = null;
 const channelId = Number(process.env.ZERO_CHAT_ROOM_ID);
-const auth = {
-  headers: {
-    "User-Agent": "AI-Zero",
-    authorization: process.env.ZERO_TWINKLE_TOKEN,
-  },
-};
 let processingQuery = false;
 
 async function summarizeMemories() {
