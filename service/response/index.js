@@ -17,23 +17,9 @@ const channelId = Number(process.env.ZERO_CHAT_ROOM_ID);
 
 const contextAndPromptLengthLimit = 500;
 
-let user = null;
-let channel = null;
-
 async function checkAndRespondToProfileMessages(appliedTokens) {
   let latestCommentId = "";
   try {
-    if (!user) {
-      const { data } = await request.get(`${URL}/user/session`, auth);
-      user = data;
-    }
-    if (!channel) {
-      const { data = {} } = await request.get(
-        `${URL}/chat/channel?channelId=${channelId}`,
-        auth
-      );
-      channel = data.channel;
-    }
     const {
       data: { comment, username, isReply, myPreviousComment },
     } = await request.get(`${URL}/zero/profile`, auth);
@@ -122,7 +108,7 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
           contentId: comment.id,
           contentType: "comment",
           rootType: "user",
-          rootId: user.id,
+          rootId: zeroId,
         },
       },
       auth
@@ -160,11 +146,16 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
     if (!messageId) {
       return Promise.resolve();
     }
+    const { data: zero } = await request.get(`${URL}/user/session`, auth);
+    const { data: { channel } = {} } = await request.get(
+      `${URL}/chat/channel?channelId=${channelId}`,
+      auth
+    );
     const messageToSend = {
       ...message,
       id: messageId,
-      username: user.username,
-      profilePicUrl: user.profilePicUrl,
+      username: zero.username,
+      profilePicUrl: zero.profilePicUrl,
       isNewMessage: true,
     };
     socket.emit("new_chat_message", {
