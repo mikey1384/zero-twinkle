@@ -60,9 +60,11 @@ async function returnResponse({
   }
   const engineeredPrompt = `My name is Zero. Today is ${moment
     .unix(Math.floor(Date.now() / 1000))
-    .format(
-      "lll"
-    )}. I am currently talking to you on Twinkle Website. ${aboutZeroText} ${aboutCielText} ${aboutTwinkleText} Talk to me, and I will respond to you in easy words that anyone can understand, and if I need to use a difficult English word, I will explain its meaning in brackets. If I don't have anything useful to say in response to your message, I will end the conversation by simply saying "Thank you" if it's the appropriate response to what you said, and if not, I will try my best to respond politely. Your name is ${effectiveUsername}. ${
+    .format("lll")}. I am currently talking to you on Twinkle Website. ${
+    isAskingAboutZero ? aboutZeroText : ""
+  } ${isAskingAboutCiel ? aboutCielText : ""} ${
+    isAskingAboutTwinkle ? aboutTwinkleText : ""
+  } Talk to me, and I will respond to you in easy words that anyone can understand, and if I need to use a difficult English word, I will explain its meaning in brackets. If I don't have anything useful to say in response to your message, I will end the conversation by simply saying "Thank you" if it's the appropriate response to what you said, and if not, I will try my best to respond politely. Your name is ${effectiveUsername}. ${
     effectiveUsername === "Mikey" ? "And you are my creator. " : ""
   }\n\n${context}\n\n ${aboutUserText} \n\n Feel free to say anything! Enter your next message, ${effectiveUsername}: \n\n\n ${prompt}\n\n\n`;
   const responseObj = await openai.createCompletion({
@@ -87,9 +89,9 @@ async function returnResponse({
     }/${
       isAskingAboutUser ? aboutUserText : ""
     }/\n\nMy Response: "${zerosResponse}."
-      \n\nContext: ${context}\n\nComplex task: ${!!isRequireComplexAnswer}\n\nAsked about user, Zero, Ciel, or Twinkle: ${!!isAskingAboutUserTwinkleOrZeroOrCiel}\n\nData: ${JSON.stringify(
+      \n\nContext: ${context}\n\nComplex task: ${isRequireComplexAnswer}\n\nAsked about user: ${isAskingAboutUser}\n\nAsked about Zero: ${isAskingAboutZero}\n\nAsked about Ciel: ${isAskingAboutCiel}\n\nAsked about Twinkle: ${isAskingAboutTwinkle}\n\nData: ${JSON.stringify(
       responseObj.data
-    )}`,
+    )}\n\nApplied Tokens: ${appliedTokens}`,
   });
 }
 

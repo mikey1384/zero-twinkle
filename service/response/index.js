@@ -15,7 +15,7 @@ const {
 const zeroId = Number(process.env.ZERO_TWINKLE_ID);
 const channelId = Number(process.env.ZERO_CHAT_ROOM_ID);
 
-const contextAndPromptLengthLimit = 1000;
+const contextAndPromptLengthLimit = 500;
 
 let user = null;
 let channel = null;
