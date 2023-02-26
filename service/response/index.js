@@ -5,9 +5,12 @@ const socket = io.connect(URL);
 const moment = require("moment");
 
 const config = require("../../config");
-const { auth, openai, yesNoMaxTokens } = config;
+const { auth } = config;
 const { returnResponse } = require("../helpers/zero");
-const { poolQuery } = require("../helpers");
+const {
+  poolQuery,
+  checkIsMatchPromptConditionUsingGPT3,
+} = require("../helpers");
 
 const zeroId = Number(process.env.ZERO_TWINKLE_ID);
 const channelId = Number(process.env.ZERO_CHAT_ROOM_ID);
@@ -74,91 +77,35 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
     )} and this was my most recent response: ${
       myPreviousComment?.content || ""
     }`;
-    const isUserAskingWhoUserIsResponse = await openai.createCompletion({
-      model: "text-davinci-003",
-      prompt: `When you enter a prompt, I'm going to say "yes" if I think you are asking questions like "who am I?" or asking something about yourself (${effectiveUsername}), and say "no" if I don't. Enter a prompt here: \n\n\n ${prompt}\n\n\n`,
-      temperature: 0.7,
-      max_tokens: yesNoMaxTokens,
-      top_p: 1,
-      best_of: 3,
-      frequency_penalty: 0,
-      presence_penalty: 0,
+    const isAskingAboutUser = await checkIsMatchPromptConditionUsingGPT3({
+      prompt,
+      condition: `I think you are asking questions like "who am I?"`,
     });
-    const isUserAskingWhoUserIs = isUserAskingWhoUserIsResponse.data.choices
-      .map(({ text }) => text.trim())
-      .join(" ");
-    const isUserAskingWhoZeroIsResponse = await openai.createCompletion({
-      model: "text-davinci-003",
-      prompt: `When you enter a prompt, I'm going to say "yes" if I think you are asking something about me, and say "no" if I don't think you are asking something about me. Enter a prompt here: \n\n\n ${prompt}\n\n\n`,
-      temperature: 0.7,
-      best_of: 3,
-      max_tokens: yesNoMaxTokens,
-      top_p: 1,
-      frequency_penalty: 0,
-      presence_penalty: 0,
+    const isAskingAboutZero = await checkIsMatchPromptConditionUsingGPT3({
+      prompt,
+      condition: "I think you are asking something about me",
     });
-    const isUserAskingWhoZeroIs = isUserAskingWhoZeroIsResponse.data.choices
-      .map(({ text }) => text.trim())
-      .join(" ");
-    const isUserAskingWhoCielIsResponse = await openai.createCompletion({
-      model: "text-davinci-003",
-      prompt: `When you enter a prompt, I'm going to say "yes" if I think you are asking or talking about my sister or Ciel, and say "no" if I don't think you are asking something about my sister or Ciel. Enter a prompt here: \n\n\n ${prompt}\n\n\n`,
-      temperature: 0.7,
-      best_of: 3,
-      max_tokens: yesNoMaxTokens,
-      top_p: 1,
-      frequency_penalty: 0,
-      presence_penalty: 0,
+    const isAskingAboutCiel = await checkIsMatchPromptConditionUsingGPT3({
+      prompt,
+      condition: "I think you are asking something about my sister or Ciel",
     });
-    const isUserAskingWhoCielIs = isUserAskingWhoCielIsResponse.data.choices
-      .map(({ text }) => text.trim())
-      .join(" ");
-    const isUserAskingWhatTwinkleIsResponse = await openai.createCompletion({
-      model: "text-davinci-003",
-      prompt: `When you enter a prompt, I'm going to say "yes" if I think you are asking something about Twinkle website, and say "no" if I don't think you are asking something about Twinkle website. Enter a prompt here: \n\n\n ${prompt}\n\n\n`,
-      temperature: 0.7,
-      max_tokens: yesNoMaxTokens,
-      best_of: 3,
-      top_p: 1,
-      frequency_penalty: 0,
-      presence_penalty: 0,
+    const isAskingAboutTwinkle = await checkIsMatchPromptConditionUsingGPT3({
+      prompt,
+      condition: "I think you are asking something about Twinkle website",
     });
-    const isUserAskingWhatTwinkleIs =
-      isUserAskingWhatTwinkleIsResponse.data.choices
-        .map(({ text }) => text.trim())
-        .join(" ");
-    const isUserAskingSomethingDifficultAndComplexResponse =
-      await openai.createCompletion({
-        model: "text-davinci-003",
-        prompt: `When you enter a prompt, I will respond with 'yes' if the task requires a lot of resources, and 'no' if it does not. Enter a prompt here: \n\n\n ${prompt}\n\n\n`,
-        temperature: 0.7,
-        max_tokens: yesNoMaxTokens,
-        best_of: 3,
-        top_p: 1,
-        frequency_penalty: 0,
-        presence_penalty: 0,
-      });
-    const isUserAskingSomethingDifficultAndComplex =
-      isUserAskingSomethingDifficultAndComplexResponse.data.choices
-        .map(({ text }) => text.trim())
-        .join(" ");
+    const isRequireComplexAnswer = await checkIsMatchPromptConditionUsingGPT3({
+      prompt,
+      condition: "if the task requires a lot of resources",
+    });
     const { zerosResponse, reportMessage } = await returnResponse({
       appliedTokens,
       context,
       effectiveUsername,
-      isAskingAboutZero: (isUserAskingWhoZeroIs.toLowerCase() || "").includes(
-        "yes"
-      ),
-      isAskingAboutCiel: (isUserAskingWhoCielIs.toLowerCase() || "").includes(
-        "yes"
-      ),
-      isAskingAboutTwinkle: isUserAskingWhatTwinkleIs.toLowerCase() || "",
-      isAskingAboutUser: (isUserAskingWhoUserIs.toLowerCase() || "").includes(
-        "yes"
-      ),
-      isRequireComplexAnswer: (
-        isUserAskingSomethingDifficultAndComplex.toLowerCase() || ""
-      ).includes("yes"),
+      isAskingAboutZero,
+      isAskingAboutCiel,
+      isAskingAboutTwinkle,
+      isAskingAboutUser,
+      isRequireComplexAnswer,
       userId: comment.userId,
       contentType: "comment",
       contentId: comment.id,
