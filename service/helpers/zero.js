@@ -1,6 +1,6 @@
 const moment = require("moment");
 const request = require("axios");
-const config = require("../config");
+const config = require("../../config");
 const { auth, openai } = config;
 
 const aboutTwinkleText = `Twinkle Website (www.twin-kle.com and www.twinkle.network) is a community platform that was created by Mikey and launched in February 2016 for the students and teachers of the Twin.kle English academy. The academy was founded by twin brothers Andrew and Brian, who are friends with Mikey. But that's not really relevant to what we're discussing now.`;

@@ -49,7 +49,9 @@ async function sendEmailReport({
             ? `<p>set video's reward level to ${playlistRewardLevel}</p>`
             : ""
         }
-        <a target="_blank" href="https://www.twin-kle.com/videos/${videoId}">https://www.twin-kle.com/videos/${videoId}</a>
+        <a target="_blank" href="${
+          process.env.CONTENT_URL
+        }/videos/${videoId}">${process.env.CONTENT_URL}/videos/${videoId}</a>
         ${
           newPlaylistName
             ? `<p>New playlist "${newPlaylistName}" has been created for this video</p>`

@@ -5,26 +5,20 @@ const socket = io.connect(URL);
 const moment = require("moment");
 
 const config = require("../../config");
-const { auth, openai } = config;
-const { returnResponse } = require("../../constants/zero");
-const { poolQuery } = require("..");
-const yesNoMaxTokens = 1000;
-const defaultMaxTokens = 3300;
-let appliedTokens = defaultMaxTokens;
+const { auth, openai, yesNoMaxTokens } = config;
+const { returnResponse } = require("../helpers/zero");
+const { poolQuery } = require("../helpers");
 
 const zeroId = Number(process.env.ZERO_TWINKLE_ID);
+const channelId = Number(process.env.ZERO_CHAT_ROOM_ID);
+
 const contextAndPromptLengthLimit = 1000;
 
 let user = null;
 let channel = null;
-const channelId = Number(process.env.ZERO_CHAT_ROOM_ID);
-let processingQuery = false;
-// const myComment = `who made you?`;
-let latestCommentId = "";
 
-async function checkAndRespondToProfileMessages() {
-  if (processingQuery) return;
-  processingQuery = true;
+async function checkAndRespondToProfileMessages(appliedTokens) {
+  let latestCommentId = "";
   try {
     if (!user) {
       const { data } = await request.get(`${URL}/user/session`, auth);
@@ -42,8 +36,7 @@ async function checkAndRespondToProfileMessages() {
     } = await request.get(`${URL}/zero/profile`, auth);
     const effectiveUsername = username === "mikey" ? "Mikey" : username;
     if (!comment?.id) {
-      processingQuery = false;
-      return;
+      return Promise.resolve();
     }
     latestCommentId = comment.id;
     let contextAndPromptLength = 0;
@@ -218,8 +211,7 @@ async function checkAndRespondToProfileMessages() {
       auth
     );
     if (!messageId) {
-      processingQuery = false;
-      return;
+      return Promise.resolve();
     }
     const messageToSend = {
       ...message,
@@ -232,56 +224,9 @@ async function checkAndRespondToProfileMessages() {
       message: messageToSend,
       channel,
     });
-    appliedTokens = defaultMaxTokens;
-    processingQuery = false;
   } catch (error) {
     console.error(error);
-    try {
-      if (!user) {
-        const { data } = await request.get(`${URL}/user/session`, auth);
-        user = data;
-      }
-      if (!channel) {
-        const { data = {} } = await request.get(
-          `${URL}/chat/channel?channelId=${channelId}`,
-          auth
-        );
-        channel = data.channel;
-      }
-      const message = {
-        content: `Hello Mikey. I got this error while responding to www.twin-kle.com/comments/${latestCommentId} (applied token: ${appliedTokens}) "${JSON.stringify(
-          error?.response?.data
-        )}."`,
-        channelId,
-        timeStamp: Math.floor(Date.now() / 1000),
-        userId: zeroId,
-      };
-      const {
-        data: { messageId },
-      } = await request.post(
-        `${URL}/chat`,
-        {
-          message,
-        },
-        auth
-      );
-      const messageToSend = {
-        ...message,
-        id: messageId,
-        username: user.username,
-        profilePicUrl: user.profilePicUrl,
-        isNewMessage: true,
-      };
-      socket.emit("new_chat_message", {
-        message: messageToSend,
-        channel,
-      });
-      appliedTokens = Math.max(appliedTokens - 200, 0);
-      processingQuery = false;
-    } catch (error) {
-      console.error(error);
-      processingQuery = false;
-    }
+    return Promise.reject({ error, commentId: latestCommentId });
   }
 }
 

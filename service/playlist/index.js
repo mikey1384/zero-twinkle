@@ -1,4 +1,4 @@
-const { poolQuery } = require("..");
+const { poolQuery } = require("../helpers");
 const { sendEmailReport } = require("./model");
 
 const userId = Number(process.env.ZERO_TWINKLE_ID);

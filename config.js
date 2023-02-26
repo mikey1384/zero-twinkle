@@ -18,4 +18,5 @@ module.exports = {
     privateKey: process.env.MAIL_PRIVATE_KEY.replace(/\\n/gm, "\n"),
   },
   openai,
+  yesNoMaxTokens: 1000,
 };
