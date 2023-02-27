@@ -18,7 +18,7 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
   let latestCommentId = "";
   try {
     const {
-      data: { comment, username, isReply, myPreviousComment },
+      data: { comment, username, userAuthLevel, isReply, myPreviousComment },
     } = await request.get(`${URL}/zero/profile`, auth);
     const effectiveUsername = username === "mikey" ? "Mikey" : username;
     if (!comment?.id) {
@@ -81,6 +81,7 @@ Zero: This is the JSON object of our previous conversation ${JSON.stringify(
       isAskingAboutUser,
       isRequireComplexAnswer,
       userId: comment.userId,
+      userAuthLevel,
       contentType: "comment",
       contentId: comment.id,
       content: comment.content,

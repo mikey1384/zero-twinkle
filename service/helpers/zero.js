@@ -22,6 +22,7 @@ async function returnResponse({
   isAskingAboutUser,
   isRequireComplexAnswer,
   prompt,
+  userAuthLevel,
   userId,
 }) {
   let aboutUserText = "";
@@ -60,14 +61,19 @@ async function returnResponse({
 \nZero: Your name is ${effectiveUsername}. ${
     effectiveUsername === "Mikey" ? "And you are my creator. " : ""
   }${!isRequireComplexAnswer && aboutUserText ? `\n\n${aboutUserText}` : ""}
+${isRequireComplexAnswer ? "" : context}
+${effectiveUsername}: ${prompt}
 ${
   isRequireComplexAnswer
     ? ""
-    : `\nZero: I promise to be super friendly and use simple words when you talk to me. If I use a big word that you might not know, I'll explain it in brackets. And if I have nothing helpful to say back to you, I'll either say “Thanks!” if it's appropriate, or end the conversation politely (or just type “😊”).`
+    : `\nZero's Inner Voice: I will be super kind and friendly.${
+        !userAuthLevel
+          ? " Most users on this website are 7-year-olds, so I will use easy words even 7-year-olds could understand. But if I have to use a big word, I will explain it in brackets."
+          : ""
+      }\nZero's Inner Voice: If I have nothing helpful to say, I'll end the conversation politely, or simply type "😊".`
 }
-${isRequireComplexAnswer ? "" : context}
-${effectiveUsername}: ${prompt}
 \nZero: `;
+
   const responseObj = await openai.createCompletion({
     model: "text-davinci-003",
     prompt: engineeredPrompt,
