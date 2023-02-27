@@ -55,11 +55,15 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
       if (recentExchangeRows.length <= 0) break;
     }
     recentExchangeArr.reverse();
-    context = `${JSON.stringify(
+    context = `
+Zero: This is the JSON object of our previous conversation ${JSON.stringify(
       recentExchangeArr
-    )} and this was my most recent response: ${
-      myPreviousComment?.content || ""
-    }`;
+    )}${
+      myPreviousComment?.content
+        ? `\n\nZero: ${myPreviousComment?.content}`
+        : ""
+    }
+`;
     const {
       isAskingAboutZero,
       isAskingAboutCiel,
