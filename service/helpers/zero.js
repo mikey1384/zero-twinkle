@@ -31,7 +31,7 @@ async function returnResponse({
     isAskingAboutTwinkle ||
     isAskingAboutUser;
   if (isRequireComplexAnswer && !isAskingAboutUserTwinkleOrZeroOrCiel) {
-    return prompt;
+    return `${effectiveUsername}: ${prompt}\n\nZero: `;
   }
   if (isAskingAboutUser) {
     const { data = {} } = await request.get(
