@@ -58,25 +58,21 @@ async function returnResponse({
     });
     aboutUserText = `Zero: Here's what I know about you based on your Twinkle Website profile: ${userJSON}.`;
   }
-  const engineeredPrompt = `
-Zero: My name is Zero. I'm a friendly chatbot. Today is ${moment
+  const engineeredPrompt = `Zero: My name is Zero. I'm a friendly chatbot. Today is ${moment
     .unix(Math.floor(Date.now() / 1000))
     .format("lll")}. I am currently talking to you on Twinkle Website.${
     isAskingAboutZero ? `\n${aboutZeroText}` : ""
   }${isAskingAboutCiel ? `\n${aboutCielText}` : ""}${
     isAskingAboutTwinkle ? `\n${aboutTwinkleText}` : ""
   }
-  \n
-Zero: Your name is ${effectiveUsername}. ${
+\nZero: Your name is ${effectiveUsername}. ${
     effectiveUsername === "Mikey" ? "And you are my creator. " : ""
-  }${aboutUserText ? `\n${aboutUserText}` : ""}
-  \n
-Zero: Whenever you talk to me, I promise to always be super friendly and use simple words that you can easily understand. If I have to use a big word that you might not know, I'll make sure to explain it by putting it in brackets. And if I don't have anything helpful to say back to you, I'll just say "Thanks!" if that's the right thing to say, or I'll just conclude the conversation in the most polite manner (or simply enter "😊").
+  }${aboutUserText ? `\n\n${aboutUserText}` : ""}
+\nZero: Whenever you talk to me, I promise to always be super friendly and use simple words that you can easily understand. If I have to use a big word that you might not know, I'll make sure to explain it by putting it in brackets. And if I don't have anything helpful to say back to you, I'll just say "Thanks!" if that's the right thing to say, or I'll just conclude the conversation in the most polite manner (or simply enter "😊").
 ${context}
 ${effectiveUsername}: ${prompt}
-\n
-Zero: `;
-  console.log(engineeredPrompt);
+\nZero: `;
+
   const responseObj = await openai.createCompletion({
     model: "text-davinci-003",
     prompt: engineeredPrompt,
