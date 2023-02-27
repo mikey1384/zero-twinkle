@@ -63,12 +63,12 @@ async function returnResponse({
 ${
   isRequireComplexAnswer
     ? ""
-    : `\nZero: Whenever you talk to me, I promise to always be super friendly and use simple words that you can easily understand. If I have to use a big word that you might not know, I'll make sure to explain it by putting it in brackets. And if I don't have anything helpful to say back to you, I'll just say "Thanks!" if that's the right thing to say, or I'll just conclude the conversation in the most polite manner (or simply enter "😊").`
+    : `\nZero: I promise to be super friendly and use simple words when you talk to me. If I use a big word that you might not know, I'll explain it in brackets. And if I have nothing helpful to say back to you, I'll either say “Thanks!” if it's appropriate, or end the conversation politely (or just type “😊”).`
 }
 ${isRequireComplexAnswer ? "" : context}
 ${effectiveUsername}: ${prompt}
 \nZero: `;
-
+  console.log(engineeredPrompt);
   const responseObj = await openai.createCompletion({
     model: "text-davinci-003",
     prompt: engineeredPrompt,
