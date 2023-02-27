@@ -39,8 +39,8 @@ async function summarizeMemories() {
     const isSummarizedPromptRes = await openai.createCompletion({
       model: "text-davinci-003",
       prompt: `Please make the prompt below as concise as possible. Do not answer the prompt
-      \nPrompt: "${prompt}"
-      \nConcise Version: `,
+      \nPrompt: ${prompt}
+      \nSuper Concise Version: `,
       temperature: 0.7,
       max_tokens: 2000,
       top_p: 1,
@@ -54,7 +54,7 @@ async function summarizeMemories() {
     const isSummarizedResponseRes = await openai.createCompletion({
       model: "text-davinci-003",
       prompt: `Full Version: "${response}"
-      \nSuper concise Version: `,
+      \nSuper Concise Version: `,
       temperature: 0.7,
       max_tokens: 2000,
       top_p: 1,
