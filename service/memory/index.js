@@ -38,8 +38,10 @@ async function summarizeMemories() {
     const { prompt, response } = row;
     const isSummarizedPromptRes = await openai.createCompletion({
       model: "text-davinci-003",
-      prompt: `Full Prompt: "${prompt}"
-      \nOne Sentence Prompt: `,
+      prompt: `
+      Please summarize the prompt below. Do not answer the prompt
+      \nPrompt: "${prompt}"
+      \nSummary: `,
       temperature: 0.7,
       max_tokens: 2000,
       top_p: 1,
