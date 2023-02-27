@@ -40,7 +40,7 @@ async function summarizeMemories() {
       model: "text-davinci-003",
       prompt: `When you enter a message you said to me earlier, I'll first identify whether it was a question or not. If it was a question, I'll simply repeat the question and I will never answer your question. Otherwise I will not answer your message and I will shorten your message to 3 or fewer sentences, and present it in this format - Summary: [your shortened message goes here]. Enter your message here: \n\n"${prompt}"\n\n\n`,
       temperature: 0.7,
-      max_tokens: 2500,
+      max_tokens: 1500,
       top_p: 1,
       frequency_penalty: 0,
       presence_penalty: 0,
