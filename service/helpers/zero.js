@@ -68,7 +68,6 @@ ${
 ${isRequireComplexAnswer ? "" : context}
 ${effectiveUsername}: ${prompt}
 \nZero: `;
-  console.log(engineeredPrompt);
   const responseObj = await openai.createCompletion({
     model: "text-davinci-003",
     prompt: engineeredPrompt,
