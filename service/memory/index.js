@@ -40,7 +40,7 @@ async function summarizeMemories() {
       model: "text-davinci-003",
       prompt: `Please make the prompt below as concise as possible. Do not answer the prompt
       \nPrompt: "${prompt}"
-      \n `,
+      \nConcise Version: `,
       temperature: 0.7,
       max_tokens: 2000,
       top_p: 1,
