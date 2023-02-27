@@ -38,8 +38,8 @@ async function summarizeMemories() {
     const { prompt, response } = row;
     const isSummarizedPromptRes = await openai.createCompletion({
       model: "text-davinci-003",
-      prompt: `Full Version: ${prompt} 
-      \nOne Sentence Version: `,
+      prompt: `Full Prompt: ${prompt} 
+      \nOne Sentence Prompt: `,
       temperature: 0.7,
       max_tokens: 2000,
       top_p: 1,
@@ -52,8 +52,8 @@ async function summarizeMemories() {
 
     const isSummarizedResponseRes = await openai.createCompletion({
       model: "text-davinci-003",
-      prompt: `Full Version: ${response} 
-      \nOne Sentence Version: `,
+      prompt: `Full Response: ${response} 
+      \nOne Sentence Response: `,
       temperature: 0.7,
       max_tokens: 2000,
       top_p: 1,
