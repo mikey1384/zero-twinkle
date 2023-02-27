@@ -35,7 +35,10 @@ async function runCheckAndRespondToProfileMessages({
     );
     const message = {
       content: `Hello Mikey. I got this error while responding to www.twin-kle.com/comments/${commentId} (applied token: ${appliedTokens}) "${JSON.stringify(
-        error?.response?.data
+        error?.response?.data ||
+          error?.response?.statusText ||
+          error?.response ||
+          error
       )}."`,
       channelId,
       timeStamp: Math.floor(Date.now() / 1000),

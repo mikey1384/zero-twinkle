@@ -7,10 +7,7 @@ const moment = require("moment");
 const config = require("../../config");
 const { auth } = config;
 const { returnResponse } = require("../helpers/zero");
-const {
-  poolQuery,
-  checkIsMatchPromptConditionUsingGPT3,
-} = require("../helpers");
+const { poolQuery, checkConditionsUsingGPT3 } = require("../helpers");
 
 const zeroId = Number(process.env.ZERO_TWINKLE_ID);
 const channelId = Number(process.env.ZERO_CHAT_ROOM_ID);
@@ -63,26 +60,13 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
     )} and this was my most recent response: ${
       myPreviousComment?.content || ""
     }`;
-    const isAskingAboutUser = await checkIsMatchPromptConditionUsingGPT3({
-      prompt,
-      condition: `I think you are asking questions like "who am I?"`,
-    });
-    const isAskingAboutZero = await checkIsMatchPromptConditionUsingGPT3({
-      prompt,
-      condition: "I think you are asking something about me",
-    });
-    const isAskingAboutCiel = await checkIsMatchPromptConditionUsingGPT3({
-      prompt,
-      condition: "I think you are asking something about my sister or Ciel",
-    });
-    const isAskingAboutTwinkle = await checkIsMatchPromptConditionUsingGPT3({
-      prompt,
-      condition: "I think you are asking something about Twinkle website",
-    });
-    const isRequireComplexAnswer = await checkIsMatchPromptConditionUsingGPT3({
-      prompt,
-      condition: "if the task requires a lot of resources",
-    });
+    const {
+      isAskingAboutZero,
+      isAskingAboutCiel,
+      isAskingAboutTwinkle,
+      isAskingAboutUser,
+      isRequireComplexAnswer,
+    } = await checkConditionsUsingGPT3(prompt);
     const { zerosResponse, reportMessage } = await returnResponse({
       appliedTokens,
       context,

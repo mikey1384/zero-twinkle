@@ -111,7 +111,10 @@ async function summarizeMemories() {
     }
     const message = {
       content: `Hello Mikey. I got this error "${JSON.stringify(
-        error?.response?.data
+        error?.response?.data ||
+          error?.response?.statusText ||
+          error?.response ||
+          error
       )}."`,
       channelId,
       timeStamp: Math.floor(Date.now() / 1000),

@@ -18,7 +18,37 @@ function poolQuery(query, params) {
   });
 }
 
-async function checkIsMatchPromptConditionUsingGPT3({ prompt, condition }) {
+async function checkConditionsUsingGPT3(prompt) {
+  const isAskingAboutUser = await checkIsPromptMatchConditionUsingGPT3({
+    prompt,
+    condition: `I think you are asking questions like "who am I?"`,
+  });
+  const isAskingAboutZero = await checkIsPromptMatchConditionUsingGPT3({
+    prompt,
+    condition: "I think you are asking something about me",
+  });
+  const isAskingAboutCiel = await checkIsPromptMatchConditionUsingGPT3({
+    prompt,
+    condition: "I think you are asking something about my sister or Ciel",
+  });
+  const isAskingAboutTwinkle = await checkIsPromptMatchConditionUsingGPT3({
+    prompt,
+    condition: "I think you are asking something about Twinkle website",
+  });
+  const isRequireComplexAnswer = await checkIsPromptMatchConditionUsingGPT3({
+    prompt,
+    condition: "if the task requires a lot of resources",
+  });
+  return Promise.resolve({
+    isAskingAboutUser,
+    isAskingAboutZero,
+    isAskingAboutCiel,
+    isAskingAboutTwinkle,
+    isRequireComplexAnswer,
+  });
+}
+
+async function checkIsPromptMatchConditionUsingGPT3({ prompt, condition }) {
   const response = await openai.createCompletion({
     model: "text-davinci-003",
     prompt: `When you enter a prompt, I'm going to say "yes" if ${condition}, and say "no" if otherwise. Enter a prompt here: \n\n\n ${prompt}\n\n\n`,
@@ -35,4 +65,8 @@ async function checkIsMatchPromptConditionUsingGPT3({ prompt, condition }) {
   return (responseText.toLowerCase() || "").includes("yes");
 }
 
-module.exports = { poolQuery, checkIsMatchPromptConditionUsingGPT3 };
+module.exports = {
+  poolQuery,
+  checkConditionsUsingGPT3,
+  checkIsPromptMatchConditionUsingGPT3,
+};
