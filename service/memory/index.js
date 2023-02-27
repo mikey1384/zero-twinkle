@@ -53,7 +53,7 @@ async function summarizeMemories() {
 
     const isSummarizedResponseRes = await openai.createCompletion({
       model: "text-davinci-003",
-      prompt: `Full Version: "${response}"
+      prompt: `Full Version: ${response}
       \nSuper Concise Version: `,
       temperature: 0.7,
       max_tokens: 2000,
