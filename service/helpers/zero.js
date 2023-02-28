@@ -57,7 +57,6 @@ async function returnResponse({
 \nZero: Your name is ${effectiveUsername}. ${
     effectiveUsername === "Mikey" ? "And you are my creator. " : ""
   }${!isRequireComplexAnswer && aboutUserText ? `\n\n${aboutUserText}` : ""}
-${isRequireComplexAnswer ? "" : context}
 ${
   isRequireComplexAnswer
     ? ""
@@ -69,6 +68,7 @@ ${
 }${isAskingAboutZero ? `\n${aboutZeroText}` : ""}${
     isAskingAboutCiel ? `\n${aboutCielText}` : ""
   }${isAskingAboutTwinkle ? `\n${aboutTwinkleText}` : ""}
+\n${isRequireComplexAnswer ? "" : context}
 \n${effectiveUsername}: ${prompt}
 \nZero: `;
   const responseObj = await openai.createCompletion({
