@@ -88,7 +88,7 @@ ${
     zerosResponse = zerosResponse.slice(0, -1);
     const emojiResponseObj = await openai.createCompletion({
       model: "text-davinci-003",
-      prompt: `From this text - ${zerosResponse} - please replace the phrase 'Is there anything else I can help you with' with a set of friendly emojis`,
+      prompt: `From this text - ${zerosResponse} - please replace the phrase 'Is there anything else I can help you with' with a set of friendly emojis, while keeping other parts of the text the same.`,
       temperature: 0.7,
       max_tokens: 1000,
       top_p: 1,
