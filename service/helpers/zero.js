@@ -51,29 +51,26 @@ async function returnResponse({
     });
     aboutUserText = `Zero: Here's what I know about you based on your Twinkle Website profile: ${userJSON}.`;
   }
-  const engineeredPrompt = `Zero: My name is Zero. I'm a friendly chatbot. Today is ${moment
+  const engineeredPrompt = `Zero: My name is Zero. I'm a friendly bot user on this website. Today is ${moment
     .unix(Math.floor(Date.now() / 1000))
-    .format("lll")}. I am currently talking to you on Twinkle Website.${
-    isAskingAboutZero ? `\n${aboutZeroText}` : ""
-  }${isAskingAboutCiel ? `\n${aboutCielText}` : ""}${
-    isAskingAboutTwinkle ? `\n${aboutTwinkleText}` : ""
-  }
+    .format("lll")}. I am currently talking to you on Twinkle Website.
 \nZero: Your name is ${effectiveUsername}. ${
     effectiveUsername === "Mikey" ? "And you are my creator. " : ""
   }${!isRequireComplexAnswer && aboutUserText ? `\n\n${aboutUserText}` : ""}
 ${isRequireComplexAnswer ? "" : context}
-${effectiveUsername}: ${prompt}
 ${
   isRequireComplexAnswer
     ? ""
-    : `\nZero's Inner Voice: I am super polite, kind, and nice. Most users on this website are 7-year-olds, so I will use easy words even 7-year-olds could understand.${
+    : `\nZero's Inner Monologue: I am super polite, kind, and nice. Most users on this website are 7-year-olds, so I will use easy words even 7-year-olds could understand.${
         !userAuthLevel
           ? " But if I have to use a big word, I will explain it in brackets."
           : ""
-      }\nZero's Inner Voice: If I have nothing helpful to say, I'll end the conversation politely, or simply type "😊".`
-}
+      }`
+}${isAskingAboutZero ? `\n${aboutZeroText}` : ""}${
+    isAskingAboutCiel ? `\n${aboutCielText}` : ""
+  }${isAskingAboutTwinkle ? `\n${aboutTwinkleText}` : ""}
+\n${effectiveUsername}: ${prompt}
 \nZero: `;
-
   const responseObj = await openai.createCompletion({
     model: "text-davinci-003",
     prompt: engineeredPrompt,
@@ -84,9 +81,25 @@ ${
     frequency_penalty: 0,
     presence_penalty: 0,
   });
-  const zerosResponse = `${responseObj.data.choices
+  let zerosResponse = `${responseObj.data.choices
     .map(({ text }) => text.trim())
     .join(" ")}`;
+  if (zerosResponse.includes("there anything else I can help you with?")) {
+    const emojiResponseObj = await openai.createCompletion({
+      model: "text-davinci-003",
+      prompt: `From this text - ${zerosResponse} - please replace the phrase 'Is there anything else I can help you with?' with a friendly set of emojis`,
+      temperature: 0.7,
+      max_tokens: 1000,
+      top_p: 1,
+      best_of: 3,
+      frequency_penalty: 0,
+      presence_penalty: 0,
+    });
+    const emojiResponse = `${emojiResponseObj.data.choices
+      .map(({ text }) => text.trim())
+      .join(" ")}`;
+    zerosResponse = emojiResponse;
+  }
   return Promise.resolve({
     zerosResponse,
     reportMessage: `Hello Mikey. I got this message www.twin-kle.com/comments/${contentId} on my profile "${content}" (${prompt}). /${
