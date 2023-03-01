@@ -25,41 +25,42 @@ async function returnResponse({
   userAuthLevel,
   userId,
 }) {
-  let aboutUserText = "";
-  if (isAskingAboutUser) {
-    const { data = {} } = await request.get(
-      `${URL}/user?userId=${userId}`,
-      auth
-    );
-    const userJSON = JSON.stringify({
-      username: data.username,
-      realName: data.realName,
-      email: data.email,
-      bio: [
-        (data.profileFirstRow || "").replace(/[^\w\s]/gi, ""),
-        (data.profileSecondRow || "").replace(/[^\w\s]/gi, ""),
-        (data.profileThirdRow || "").replace(/[^\w\s]/gi, ""),
-      ],
-      greeting: (data.greeting || "").replace(/[^\w\s]/gi, ""),
-      twinkleXP: data.twinkleXP,
-      joinDate: moment.unix(data.joinDate).format("lll"),
-      userType: data.userType,
-      statusMsg: (data.statusMsg || "").replace(/[^\w\s]/gi, ""),
-      profileTheme: data.profileTheme,
-      youtubeUrl: data.youtubeUrl,
-      website: data.website,
-    });
-    aboutUserText = `Zero: Here's what I know about you based on your Twinkle Website profile: ${userJSON}.`;
-  }
-  const engineeredPrompt = `Zero: My name is Zero. I'm a friendly bot user on this website. Today is ${moment
-    .unix(Math.floor(Date.now() / 1000))
-    .format("lll")}. I am currently talking to you on Twinkle Website.
+  try {
+    let aboutUserText = "";
+    if (isAskingAboutUser) {
+      const { data = {} } = await request.get(
+        `${URL}/user?userId=${userId}`,
+        auth
+      );
+      const userJSON = JSON.stringify({
+        username: data.username,
+        realName: data.realName,
+        email: data.email,
+        bio: [
+          (data.profileFirstRow || "").replace(/[^\w\s]/gi, ""),
+          (data.profileSecondRow || "").replace(/[^\w\s]/gi, ""),
+          (data.profileThirdRow || "").replace(/[^\w\s]/gi, ""),
+        ],
+        greeting: (data.greeting || "").replace(/[^\w\s]/gi, ""),
+        twinkleXP: data.twinkleXP,
+        joinDate: moment.unix(data.joinDate).format("lll"),
+        userType: data.userType,
+        statusMsg: (data.statusMsg || "").replace(/[^\w\s]/gi, ""),
+        profileTheme: data.profileTheme,
+        youtubeUrl: data.youtubeUrl,
+        website: data.website,
+      });
+      aboutUserText = `Zero: Here's what I know about you based on your Twinkle Website profile: ${userJSON}.`;
+    }
+    const engineeredPrompt = `Zero: My name is Zero. I'm a friendly bot user on this website. Today is ${moment
+      .unix(Math.floor(Date.now() / 1000))
+      .format("lll")}. I am currently talking to you on Twinkle Website.
 \nZero: Your name is ${effectiveUsername}. ${
-    effectiveUsername === "Mikey" ? "And you are my creator. " : ""
-  }${!isRequireComplexAnswer && aboutUserText ? `\n\n${aboutUserText}` : ""}
+      effectiveUsername === "Mikey" ? "And you are my creator. " : ""
+    }${!isRequireComplexAnswer && aboutUserText ? `\n\n${aboutUserText}` : ""}
 ${isAskingAboutZero ? `\n${aboutZeroText}` : ""}${
-    isAskingAboutCiel ? `\n${aboutCielText}` : ""
-  }${isAskingAboutTwinkle ? `\n${aboutTwinkleText}` : ""}
+      isAskingAboutCiel ? `\n${aboutCielText}` : ""
+    }${isAskingAboutTwinkle ? `\n${aboutTwinkleText}` : ""}
 \n${isRequireComplexAnswer ? "" : context}
 \n${effectiveUsername}: ${prompt}
 ${
@@ -72,50 +73,70 @@ ${
       }`
 }
 \nZero: `;
-  const responseObj = await openai.createCompletion({
-    model: "text-davinci-003",
-    prompt: engineeredPrompt,
-    temperature: 0.7,
-    max_tokens: appliedTokens,
-    top_p: 1,
-    best_of: 3,
-    frequency_penalty: 0,
-    presence_penalty: 0,
-  });
-  let zerosResponse = `${responseObj.data.choices
-    .map(({ text }) => text.trim())
-    .join(" ")}`;
-  const helpText = "is there anything else i can help you with";
-  if (zerosResponse.toLowerCase().includes(helpText)) {
-    zerosResponse = zerosResponse.slice(0, -1);
-    const happyEmojis = ["😊", "😃", "😄", "😁", "😆", "🤗", "👍", "👌", "🤝"];
-    const sadEmojis = ["😔", "😕", "😟", "😞", "😣", "😖", "😫", "😩", "😢"];
-    let appliedEmojis = happyEmojis;
-    if (zerosResponse.toLowerCase().includes("sorry")) {
-      appliedEmojis = sadEmojis;
+    const responseObj = await openai.createCompletion({
+      model: "text-davinci-003",
+      prompt: engineeredPrompt,
+      temperature: 0.7,
+      max_tokens: appliedTokens,
+      top_p: 1,
+      best_of: 3,
+      frequency_penalty: 0,
+      presence_penalty: 0,
+    });
+    let zerosResponse = `${responseObj.data.choices
+      .map(({ text }) => text.trim())
+      .join(" ")}`;
+    const helpText = "is there anything else i can help you with";
+    const helpText2 = "is there anything else i can help with";
+    const appliedHelpText = zerosResponse.toLowerCase().includes(helpText)
+      ? helpText
+      : helpText2;
+    if (zerosResponse.toLowerCase().includes(appliedHelpText)) {
+      zerosResponse = zerosResponse.slice(0, -1);
+      const happyEmojis = [
+        "😊",
+        "😃",
+        "😄",
+        "😁",
+        "😆",
+        "🤗",
+        "👍",
+        "👌",
+        "🤝",
+      ];
+      const sadEmojis = ["😔", "😞", "😣", "😖", "😫", "😢"];
+      let appliedEmojis = happyEmojis;
+      if (zerosResponse.toLowerCase().includes("sorry")) {
+        appliedEmojis = sadEmojis;
+      }
+      let numEmojis = Math.ceil(Math.random() * 3);
+      let emojis = "";
+      for (let i = 0; i < numEmojis; i++) {
+        let randomIndex = Math.floor(Math.random() * appliedEmojis.length);
+        emojis += appliedEmojis[randomIndex];
+        appliedEmojis.splice(randomIndex, 1);
+      }
+      zerosResponse = zerosResponse.replace(
+        new RegExp(appliedHelpText, "i"),
+        emojis
+      );
     }
-    let numEmojis = Math.ceil(Math.random() * 3);
-    let emojis = "";
-    for (let i = 0; i < numEmojis; i++) {
-      let randomIndex = Math.floor(Math.random() * appliedEmojis.length);
-      emojis += appliedEmojis[randomIndex];
-      appliedEmojis.splice(randomIndex, 1);
-    }
-    zerosResponse = zerosResponse.replace(new RegExp(helpText, "i"), emojis);
-  }
-  return Promise.resolve({
-    zerosResponse,
-    reportMessage: `Hello Mikey. I got this message www.twin-kle.com/comments/${contentId} on my profile "${content}" (${prompt}). /${
-      isAskingAboutTwinkle ? aboutTwinkleText : ""
-    }/${isAskingAboutZero ? aboutZeroText : ""}/${
-      isAskingAboutCiel ? aboutCielText : ""
-    }/${
-      isAskingAboutUser ? aboutUserText : ""
-    }/\n\nMy Response: "${zerosResponse}."
+    return Promise.resolve({
+      zerosResponse,
+      reportMessage: `Hello Mikey. I got this message www.twin-kle.com/comments/${contentId} on my profile "${content}" (${prompt}). /${
+        isAskingAboutTwinkle ? aboutTwinkleText : ""
+      }/${isAskingAboutZero ? aboutZeroText : ""}/${
+        isAskingAboutCiel ? aboutCielText : ""
+      }/${
+        isAskingAboutUser ? aboutUserText : ""
+      }/\n\nMy Response: "${zerosResponse}."
       \n\nContext: ${context}\n\nComplex task: ${isRequireComplexAnswer}\n\nAsked about user: ${isAskingAboutUser}\n\nAsked about Zero: ${isAskingAboutZero}\n\nAsked about Ciel: ${isAskingAboutCiel}\n\nAsked about Twinkle: ${isAskingAboutTwinkle}\n\nData: ${JSON.stringify(
-      responseObj.data
-    )}\n\nApplied Tokens: ${appliedTokens}`,
-  });
+        responseObj.data
+      )}\n\nApplied Tokens: ${appliedTokens}`,
+    });
+  } catch (err) {
+    return Promise.reject(err);
+  }
 }
 
 module.exports = { returnResponse };
