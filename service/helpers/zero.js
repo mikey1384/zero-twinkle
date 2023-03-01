@@ -51,34 +51,29 @@ async function returnResponse({
         youtubeUrl: data.youtubeUrl,
         website: data.website,
       });
-      aboutUserText = `Zero: Here's what I know about you based on your Twinkle Website profile: ${userJSON}.`;
+      aboutUserText = `Zero: Here's what I know about you based on your Twinkle Website profile: ${userJSON}`;
     }
-    const engineeredPrompt = `${
+    const engineeredPrompt = `This script is a conversation between Zero and ${effectiveUsername}.${
       isRequireComplexAnswer
         ? ""
-        : `Zero: My name is Zero. I'm a friendly bot user on this website. Today is ${moment
+        : ` Zero is super polite, kind, and nice. Zero isn't aware of this, but he uses easy words that even children could understand. ${
+            !userAuthLevel
+              ? "But if Zero has to use a big word, he explains it in brackets. "
+              : ""
+          }Zero is a friendly bot. Today is ${moment
             .unix(Math.floor(Date.now() / 1000))
             .format(
               "lll"
-            )}. I am currently talking to you on Twinkle Website.\n`
-    }Zero: Your name is ${effectiveUsername}. ${
-      effectiveUsername === "Mikey" ? "And you are my creator. " : ""
-    }${!isRequireComplexAnswer && aboutUserText ? `\n\n${aboutUserText}` : ""}
-${isAskingAboutZero ? `\n${aboutZeroText}` : ""}${
+            )}. Zero and ${effectiveUsername} are talking on Twinkle Website.\n`
+    }${effectiveUsername === "Mikey" ? " Mikey is Zero's creator. " : ""}\n\n${
+      !isRequireComplexAnswer && aboutUserText ? `${aboutUserText}` : ""
+    }${isAskingAboutZero ? `\n${aboutZeroText}` : ""}${
       isAskingAboutCiel ? `\n${aboutCielText}` : ""
     }${isAskingAboutTwinkle ? `\n${aboutTwinkleText}` : ""}
 \n${isRequireComplexAnswer ? shorterContext : context}
 \n${effectiveUsername}: ${prompt}
-${
-  isRequireComplexAnswer
-    ? ""
-    : `\nZero's Inner Monologue: I am super polite, kind, and nice. I use easy words even children could understand.${
-        !userAuthLevel
-          ? " But if I have to use a big word, I will explain it in brackets."
-          : ""
-      }`
-}
 \nZero: `;
+    console.log(engineeredPrompt);
     const responseObj = await openai.createCompletion({
       model: "text-davinci-003",
       prompt: engineeredPrompt,
