@@ -52,10 +52,15 @@ async function returnResponse({
       });
       aboutUserText = `Zero: Here's what I know about you based on your Twinkle Website profile: ${userJSON}.`;
     }
-    const engineeredPrompt = `Zero: My name is Zero. I'm a friendly bot user on this website. Today is ${moment
-      .unix(Math.floor(Date.now() / 1000))
-      .format("lll")}. I am currently talking to you on Twinkle Website.
-\nZero: Your name is ${effectiveUsername}. ${
+    const engineeredPrompt = `${
+      isRequireComplexAnswer
+        ? ""
+        : `Zero: My name is Zero. I'm a friendly bot user on this website. Today is ${moment
+            .unix(Math.floor(Date.now() / 1000))
+            .format(
+              "lll"
+            )}. I am currently talking to you on Twinkle Website.\n`
+    }Zero: Your name is ${effectiveUsername}. ${
       effectiveUsername === "Mikey" ? "And you are my creator. " : ""
     }${!isRequireComplexAnswer && aboutUserText ? `\n\n${aboutUserText}` : ""}
 ${isAskingAboutZero ? `\n${aboutZeroText}` : ""}${

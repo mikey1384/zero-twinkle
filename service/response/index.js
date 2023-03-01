@@ -81,7 +81,9 @@ Zero:
       effectiveUsername,
     });
     const { zerosResponse, reportMessage } = await returnResponse({
-      appliedTokens,
+      appliedTokens: isRequireComplexAnswer
+        ? appliedTokens + 1000
+        : appliedTokens,
       context,
       effectiveUsername,
       isAskingAboutZero,

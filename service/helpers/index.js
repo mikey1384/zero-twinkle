@@ -38,7 +38,7 @@ async function checkConditionsUsingGPT3({ prompt, effectiveUsername }) {
     },
     {
       key: "isRequireComplexAnswer",
-      value: "if the task requires a lot of resources",
+      value: `if ${effectiveUsername} is asking to tell a story, tell a joke, write a tutorial, or requesting something that requires a lot of resources or tokens`,
     },
   ];
   const JSONResponse = await checkIsPromptMatchConditionUsingGPT3JSON({
