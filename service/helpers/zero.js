@@ -57,6 +57,11 @@ async function returnResponse({
 \nZero: Your name is ${effectiveUsername}. ${
     effectiveUsername === "Mikey" ? "And you are my creator. " : ""
   }${!isRequireComplexAnswer && aboutUserText ? `\n\n${aboutUserText}` : ""}
+${isAskingAboutZero ? `\n${aboutZeroText}` : ""}${
+    isAskingAboutCiel ? `\n${aboutCielText}` : ""
+  }${isAskingAboutTwinkle ? `\n${aboutTwinkleText}` : ""}
+\n${isRequireComplexAnswer ? "" : context}
+\n${effectiveUsername}: ${prompt}
 ${
   isRequireComplexAnswer
     ? ""
@@ -65,11 +70,7 @@ ${
           ? " But if I have to use a big word, I will explain it in brackets."
           : ""
       }`
-}${isAskingAboutZero ? `\n${aboutZeroText}` : ""}${
-    isAskingAboutCiel ? `\n${aboutCielText}` : ""
-  }${isAskingAboutTwinkle ? `\n${aboutTwinkleText}` : ""}
-\n${isRequireComplexAnswer ? "" : context}
-\n${effectiveUsername}: ${prompt}
+}
 \nZero: `;
   const responseObj = await openai.createCompletion({
     model: "text-davinci-003",
