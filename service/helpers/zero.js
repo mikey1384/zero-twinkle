@@ -104,7 +104,7 @@ ${
         "👌",
         "🤝",
       ];
-      const sadEmojis = ["😔", "😞", "😣", "😖", "😫", "😢"];
+      const sadEmojis = ["😔", "😞", "😣", "😖", "😫", "😢", "😭"];
       let appliedEmojis = happyEmojis;
       if (zerosResponse.toLowerCase().includes("sorry")) {
         appliedEmojis = sadEmojis;
