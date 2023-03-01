@@ -89,12 +89,17 @@ ${
   if (zerosResponse.toLowerCase().includes(helpText)) {
     zerosResponse = zerosResponse.slice(0, -1);
     const happyEmojis = ["😊", "😃", "😄", "😁", "😆", "🤗", "👍", "👌", "🤝"];
+    const sadEmojis = ["😔", "😕", "😟", "😞", "😣", "😖", "😫", "😩", "😢"];
+    let appliedEmojis = happyEmojis;
+    if (zerosResponse.toLowerCase().includes("sorry")) {
+      appliedEmojis = sadEmojis;
+    }
     let numEmojis = Math.ceil(Math.random() * 3);
     let emojis = "";
     for (let i = 0; i < numEmojis; i++) {
-      let randomIndex = Math.floor(Math.random() * happyEmojis.length);
-      emojis += happyEmojis[randomIndex];
-      happyEmojis.splice(randomIndex, 1);
+      let randomIndex = Math.floor(Math.random() * appliedEmojis.length);
+      emojis += appliedEmojis[randomIndex];
+      appliedEmojis.splice(randomIndex, 1);
     }
     zerosResponse = zerosResponse.replace(new RegExp(helpText, "i"), emojis);
   }
