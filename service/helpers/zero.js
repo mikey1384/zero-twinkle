@@ -88,7 +88,7 @@ ${
   const helpText = "is there anything else i can help you with";
   if (zerosResponse.toLowerCase().includes(helpText)) {
     zerosResponse = zerosResponse.slice(0, -1);
-    const happyEmojis = ["😊", "😃", "😄", "😁", "😆", "🤗", "👍", "👌"];
+    const happyEmojis = ["😊", "😃", "😄", "😁", "😆", "🤗", "👍", "👌", "🤝"];
     let numEmojis = Math.ceil(Math.random() * 3); // Generates a random number between 1 and 3
     let emojis = "";
     for (let i = 0; i < numEmojis; i++) {
