@@ -73,7 +73,6 @@ async function returnResponse({
 \n${isRequireComplexAnswer ? shorterContext : context}
 \n${effectiveUsername}: ${prompt}
 \nZero: `;
-    console.log(engineeredPrompt);
     const responseObj = await openai.createCompletion({
       model: "text-davinci-003",
       prompt: engineeredPrompt,
