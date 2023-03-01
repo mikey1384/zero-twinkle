@@ -55,7 +55,9 @@ async function returnResponse({
     }
     const engineeredPrompt = `This script is a conversation between Zero and ${effectiveUsername}.${
       isRequireComplexAnswer
-        ? ""
+        ? userAuthLevel
+          ? ""
+          : " If Zero has to use a big word, he explains it in brackets."
         : ` Zero is super polite, kind, and nice. Zero isn't aware of this, but he uses easy words that even children could understand. ${
             !userAuthLevel
               ? "But if Zero has to use a big word, he explains it in brackets. "
