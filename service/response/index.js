@@ -18,7 +18,7 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
   let latestCommentId = "";
   try {
     const {
-      data: { comment, username, userAuthLevel, isReply, myPreviousComment },
+      data: { comment, username, userAuthLevel, isReply, zerosPreviousComment },
     } = await request.get(`${URL}/zero/profile`, auth);
     const effectiveUsername = username === "mikey" ? "Mikey" : username;
     if (!comment?.id) {
@@ -59,8 +59,8 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
 Zero: This is the JSON object of our previous conversation ${JSON.stringify(
       recentExchangeArr
     )}${
-      myPreviousComment?.content
-        ? `\n\nZero: ${myPreviousComment?.content}`
+      zerosPreviousComment?.content
+        ? `\n\nZero: ${zerosPreviousComment?.content}`
         : ""
     }
 `;
@@ -70,7 +70,16 @@ Zero: This is the JSON object of our previous conversation ${JSON.stringify(
       isAskingAboutTwinkle,
       isAskingAboutUser,
       isRequireComplexAnswer,
-    } = await checkConditionsUsingGPT3(prompt);
+    } = await checkConditionsUsingGPT3({
+      prompt: `Zero: let's talk!\n${
+        zerosPreviousComment?.content
+          ? `Zero: ${zerosPreviousComment?.content}\n`
+          : ""
+      }${effectiveUsername}: ${prompt}
+Zero: 
+    `,
+      effectiveUsername,
+    });
     const { zerosResponse, reportMessage } = await returnResponse({
       appliedTokens,
       context,
