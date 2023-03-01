@@ -85,6 +85,9 @@ Zero:
         ? appliedTokens + 1000
         : appliedTokens,
       context,
+      shorterContext: zerosPreviousComment?.content
+        ? `\nZero: ${zerosPreviousComment?.content}`
+        : "",
       effectiveUsername,
       isAskingAboutZero,
       isAskingAboutCiel,

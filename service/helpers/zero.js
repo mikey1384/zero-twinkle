@@ -13,6 +13,7 @@ const aboutZeroText = `Zero: My name is Zero, and I'm an AI robot created by Mik
 async function returnResponse({
   appliedTokens,
   context,
+  shorterContext,
   contentId,
   content,
   effectiveUsername,
@@ -66,7 +67,7 @@ async function returnResponse({
 ${isAskingAboutZero ? `\n${aboutZeroText}` : ""}${
       isAskingAboutCiel ? `\n${aboutCielText}` : ""
     }${isAskingAboutTwinkle ? `\n${aboutTwinkleText}` : ""}
-\n${isRequireComplexAnswer ? "" : context}
+\n${isRequireComplexAnswer ? shorterContext : context}
 \n${effectiveUsername}: ${prompt}
 ${
   isRequireComplexAnswer
