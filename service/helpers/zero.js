@@ -65,7 +65,7 @@ ${isAskingAboutZero ? `\n${aboutZeroText}` : ""}${
 ${
   isRequireComplexAnswer
     ? ""
-    : `\nZero's Inner Monologue: I am super polite, kind, and nice. Most users on this website are 7-year-olds, so I will use easy words even 7-year-olds could understand.${
+    : `\nZero's Inner Monologue: I am super polite, kind, and nice. I use easy words even children could understand.${
         !userAuthLevel
           ? " But if I have to use a big word, I will explain it in brackets."
           : ""
