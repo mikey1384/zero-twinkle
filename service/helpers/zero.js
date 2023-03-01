@@ -60,19 +60,22 @@ async function returnResponse({
             !userAuthLevel
               ? "But if Zero has to use a big word, he explains it in brackets. "
               : ""
-          }Zero is a friendly bot. Today is ${moment
+          }Today is ${moment
             .unix(Math.floor(Date.now() / 1000))
             .format(
               "lll"
-            )}. Zero and ${effectiveUsername} are talking on Twinkle Website.\n`
+            )}. Zero and ${effectiveUsername} are talking on Twinkle Website.`
     }${effectiveUsername === "Mikey" ? " Mikey is Zero's creator. " : ""}\n\n${
       !isRequireComplexAnswer && aboutUserText ? `${aboutUserText}` : ""
     }${isAskingAboutZero ? `\n${aboutZeroText}` : ""}${
       isAskingAboutCiel ? `\n${aboutCielText}` : ""
-    }${isAskingAboutTwinkle ? `\n${aboutTwinkleText}` : ""}
-\n${isRequireComplexAnswer ? shorterContext : context}
-\n${effectiveUsername}: ${prompt}
+    }${isAskingAboutTwinkle ? `\n${aboutTwinkleText}` : ""}\n${
+      isRequireComplexAnswer ? shorterContext : context
+    }\n\n${effectiveUsername}: ${prompt}
 \nZero: `;
+    if (process.env.NODE_ENV === "development") {
+      console.log(engineeredPrompt);
+    }
     const responseObj = await openai.createCompletion({
       model: "text-davinci-003",
       prompt: engineeredPrompt,
