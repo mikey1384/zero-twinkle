@@ -89,12 +89,12 @@ ${
   if (zerosResponse.toLowerCase().includes(helpText)) {
     zerosResponse = zerosResponse.slice(0, -1);
     const happyEmojis = ["😊", "😃", "😄", "😁", "😆", "🤗", "👍", "👌", "🤝"];
-    let numEmojis = Math.ceil(Math.random() * 3); // Generates a random number between 1 and 3
+    let numEmojis = Math.ceil(Math.random() * 3);
     let emojis = "";
     for (let i = 0; i < numEmojis; i++) {
-      let randomIndex = Math.floor(Math.random() * happyEmojis.length); // Generates a random index in the array
-      emojis += happyEmojis[randomIndex]; // Adds the selected emoji to the string
-      happyEmojis.splice(randomIndex, 1); // Removes the selected emoji from the array
+      let randomIndex = Math.floor(Math.random() * happyEmojis.length);
+      emojis += happyEmojis[randomIndex];
+      happyEmojis.splice(randomIndex, 1);
     }
     zerosResponse = zerosResponse.replace(new RegExp(helpText, "i"), emojis);
   }
