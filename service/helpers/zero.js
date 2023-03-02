@@ -113,7 +113,11 @@ async function returnResponse({
       ];
       const sadEmojis = ["😔", "😞", "😣", "😖", "😫", "😢", "😭"];
       let appliedEmojis = happyEmojis;
-      if (zerosResponse.toLowerCase().includes("sorry")) {
+      if (
+        zerosResponse.toLowerCase().includes("sorry") ||
+        zerosResponse.toLowerCase().includes("apologize") ||
+        zerosResponse.toLowerCase().includes("afraid")
+      ) {
         appliedEmojis = sadEmojis;
       }
       let numEmojis = Math.ceil(Math.random() * 3);
