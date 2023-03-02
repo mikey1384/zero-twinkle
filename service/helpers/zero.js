@@ -78,24 +78,29 @@ async function returnResponse({
     if (process.env.NODE_ENV === "development") {
       console.log(engineeredPrompt);
     }
-    const responseObj = await openai.createCompletion({
-      model: "text-davinci-003",
-      prompt: engineeredPrompt,
+    const responseObj = await openai.createChatCompletion({
+      model: "gpt-3.5-turbo",
+      messages: [{ role: "user", content: engineeredPrompt }],
       temperature: 0.7,
       max_tokens: appliedTokens,
       top_p: 1,
-      best_of: 3,
-      frequency_penalty: 0,
-      presence_penalty: 0,
     });
+    console.log(responseObj.data.choices);
     let zerosResponse = `${responseObj.data.choices
-      .map(({ text }) => text.trim())
+      .map(({ message }) => (message.content || "").trim())
       .join(" ")}`;
-    const helpText = "is there anything else i can help you with";
-    const helpText2 = "is there anything else i can help with";
-    const appliedHelpText = zerosResponse.toLowerCase().includes(helpText)
-      ? helpText
-      : helpText2;
+    const lowercaseUsername = effectiveUsername.toLowerCase();
+    const helpText = `is there anything else i can help you with today, ${lowercaseUsername}`;
+    const helpText2 = `is there anything else i can help with today, ${lowercaseUsername}`;
+    const helpText3 = `is there anything else you would like to know or need help with today, ${lowercaseUsername}`;
+    let appliedHelpText = "";
+    if (zerosResponse.toLowerCase().includes(helpText)) {
+      appliedHelpText = helpText;
+    } else if (zerosResponse.toLowerCase().includes(helpText2)) {
+      appliedHelpText = helpText2;
+    } else {
+      appliedHelpText = helpText3;
+    }
     if (zerosResponse.toLowerCase().includes(appliedHelpText)) {
       zerosResponse = zerosResponse.slice(0, -1);
       const happyEmojis = [
