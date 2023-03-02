@@ -36,41 +36,49 @@ async function summarizeMemories() {
       return;
     }
     const { prompt, response } = row;
-    const isSummarizedPromptRes = await openai.createCompletion({
-      model: "text-davinci-003",
-      prompt: `Please make the prompt below as concise as possible. Do not answer the prompt
-      \nPrompt: ${prompt}
-      \nSuper Concise Version: `,
+    const isSummarizedPromptRes = await openai.createChatCompletion({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a summarizer. You don't answer the prompts on your own. Instead, you generate concise version of the text given following the instructions",
+        },
+        {
+          role: "user",
+          content: `Please make this as concise as possible: ${prompt}`,
+        },
+      ],
       temperature: 0.7,
       max_tokens: 2000,
       top_p: 1,
-      frequency_penalty: 0,
-      presence_penalty: 0,
     });
     const isSummarizedPrompt = isSummarizedPromptRes.data.choices
-      .map(({ text }) => text.trim())
+      .map(({ message: { content = "" } }) => content.trim())
       .join(" ");
-
-    const isSummarizedResponseRes = await openai.createCompletion({
-      model: "text-davinci-003",
-      prompt: `Full Version: ${response}
-      \nSuper Concise Version: `,
+    const isSummarizedResponseRes = await openai.createChatCompletion({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a summarizer. You don't answer the prompts on your own. Instead, you generate concise version of the text given following the instructions",
+        },
+        {
+          role: "user",
+          content: `Please make this as concise as possible: ${response}`,
+        },
+      ],
       temperature: 0.7,
       max_tokens: 2000,
       top_p: 1,
-      frequency_penalty: 0,
-      presence_penalty: 0,
     });
     const isSummarizedResponse = isSummarizedResponseRes.data.choices
-      .map(({ text }) => text.trim())
+      .map(({ message: { content = "" } }) => content.trim())
       .join(" ");
     await poolQuery(
       `UPDATE zero_prompts SET responseSummary = ?, promptSummary = ? WHERE id = ?`,
-      [
-        isSummarizedResponse.replace(/Summary: /g, ""),
-        isSummarizedPrompt.replace(/Summary: /g, "").replace(/Question: /g, ""),
-        row.id,
-      ]
+      [isSummarizedResponse, row.id]
     );
     const message = {
       content: `Hello Mikey. I made this summary.\n\n${isSummarizedPrompt}\n\n${isSummarizedResponse}`,
