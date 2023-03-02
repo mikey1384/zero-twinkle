@@ -13,7 +13,6 @@ const aboutZeroText = `Zero: My name is Zero, and I'm an AI robot created by Mik
 async function returnResponse({
   appliedTokens,
   context,
-  shorterContext,
   contentId,
   content,
   effectiveUsername,
@@ -71,28 +70,26 @@ async function returnResponse({
       !isRequireComplexAnswer && aboutUserText ? `${aboutUserText}` : ""
     }${isAskingAboutZero ? `\n${aboutZeroText}` : ""}${
       isAskingAboutCiel ? `\n${aboutCielText}` : ""
-    }${isAskingAboutTwinkle ? `\n${aboutTwinkleText}` : ""}\n${
-      isRequireComplexAnswer ? shorterContext : context
-    }\n\n${effectiveUsername}: ${prompt}
+    }${
+      isAskingAboutTwinkle ? `\n${aboutTwinkleText}` : ""
+    }\n${context}\n\n${effectiveUsername}: ${prompt}
 \nZero: `;
     if (process.env.NODE_ENV === "development") {
       console.log(engineeredPrompt);
     }
-    const responseObj = await openai.createChatCompletion({
-      model: "gpt-3.5-turbo",
-      messages: [{ role: "user", content: engineeredPrompt }],
+    const responseObj = await openai.createCompletion({
+      model: "text-davinci-003",
+      prompt: engineeredPrompt,
       temperature: 0.7,
       max_tokens: appliedTokens,
       top_p: 1,
     });
-    console.log(responseObj.data.choices);
     let zerosResponse = `${responseObj.data.choices
-      .map(({ message }) => (message.content || "").trim())
+      .map(({ text }) => text.trim())
       .join(" ")}`;
-    const lowercaseUsername = effectiveUsername.toLowerCase();
-    const helpText = `is there anything else i can help you with today, ${lowercaseUsername}`;
-    const helpText2 = `is there anything else i can help with today, ${lowercaseUsername}`;
-    const helpText3 = `is there anything else you would like to know or need help with today, ${lowercaseUsername}`;
+    const helpText = `is there anything else i can help you with`;
+    const helpText2 = `is there anything else i can help with`;
+    const helpText3 = `is there anything else you would like to know or need help with`;
     let appliedHelpText = "";
     if (zerosResponse.toLowerCase().includes(helpText)) {
       appliedHelpText = helpText;

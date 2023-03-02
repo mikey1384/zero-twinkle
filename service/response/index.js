@@ -87,12 +87,9 @@ Zero:
     });
     const { zerosResponse, reportMessage } = await returnResponse({
       appliedTokens: isRequireComplexAnswer
-        ? appliedTokens + 1000
+        ? appliedTokens + 500
         : appliedTokens,
       context,
-      shorterContext: zerosPreviousComment?.content
-        ? `\nZero: ${zerosPreviousComment?.content}`
-        : "",
       effectiveUsername,
       isAskingAboutZero,
       isAskingAboutCiel,
