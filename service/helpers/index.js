@@ -22,11 +22,11 @@ async function checkConditionsUsingGPT3({ prompt, effectiveUsername }) {
   const conditions = [
     {
       key: "isAskingAboutUser",
-      value: `${effectiveUsername} is asking questions like "who am I?"`,
+      value: `${effectiveUsername} is asking questions about ${effectiveUsername} like "who am I?"`,
     },
     {
       key: "isAskingAboutZero",
-      value: `${effectiveUsername} is asking questions about Zero or is asking Zero to tell something about himself`,
+      value: `${effectiveUsername} is asking questions to Zero that requires Zero to talk about Zero himself`,
     },
     {
       key: "isAskingAboutCiel",
@@ -85,26 +85,33 @@ async function checkIsPromptMatchConditionUsingGPT3JSON({
   conditions,
   prompt,
 }) {
-  const response = await openai.createCompletion({
-    model: "text-davinci-003",
-    prompt: `When you enter a prompt, I'm going to analyze whether ${conditions
-      .map(({ value }) => `${value}`)
-      .join(
-        ", "
-      )} are met and return a single JSON object with keys ${conditions
-      .map(({ key }) => `"${key}"`)
-      .join(
-        ", "
-      )} and value being the boolean value of whether they are met. Enter a prompt here: ${prompt}\n JSON: `,
+  const response = await openai.createChatCompletion({
+    model: "gpt-3.5-turbo",
+    messages: [
+      {
+        role: "system",
+        content:
+          "You are a JSON generator. You don't answer the prompts on your own. Instead, you generate a JSON object corresponding to the instructions",
+      },
+      {
+        role: "user",
+        content: `Read the script below and analyze whether ${conditions
+          .map(({ value }) => `${value}`)
+          .join(
+            ", "
+          )} are met and return a single JSON object with keys ${conditions
+          .map(({ key }) => `"${key}"`)
+          .join(
+            ", "
+          )} and value being the boolean value of whether they are met.\n\nScript: ${prompt}`,
+      },
+    ],
     temperature: 0.7,
-    max_tokens: 1000,
+    max_tokens: 3000,
     top_p: 1,
-    best_of: 3,
-    frequency_penalty: 0,
-    presence_penalty: 0,
   });
   const responseText = response.data.choices
-    .map(({ text }) => text.trim())
+    .map(({ message: { content = "" } }) => content.trim())
     .join(" ");
   return responseText;
 }

@@ -42,11 +42,11 @@ async function summarizeMemories() {
         {
           role: "system",
           content:
-            "You are a summarizer. You don't answer the prompts on your own. Instead, you generate concise version of the text given following the instructions",
+            "Only generate concise version of the text given following the instructions",
         },
         {
           role: "user",
-          content: `Please make this as concise as possible: ${prompt}`,
+          content: `Please make this text as concise as possible.\n\nText: ${prompt}`,
         },
       ],
       temperature: 0.7,
@@ -62,11 +62,11 @@ async function summarizeMemories() {
         {
           role: "system",
           content:
-            "You are a summarizer. You don't answer the prompts on your own. Instead, you generate concise version of the text given following the instructions",
+            "Only generate concise version of the text given following the instructions",
         },
         {
           role: "user",
-          content: `Please make this as concise as possible: ${response}`,
+          content: `Please make this text as concise as possible.\n\nText: ${response}`,
         },
       ],
       temperature: 0.7,
@@ -78,7 +78,7 @@ async function summarizeMemories() {
       .join(" ");
     await poolQuery(
       `UPDATE zero_prompts SET responseSummary = ?, promptSummary = ? WHERE id = ?`,
-      [isSummarizedResponse, row.id]
+      [isSummarizedResponse, isSummarizedPrompt, row.id]
     );
     const message = {
       content: `Hello Mikey. I made this summary.\n\n${isSummarizedPrompt}\n\n${isSummarizedResponse}`,
