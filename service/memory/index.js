@@ -87,6 +87,14 @@ async function summarizeMemories() {
         },
         {
           role: "user",
+          content: `Original Version: I'm glad to hear that, Mikey! 😊\n\nSuper Concise Version: `,
+        },
+        {
+          role: "assistant",
+          content: `Glad to hear, Mikey! 😊`,
+        },
+        {
+          role: "user",
           content: `Original Version: ${prompt}\n\nSuper Concise Version: `,
         },
       ],
@@ -106,45 +114,46 @@ async function summarizeMemories() {
         },
         {
           role: "user",
-          content: `Original Version: Can you refactor this?
+          content: `Sure, here's a possible refactored version:
               const userJSON = JSON.stringify({
               username: data.username,
               realName: data.realName,
               email: data.email,
               bio: [
-                (data.profileFirstRow || ""),
-                (data.profileSecondRow || ""),
-                (data.profileThirdRow || ""),
+                sanitize(data.profileFirstRow || ""),
+                sanitize(data.profileSecondRow || ""),
+                sanitize(data.profileThirdRow || ""),
               ],
-              greeting: (data.greeting || ""),
+              greeting: sanitize(data.greeting || ""),
               twinkleXP: data.twinkleXP,
               joinDate: moment.unix(data.joinDate).format("lll"),
               userType: data.userType,
-              statusMsg: (data.statusMsg || ""),
+              statusMsg: sanitize(data.statusMsg || ""),
               profileTheme: data.profileTheme,
               youtubeUrl: data.youtubeUrl,
               website: data.website,
-            });\n\nSuper Concise Version: `,
+            });\nFirst, I extracted the logic of replacing special characters into a new function called sanitize. Then, I used this function to sanitize all the relevant input fields, making the code more concise and easier to read.\n\nSuper Concise Version: `,
         },
         {
           role: "assistant",
-          content: `Please refactor this code [code about making JSON object]`,
+          content: `Sure, [new code after sanitizing all the relevant input fields]. Extracted the logic to new function.`,
         },
         {
           role: "user",
-          content: `Original Version: What is Twinkle?\n\nSuper Concise Version: `,
+          content: `Original Version: I'm glad to hear that, Mikey! 😊\n\nSuper Concise Version: `,
         },
         {
           role: "assistant",
-          content: `What is Twinkle?`,
+          content: `Glad to hear, Mikey! 😊`,
         },
         {
           role: "user",
-          content: `Original Version: good! tell me 50 SAT level words and their definitions?\n\nSuper Concise Version: `,
+          content: `Original Version: It is said that a long time ago, there was a small village nestled in the mountains. One day, a group of travelers passed through and decided to stay at the local inn. During the night, they reported hearing strange noises and seeing shadowy figures walking around their rooms. The next morning, the travelers were found dead. The townspeople claimed they had been killed by the spirits that haunted the inn. Even to this day, people avoid staying there, for fear of encountering the malevolent spirits. 👻🌲🏚️\n\nSuper Concise Version: `,
         },
         {
           role: "assistant",
-          content: `50 SAT words and definition?`,
+          content:
+            "A haunted inn in a mountain village is avoided by people due to reports of malevolent spirits that killed travelers who stayed there.",
         },
         {
           role: "user",
@@ -152,7 +161,7 @@ async function summarizeMemories() {
         },
       ],
       temperature: 0.7,
-      max_tokens: 2000,
+      max_tokens: 3000,
       top_p: 1,
     });
     const isSummarizedResponse = isSummarizedResponseRes.data.choices
