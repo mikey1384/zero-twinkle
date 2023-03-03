@@ -72,7 +72,7 @@ async function returnResponse({
     const systemMsg3 = `You are going to output Zero's next response to ${effectiveUsername}`;
     const prevPrompts = [];
     if (!isRequireComplexAnswer && aboutUserText) {
-      prevPrompts.push({ role: "assistant", content: aboutZeroText });
+      prevPrompts.push({ role: "assistant", content: aboutUserText });
     }
     if (isAskingAboutZero) {
       prevPrompts.push({ role: "assistant", content: aboutZeroText });

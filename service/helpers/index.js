@@ -90,12 +90,11 @@ async function checkIsPromptMatchConditionUsingGPT3JSON({
     messages: [
       {
         role: "system",
-        content:
-          "You are a JSON generator. You don't answer the prompts on your own. Instead, you generate a JSON object corresponding to the instructions",
+        content: "You are text-davinci-003 text completion model.",
       },
       {
         role: "user",
-        content: `Read the script below and analyze whether ${conditions
+        content: `This JSON generator reads the script below and analyze whether ${conditions
           .map(({ value }) => `${value}`)
           .join(
             ", "
@@ -103,7 +102,7 @@ async function checkIsPromptMatchConditionUsingGPT3JSON({
           .map(({ key }) => `"${key}"`)
           .join(
             ", "
-          )} and value being the boolean value of whether they are met.\n\nScript: ${prompt}`,
+          )} and value being the boolean value of whether they are met.\n\nScript: ${prompt}\n\nJSON: `,
       },
     ],
     temperature: 0.7,
