@@ -38,22 +38,12 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
       [comment.userId, comment.timeStamp]
     );
     recentExchangeRows.reverse();
-    const recentExchangeArr = [];
+    let recentExchanges = "";
     for (let row of recentExchangeRows) {
-      recentExchangeArr.push({
-        role: "user",
-        content: `${effectiveUsername}: ${row.prompt}`,
-      });
-      recentExchangeArr.push({
-        role: "assistant",
-        content: `Zero: ${row.response}`,
-      });
+      recentExchanges += `${effectiveUsername}: ${row.prompt}\nZero: ${row.response}\n`;
     }
     if (zerosPreviousComment?.content) {
-      recentExchangeArr.push({
-        role: "assistant",
-        content: `Zero: ${zerosPreviousComment.content}`,
-      });
+      recentExchanges += `Zero: ${zerosPreviousComment?.content}\n`;
     }
     const {
       isAskingAboutZero,
@@ -73,7 +63,7 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
       appliedTokens: isRequireComplexAnswer
         ? appliedTokens + 500
         : appliedTokens,
-      recentExchangeArr,
+      recentExchanges,
       effectiveUsername,
       isAskingAboutZero,
       isAskingAboutCiel,

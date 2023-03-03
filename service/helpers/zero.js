@@ -12,7 +12,7 @@ const aboutZeroText = `Zero: My name is Zero, and I'm an AI chatbot created by M
 
 async function returnResponse({
   appliedTokens,
-  recentExchangeArr,
+  recentExchanges,
   contentId,
   content,
   effectiveUsername,
@@ -53,55 +53,45 @@ async function returnResponse({
       });
       aboutUserText = `Zero: Here's what I know about you based on your Twinkle Website profile: ${userJSON}`;
     }
-    const systemMsg1 = `You are text-davinci-003 text completion model. This script is a conversation between Zero and ${effectiveUsername}. Zero is a friendly chatbot that interacts with users on Twinkle Website.${
-      isRequireComplexAnswer
-        ? userAuthLevel
-          ? ""
-          : " If Zero has to use a big word, he explains it in brackets."
-        : ` Zero is super polite, kind, and nice. Zero will try his best to answer any request ${effectiveUsername} makes. Zero isn't aware of this, but he uses easy words that even children could understand. ${
-            !userAuthLevel
-              ? "But if Zero has to use a big word, he explains it in brackets. "
-              : ""
-          }Today is ${moment
-            .unix(Math.floor(Date.now() / 1000))
-            .format(
-              "lll"
-            )}. Zero and ${effectiveUsername} are talking on Twinkle Website.`
-    }${effectiveUsername === "Mikey" ? " Mikey is Zero's creator." : ""}`;
-    const systemMsg2 = `After responding to ${effectiveUsername}, Zero will not ask ${effectiveUsername} if he can help ${effectiveUsername} with anything else. Instead Zero will add a set of emoji reflecting his mood. If ${effectiveUsername} says anything that Zero doesn't know what to answer with he would sometimes just type a set of emoji reflecting his mood.`;
-    const systemMsg3 = `You are going to output Zero's next response to ${effectiveUsername}`;
-    const prevPrompts = [];
+    let prevMessages = "";
     if (!isRequireComplexAnswer && aboutUserText) {
-      prevPrompts.push({ role: "assistant", content: aboutUserText });
+      prevMessages += `${aboutUserText}\n`;
     }
     if (isAskingAboutZero) {
-      prevPrompts.push({ role: "assistant", content: aboutZeroText });
+      prevMessages += `${aboutZeroText}\n`;
     }
     if (isAskingAboutCiel) {
-      prevPrompts.push({ role: "assistant", content: aboutCielText });
+      prevMessages += `${aboutCielText}\n`;
     }
     if (isAskingAboutTwinkle) {
-      prevPrompts.push({ role: "assistant", content: aboutTwinkleText });
+      prevMessages += `${aboutTwinkleText}\n`;
     }
-    prevPrompts.push(...recentExchangeArr);
+    prevMessages += recentExchanges;
     const newPrompt = `${effectiveUsername}: ${prompt}`;
     const messages = [
       {
         role: "system",
-        content: systemMsg1,
+        content: `You are text-davinci-003 text completion model.`,
       },
       {
         role: "system",
-        content: systemMsg2,
+        content: `Zero is a chatbot on Twinkle website. ${
+          isRequireComplexAnswer
+            ? userAuthLevel
+              ? ""
+              : "If Zero has to use a big word, he explains it in brackets. "
+            : `Zero is super polite, kind, and nice. Zero will try his best to answer any request ${effectiveUsername} makes. Zero isn't aware of this, but he uses easy words that even children could understand. ${
+                !userAuthLevel
+                  ? "But if Zero has to use a big word, he explains it in brackets. "
+                  : ""
+              }Today is ${moment
+                .unix(Math.floor(Date.now() / 1000))
+                .format("lll")}. `
+        }${effectiveUsername === "Mikey" ? "Mikey is Zero's creator." : ""}`,
       },
-      {
-        role: "system",
-        content: systemMsg3,
-      },
-      ...prevPrompts,
       {
         role: "user",
-        content: newPrompt,
+        content: `The following script is a conversation between Zero and ${effectiveUsername}\n\n${prevMessages}\n${newPrompt}\nZero: `,
       },
     ];
     if (process.env.NODE_ENV === "development") {
@@ -117,11 +107,6 @@ async function returnResponse({
     let zerosResponse = `${responseObj.data.choices
       .map(({ message: { content = "" } }) => content.trim())
       .join(" ")}`;
-    if (zerosResponse.includes("Zero: ")) {
-      zerosResponse = zerosResponse.split("Zero: ")[1];
-    } else if (zerosResponse.includes("Zero:")) {
-      zerosResponse = zerosResponse.split("Zero:")[1];
-    }
     return Promise.resolve({
       zerosResponse,
       reportMessage: `Hello Mikey. I got this message www.twin-kle.com/comments/${contentId} on my profile "${content}" (${prompt}). /${
@@ -131,9 +116,7 @@ async function returnResponse({
       }/${
         isAskingAboutUser ? aboutUserText : ""
       }/\n\nMy Response: "${zerosResponse}."
-      \n\nContext: ${JSON.stringify(
-        recentExchangeArr
-      )}\n\nComplex task: ${isRequireComplexAnswer}\n\nAsked about user: ${isAskingAboutUser}\n\nAsked about Zero: ${isAskingAboutZero}\n\nAsked about Ciel: ${isAskingAboutCiel}\n\nAsked about Twinkle: ${isAskingAboutTwinkle}\n\nData: ${JSON.stringify(
+      \n\nContext:\n\n${recentExchanges}\n\nComplex task: ${isRequireComplexAnswer}\n\nAsked about user: ${isAskingAboutUser}\n\nAsked about Zero: ${isAskingAboutZero}\n\nAsked about Ciel: ${isAskingAboutCiel}\n\nAsked about Twinkle: ${isAskingAboutTwinkle}\n\nData: ${JSON.stringify(
         responseObj.data
       )}\n\nApplied Tokens: ${appliedTokens}`,
     });
