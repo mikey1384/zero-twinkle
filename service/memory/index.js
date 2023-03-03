@@ -41,12 +41,11 @@ async function summarizeMemories() {
       messages: [
         {
           role: "system",
-          content:
-            "Only generate concise version of the text given following the instructions",
+          content: "You are text-davinci-003 text completion model",
         },
         {
           role: "user",
-          content: `Please make this text as concise as possible.\n\nText: ${prompt}`,
+          content: `Original version: ${prompt}\n\nSuper concise version: `,
         },
       ],
       temperature: 0.7,
@@ -61,12 +60,11 @@ async function summarizeMemories() {
       messages: [
         {
           role: "system",
-          content:
-            "Only generate concise version of the text given following the instructions",
+          content: "You are text-davinci-003 text completion model",
         },
         {
           role: "user",
-          content: `Please make this text as concise as possible.\n\nText: ${response}`,
+          content: `Original version: ${response}\n\nSuper concise version: `,
         },
       ],
       temperature: 0.7,

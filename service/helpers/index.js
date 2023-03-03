@@ -26,7 +26,7 @@ async function checkConditionsUsingGPT3({ prompt, effectiveUsername }) {
     },
     {
       key: "isAskingAboutZero",
-      value: `${effectiveUsername} is asking questions to Zero that requires Zero to talk about Zero himself`,
+      value: `${effectiveUsername} is asking questions to Zero that requires Zero to introduce himself or talk about himself`,
     },
     {
       key: "isAskingAboutCiel",

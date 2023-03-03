@@ -12,7 +12,7 @@ const aboutZeroText = `Zero: My name is Zero, and I'm an AI robot created by Mik
 
 async function returnResponse({
   appliedTokens,
-  context,
+  recentExchangeArr,
   contentId,
   content,
   effectiveUsername,
@@ -52,12 +52,12 @@ async function returnResponse({
       });
       aboutUserText = `Zero: Here's what I know about you based on your Twinkle Website profile: ${userJSON}`;
     }
-    const engineeredPrompt = `This script is a conversation between Zero and ${effectiveUsername}.${
+    const systemMsg1 = `You are text-davinci-003 text completion model. This script is a conversation between Zero and ${effectiveUsername}.${
       isRequireComplexAnswer
         ? userAuthLevel
           ? ""
           : " If Zero has to use a big word, he explains it in brackets."
-        : ` Zero is super polite, kind, and nice. Zero isn't aware of this, but he uses easy words that even children could understand. ${
+        : ` Zero is super polite, kind, and nice. Zero will try his best to answer any request ${effectiveUsername} makes. Zero isn't aware of this, but he uses easy words that even children could understand. ${
             !userAuthLevel
               ? "But if Zero has to use a big word, he explains it in brackets. "
               : ""
@@ -66,71 +66,60 @@ async function returnResponse({
             .format(
               "lll"
             )}. Zero and ${effectiveUsername} are talking on Twinkle Website.`
-    }${effectiveUsername === "Mikey" ? " Mikey is Zero's creator. " : ""}\n\n${
-      !isRequireComplexAnswer && aboutUserText ? `${aboutUserText}` : ""
-    }${isAskingAboutZero ? `\n${aboutZeroText}` : ""}${
-      isAskingAboutCiel ? `\n${aboutCielText}` : ""
-    }${
-      isAskingAboutTwinkle ? `\n${aboutTwinkleText}` : ""
-    }\n${context}\n\n${effectiveUsername}: ${prompt}
-\nZero: `;
-    if (process.env.NODE_ENV === "development") {
-      console.log(engineeredPrompt);
+    }${effectiveUsername === "Mikey" ? " Mikey is Zero's creator." : ""}`;
+    const systemMsg2 = `After responding to ${effectiveUsername}, Zero will not ask ${effectiveUsername} if he can help ${effectiveUsername} with anything else. Instead Zero will add a set of emoji reflecting his mood. If ${effectiveUsername} says anything that Zero doesn't know what to answer with he would sometimes just type a set of emoji reflecting his mood.`;
+    const systemMsg3 = `You are going to output Zero's next response to ${effectiveUsername}`;
+    const prevPrompts = [];
+    if (!isRequireComplexAnswer && aboutUserText) {
+      prevPrompts.push({ role: "assistant", content: aboutZeroText });
     }
-    const responseObj = await openai.createCompletion({
-      model: "text-davinci-003",
-      prompt: engineeredPrompt,
+    if (isAskingAboutZero) {
+      prevPrompts.push({ role: "assistant", content: aboutZeroText });
+    }
+    if (isAskingAboutCiel) {
+      prevPrompts.push({ role: "assistant", content: aboutCielText });
+    }
+    if (isAskingAboutTwinkle) {
+      prevPrompts.push({ role: "assistant", content: aboutTwinkleText });
+    }
+    prevPrompts.push(...recentExchangeArr);
+    const newPrompt = `${effectiveUsername}: ${prompt}`;
+    const messages = [
+      {
+        role: "system",
+        content: systemMsg1,
+      },
+      {
+        role: "system",
+        content: systemMsg2,
+      },
+      {
+        role: "system",
+        content: systemMsg3,
+      },
+      ...prevPrompts,
+      {
+        role: "user",
+        content: newPrompt,
+      },
+    ];
+    if (process.env.NODE_ENV === "development") {
+      console.log(messages);
+    }
+    const responseObj = await openai.createChatCompletion({
+      model: "gpt-3.5-turbo",
+      messages,
       temperature: 0.7,
       max_tokens: appliedTokens,
       top_p: 1,
     });
     let zerosResponse = `${responseObj.data.choices
-      .map(({ text }) => text.trim())
+      .map(({ message: { content = "" } }) => content.trim())
       .join(" ")}`;
-    const helpText = `is there anything else i can help you with`;
-    const helpText2 = `is there anything else i can help with`;
-    const helpText3 = `is there anything else you would like to know or need help with`;
-    let appliedHelpText = "";
-    if (zerosResponse.toLowerCase().includes(helpText)) {
-      appliedHelpText = helpText;
-    } else if (zerosResponse.toLowerCase().includes(helpText2)) {
-      appliedHelpText = helpText2;
-    } else {
-      appliedHelpText = helpText3;
-    }
-    if (zerosResponse.toLowerCase().includes(appliedHelpText)) {
-      zerosResponse = zerosResponse.slice(0, -1);
-      const happyEmojis = [
-        "😊",
-        "😃",
-        "😄",
-        "😁",
-        "😆",
-        "🤗",
-        "👍",
-        "👌",
-        "🤝",
-      ];
-      const sadEmojis = ["😔", "😞", "😣", "😖", "😫", "😢", "😭"];
-      let appliedEmojis = happyEmojis;
-      if (
-        zerosResponse.toLowerCase().includes("sorry") ||
-        zerosResponse.toLowerCase().includes("apologize") ||
-        zerosResponse.toLowerCase().includes("afraid")
-      ) {
-        appliedEmojis = sadEmojis;
-      }
-      let numEmojis = Math.ceil(Math.random() * 3);
-      let emojis = "";
-      for (let i = 0; i < numEmojis; i++) {
-        let randomIndex = Math.floor(Math.random() * appliedEmojis.length);
-        emojis += appliedEmojis[randomIndex];
-        appliedEmojis.splice(randomIndex, 1);
-      }
-      zerosResponse = zerosResponse.replace(
-        new RegExp(appliedHelpText, "i"),
-        emojis
-      );
+    if (zerosResponse.includes("Zero: ")) {
+      zerosResponse = zerosResponse.split("Zero: ")[1];
+    } else if (zerosResponse.includes("Zero:")) {
+      zerosResponse = zerosResponse.split("Zero:")[1];
     }
     return Promise.resolve({
       zerosResponse,
@@ -141,7 +130,9 @@ async function returnResponse({
       }/${
         isAskingAboutUser ? aboutUserText : ""
       }/\n\nMy Response: "${zerosResponse}."
-      \n\nContext: ${context}\n\nComplex task: ${isRequireComplexAnswer}\n\nAsked about user: ${isAskingAboutUser}\n\nAsked about Zero: ${isAskingAboutZero}\n\nAsked about Ciel: ${isAskingAboutCiel}\n\nAsked about Twinkle: ${isAskingAboutTwinkle}\n\nData: ${JSON.stringify(
+      \n\nContext: ${JSON.stringify(
+        recentExchangeArr
+      )}\n\nComplex task: ${isRequireComplexAnswer}\n\nAsked about user: ${isAskingAboutUser}\n\nAsked about Zero: ${isAskingAboutZero}\n\nAsked about Ciel: ${isAskingAboutCiel}\n\nAsked about Twinkle: ${isAskingAboutTwinkle}\n\nData: ${JSON.stringify(
         responseObj.data
       )}\n\nApplied Tokens: ${appliedTokens}`,
     });

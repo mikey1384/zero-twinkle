@@ -2,7 +2,6 @@ const request = require("axios");
 const io = require("socket.io-client");
 const URL = process.env.URL;
 const socket = io.connect(URL);
-const moment = require("moment");
 
 const config = require("../../config");
 const { auth } = config;
@@ -11,8 +10,6 @@ const { poolQuery, checkConditionsUsingGPT3 } = require("../helpers");
 
 const zeroId = Number(process.env.ZERO_TWINKLE_ID);
 const channelId = Number(process.env.ZERO_CHAT_ROOM_ID);
-
-const contextAndPromptLengthLimit = 1000;
 
 async function checkAndRespondToProfileMessages(appliedTokens) {
   let latestCommentId = "";
@@ -31,44 +28,33 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
       return Promise.resolve();
     }
     latestCommentId = comment.id;
-    let contextAndPromptLength = 0;
-    let context = "";
     const prompt = comment.content
       .replace(/\bme\b/g, `me (${effectiveUsername})`)
       .replace(/\bmy\b/g, `my (${effectiveUsername}'s)`);
-
-    contextAndPromptLength += prompt.length;
     const recentExchangeRows = await poolQuery(
       `
-      SELECT promptSummary AS you, responseSummary AS me, timeStamp FROM zero_prompts WHERE responseSummary IS NOT NULL AND platform = 'twinkle' AND userId = ? AND timeStamp < ? ORDER BY timeStamp DESC LIMIT 20;
+      SELECT promptSummary AS prompt, responseSummary AS response, timeStamp FROM zero_prompts WHERE responseSummary IS NOT NULL AND platform = 'twinkle' AND userId = ? AND timeStamp < ? ORDER BY timeStamp DESC LIMIT 5;
     `,
       [comment.userId, comment.timeStamp]
     );
+    recentExchangeRows.reverse();
     const recentExchangeArr = [];
-    while (contextAndPromptLength < contextAndPromptLengthLimit) {
-      if (recentExchangeRows[0]) {
-        recentExchangeArr.push({
-          ...recentExchangeRows[0],
-          timeStamp: moment
-            .unix(recentExchangeRows[0]?.timeStamp)
-            .format("lll"),
-        });
-      }
-      contextAndPromptLength +=
-        (recentExchangeRows[0]?.you?.length || 0) +
-        (recentExchangeRows[0]?.me?.length || 0);
-      recentExchangeRows.shift();
-      if (recentExchangeRows.length <= 0) break;
+    for (let row of recentExchangeRows) {
+      recentExchangeArr.push({
+        role: "user",
+        content: `${effectiveUsername}: ${row.prompt}`,
+      });
+      recentExchangeArr.push({
+        role: "assistant",
+        content: `Zero: ${row.response}`,
+      });
     }
-    recentExchangeArr.reverse();
-    context = `
-Zero: This is the JSON object of our previous conversation ${JSON.stringify(
-      recentExchangeArr
-    )}${
-      zerosPreviousComment?.content
-        ? `\n\nZero: ${zerosPreviousComment?.content}`
-        : ""
-    }`;
+    if (zerosPreviousComment?.content) {
+      recentExchangeArr.push({
+        role: "assistant",
+        content: `Zero: ${zerosPreviousComment.content}`,
+      });
+    }
     const {
       isAskingAboutZero,
       isAskingAboutCiel,
@@ -80,16 +66,14 @@ Zero: This is the JSON object of our previous conversation ${JSON.stringify(
         zerosPreviousComment?.content
           ? `Zero: ${zerosPreviousComment?.content}\n`
           : ""
-      }${effectiveUsername}: ${prompt}
-Zero: 
-    `,
+      }${effectiveUsername}: ${prompt}`,
       effectiveUsername,
     });
     const { zerosResponse, reportMessage } = await returnResponse({
       appliedTokens: isRequireComplexAnswer
         ? appliedTokens + 500
         : appliedTokens,
-      context,
+      recentExchangeArr,
       effectiveUsername,
       isAskingAboutZero,
       isAskingAboutCiel,
