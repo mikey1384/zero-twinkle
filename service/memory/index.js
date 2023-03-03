@@ -45,7 +45,7 @@ async function summarizeMemories() {
         },
         {
           role: "user",
-          content: `Original version: ${prompt}\n\nSuper concise version: `,
+          content: `Original version:\n========\n${prompt}\n=========\n\n\n\n\nSummarized version:\n\n`,
         },
       ],
       temperature: 0.7,
@@ -64,7 +64,7 @@ async function summarizeMemories() {
         },
         {
           role: "user",
-          content: `Original version: ${response}\n\nSuper concise version: `,
+          content: `Original version:\n========\n${response}\n=========\n\n\n\n\nSummarized version:\n\n`,
         },
       ],
       temperature: 0.7,

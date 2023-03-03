@@ -32,20 +32,21 @@ async function returnResponse({
         `${URL}/user?userId=${userId}`,
         auth
       );
+      const sanitize = (str) => str.replace(/[^\w\s]/gi, "");
       const userJSON = JSON.stringify({
         username: data.username,
         realName: data.realName,
         email: data.email,
         bio: [
-          (data.profileFirstRow || "").replace(/[^\w\s]/gi, ""),
-          (data.profileSecondRow || "").replace(/[^\w\s]/gi, ""),
-          (data.profileThirdRow || "").replace(/[^\w\s]/gi, ""),
+          sanitize(data.profileFirstRow || ""),
+          sanitize(data.profileSecondRow || ""),
+          sanitize(data.profileThirdRow || ""),
         ],
-        greeting: (data.greeting || "").replace(/[^\w\s]/gi, ""),
+        greeting: sanitize(data.greeting || ""),
         twinkleXP: data.twinkleXP,
         joinDate: moment.unix(data.joinDate).format("lll"),
         userType: data.userType,
-        statusMsg: (data.statusMsg || "").replace(/[^\w\s]/gi, ""),
+        statusMsg: sanitize(data.statusMsg || ""),
         profileTheme: data.profileTheme,
         youtubeUrl: data.youtubeUrl,
         website: data.website,
