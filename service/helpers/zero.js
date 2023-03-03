@@ -53,7 +53,7 @@ async function returnResponse({
       });
       aboutUserText = `Zero: Here's what I know about you based on your Twinkle Website profile: ${userJSON}`;
     }
-    const systemMsg1 = `You are text-davinci-003 text completion model. This script is a conversation between Zero and ${effectiveUsername}.${
+    const systemMsg1 = `You are text-davinci-003 text completion model. This script is a conversation between Zero and ${effectiveUsername}. Zero is a friendly chatbot that interacts with users on Twinkle Website.${
       isRequireComplexAnswer
         ? userAuthLevel
           ? ""
