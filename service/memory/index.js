@@ -41,11 +41,53 @@ async function summarizeMemories() {
       messages: [
         {
           role: "system",
-          content: "You are text-davinci-003 text completion model",
+          content: "You are text-davinci-003 text completion model.",
         },
         {
           role: "user",
-          content: `Original version:\n========\n${prompt}\n=========\n\n\n\n\nSummarized version:\n\n`,
+          content: `Original Version: Can you refactor this?
+              const userJSON = JSON.stringify({
+              username: data.username,
+              realName: data.realName,
+              email: data.email,
+              bio: [
+                (data.profileFirstRow || ""),
+                (data.profileSecondRow || ""),
+                (data.profileThirdRow || ""),
+              ],
+              greeting: (data.greeting || ""),
+              twinkleXP: data.twinkleXP,
+              joinDate: moment.unix(data.joinDate).format("lll"),
+              userType: data.userType,
+              statusMsg: (data.statusMsg || ""),
+              profileTheme: data.profileTheme,
+              youtubeUrl: data.youtubeUrl,
+              website: data.website,
+            });\n\nSuper Concise Version: `,
+        },
+        {
+          role: "assistant",
+          content: `Please refactor this code [code about making JSON object]`,
+        },
+        {
+          role: "user",
+          content: `Original Version: What is Twinkle?\n\nSuper Concise Version: `,
+        },
+        {
+          role: "assistant",
+          content: `What is Twinkle?`,
+        },
+        {
+          role: "user",
+          content: `Original Version: good! tell me 50 SAT level words and their definitions?\n\nSuper Concise Version: `,
+        },
+        {
+          role: "assistant",
+          content: `50 SAT words and definition?`,
+        },
+        {
+          role: "user",
+          content: `Original Version: ${prompt}\n\nSuper Concise Version: `,
         },
       ],
       temperature: 0.7,
@@ -60,11 +102,53 @@ async function summarizeMemories() {
       messages: [
         {
           role: "system",
-          content: "You are text-davinci-003 text completion model",
+          content: "You are text-davinci-003 text completion model.",
         },
         {
           role: "user",
-          content: `Original version:\n========\n${response}\n=========\n\n\n\n\nSummarized version:\n\n`,
+          content: `Original Version: Can you refactor this?
+              const userJSON = JSON.stringify({
+              username: data.username,
+              realName: data.realName,
+              email: data.email,
+              bio: [
+                (data.profileFirstRow || ""),
+                (data.profileSecondRow || ""),
+                (data.profileThirdRow || ""),
+              ],
+              greeting: (data.greeting || ""),
+              twinkleXP: data.twinkleXP,
+              joinDate: moment.unix(data.joinDate).format("lll"),
+              userType: data.userType,
+              statusMsg: (data.statusMsg || ""),
+              profileTheme: data.profileTheme,
+              youtubeUrl: data.youtubeUrl,
+              website: data.website,
+            });\n\nSuper Concise Version: `,
+        },
+        {
+          role: "assistant",
+          content: `Please refactor this code [code about making JSON object]`,
+        },
+        {
+          role: "user",
+          content: `Original Version: What is Twinkle?\n\nSuper Concise Version: `,
+        },
+        {
+          role: "assistant",
+          content: `What is Twinkle?`,
+        },
+        {
+          role: "user",
+          content: `Original Version: good! tell me 50 SAT level words and their definitions?\n\nSuper Concise Version: `,
+        },
+        {
+          role: "assistant",
+          content: `50 SAT words and definition?`,
+        },
+        {
+          role: "user",
+          content: `Original Version: ${response}\n\nSuper Concise Version: `,
         },
       ],
       temperature: 0.7,
