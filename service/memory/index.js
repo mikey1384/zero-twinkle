@@ -157,6 +157,14 @@ async function summarizeMemories() {
         },
         {
           role: "user",
+          content: `🤖👦🎨\n\nSuper Concise Version: `,
+        },
+        {
+          role: "assistant",
+          content: "🤖👦🎨",
+        },
+        {
+          role: "user",
           content: `Original Version: ${response}\n\nSuper Concise Version: `,
         },
       ],

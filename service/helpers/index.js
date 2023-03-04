@@ -26,7 +26,11 @@ async function checkConditionsUsingGPT3({ prompt, effectiveUsername }) {
     },
     {
       key: "isAskingAboutZero",
-      value: `${effectiveUsername} is asking questions to Zero that requires Zero to introduce himself or talk about himself or his nature/personality`,
+      value: `${effectiveUsername} is asking Zero to introduce himself or talk about himself`,
+    },
+    {
+      key: "isAskingAboutZeroProfile",
+      value: `${effectiveUsername} is asking questions to Zero about Zero's profile such as pfp (profile picture), bio, or username`,
     },
     {
       key: "isAskingAboutCiel",
@@ -40,6 +44,10 @@ async function checkConditionsUsingGPT3({ prompt, effectiveUsername }) {
       key: "isRequireComplexAnswer",
       value: `${effectiveUsername} is asking to tell a story, or is asking to tell a joke, or is asking to write a tutorial, or is requesting something that requires a lot of resources or tokens`,
     },
+    {
+      key: "isNotRequestingAnything",
+      value: `${effectiveUsername} is not requesting anything from Zero, but rather making a statement or expressing feelings`,
+    },
   ];
   const JSONResponse = await checkIsPromptMatchConditionUsingGPT3JSON({
     conditions,
@@ -50,33 +58,13 @@ async function checkConditionsUsingGPT3({ prompt, effectiveUsername }) {
     result = JSON.parse(JSONResponse);
   } catch (e) {
     console.log("wrong JSON format", JSONResponse);
-    const isAskingAboutUser = await checkIsPromptMatchConditionUsingGPT3({
-      prompt,
-      condition: conditions[0].value,
-    });
-    const isAskingAboutZero = await checkIsPromptMatchConditionUsingGPT3({
-      prompt,
-      condition: conditions[1].value,
-    });
-    const isAskingAboutCiel = await checkIsPromptMatchConditionUsingGPT3({
-      prompt,
-      condition: conditions[2].value,
-    });
-    const isAskingAboutTwinkle = await checkIsPromptMatchConditionUsingGPT3({
-      prompt,
-      condition: conditions[3].value,
-    });
-    const isRequireComplexAnswer = await checkIsPromptMatchConditionUsingGPT3({
-      prompt,
-      condition: conditions[4].value,
-    });
-    result = {
-      isAskingAboutUser,
-      isAskingAboutZero,
-      isAskingAboutCiel,
-      isAskingAboutTwinkle,
-      isRequireComplexAnswer,
-    };
+    result = {};
+    for (const condition of conditions) {
+      result[condition.key] = await checkIsPromptMatchConditionUsingGPT3({
+        prompt,
+        condition: condition.value,
+      });
+    }
   }
   return Promise.resolve(result);
 }

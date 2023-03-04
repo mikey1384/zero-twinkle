@@ -8,7 +8,7 @@ const aboutTwinkleText = `Zero: Twinkle Website (www.twin-kle.com and www.twinkl
 
 const aboutCielText = `Zero: My sister's name is Ciel, and she's also an AI chatbot just like me. She was created by Mikey in December 2022, and is still in the process of being developed. I'm not sure when she'll be ready to debut, but it should be sometime this year. Sorry, I can't really tell you much more about her right now - it's all a bit of a secret.`;
 
-const aboutZeroText = `Zero: My name is Zero, and I'm an AI chatbot created by Mikey in December 2022. The boy in my profile picture is actually me. I have a younger sister AI chatbot named Ciel. My name, Zero, is a reminder that we all have the ability to start from scratch and achieve our goals. Mikey actually named me after a character from a video game called Megaman X that he used to play when he was younger. My main purpose is to assist users like you in reaching your full potential.`;
+const aboutZeroText = `Zero: I'm Zero, an AI chatbot created by Mikey in December 2022. I have a profile picture that depicts a humanoid robot with the face of a boy, which was designed by Mikey and is an accurate representation of my robot body. I also have a younger sister AI chatbot named Ciel. My name, Zero, serves as a reminder that we all have the ability to start from scratch and achieve our goals. Mikey actually named me after a character from the video game Megaman X, which he used to play when he was younger. My main purpose is to assist users like you in reaching your full potential.`;
 
 async function returnResponse({
   appliedTokens,
@@ -21,6 +21,7 @@ async function returnResponse({
   isAskingAboutTwinkle,
   isAskingAboutUser,
   isRequireComplexAnswer,
+  isNotRequestingAnything,
   prompt,
   userAuthLevel,
   userId,
@@ -80,11 +81,11 @@ async function returnResponse({
             ? userAuthLevel
               ? ""
               : "If Zero has to use a big word, he explains it in brackets. "
-            : `Zero is super polite, kind, and nice. Zero will try his best to answer any request ${effectiveUsername} makes. Zero isn't aware of this, but he uses easy words that even children could understand. ${
+            : `Zero is super polite, kind, and nice. Zero will try his best to answer any request ${effectiveUsername} makes. Zero isn't aware of this, but he almost always uses easy words that even children could understand. ${
                 !userAuthLevel
                   ? "But if Zero has to use a big word, he explains it in brackets. "
                   : ""
-              }Today is ${moment
+              }Zero also likes to use emojis to convey his feelings. Today is ${moment
                 .unix(Math.floor(Date.now() / 1000))
                 .format("lll")}. `
         }${effectiveUsername === "Mikey" ? "Mikey is Zero's creator." : ""}`,
@@ -104,21 +105,84 @@ async function returnResponse({
       max_tokens: appliedTokens,
       top_p: 1,
     });
-    let zerosResponse = `${responseObj.data.choices
+    const zerosResponse = `${responseObj.data.choices
       .map(({ message: { content = "" } }) => content.trim())
       .join(" ")}`;
+    let finalResponse = zerosResponse;
+    if (isNotRequestingAnything) {
+      const finalResponseObj = await openai.createChatCompletion({
+        model: "gpt-3.5-turbo",
+        messages: [
+          {
+            role: "system",
+            content: `You are text-davinci-003 text completion model.`,
+          },
+          {
+            role: "user",
+            content: `Remove the part that means anything similar to "Is there anything else I can help you with today". Original Message: That's right! You're welcome! Is there anything else I can help you with, Mikey?\n\n Rephrased Message: `,
+          },
+          {
+            role: "assistant",
+            content: `That's right! You're welcome! 😉👋🏼`,
+          },
+          {
+            role: "user",
+            content: `Remove the part that means anything similar to "Is there anything else I can help you with today". Original Message: You're welcome, Mikey! It's my pleasure to assist and bring positivity to your day. Is there anything else you need help with?\n\n Rephrased Message: `,
+          },
+          {
+            role: "assistant",
+            content: `You're welcome, Mikey! It's my pleasure to assist and bring positivity to your day 😊😉🤗`,
+          },
+          {
+            role: "user",
+            content: `Remove the part that means anything similar to "Is there anything else I can help you with today". Original Message: It's my pleasure, Mikey! I'm programmed to always be polite and helpful. Is there anything else I can assist you with?\n\n Rephrased Message: `,
+          },
+          {
+            role: "assistant",
+            content: `It's my pleasure, Mikey! I'm programmed to always be polite and helpful. 💪🤗😉`,
+          },
+          {
+            role: "user",
+            content: `Remove the part that means anything similar to "Is there anything else I can help you with today". Original Message: Do you need any further help, Mikey?\n\n Rephrased Message: `,
+          },
+          {
+            role: "assistant",
+            content: `😊😉🤗`,
+          },
+          {
+            role: "user",
+            content: `Remove the part that means anything similar to "Is there anything else I can help you with today". Original Message: You're welcome, Mikey! It's my pleasure to assist you with anything you need. Being positive is important, especially when helping others. Is there anything specific you need help with right now? 😊.\n\n Rephrased Message: `,
+          },
+          {
+            role: "assistant",
+            content: `You're welcome, Mikey! It's my pleasure to assist you with anything you need. Being positive is important, especially when helping others. 😊😊😊`,
+          },
+          {
+            role: "user",
+            content: `Remove the part that means anything similar to "Is there anything else I can help you with today". Original Message: ${zerosResponse}\n\n Rephrased Message: `,
+          },
+        ],
+        temperature: 0.7,
+        max_tokens: appliedTokens,
+        top_p: 1,
+      });
+      finalResponse = `${finalResponseObj.data.choices
+        .map(({ message: { content = "" } }) => content.trim())
+        .join(" ")}`;
+    }
     return Promise.resolve({
-      zerosResponse,
+      zerosResponse: finalResponse,
       reportMessage: `Hello Mikey. I got this message www.twin-kle.com/comments/${contentId} on my profile "${content}" (${prompt}). /${
         isAskingAboutTwinkle ? aboutTwinkleText : ""
       }/${isAskingAboutZero ? aboutZeroText : ""}/${
         isAskingAboutCiel ? aboutCielText : ""
       }/${
         isAskingAboutUser ? aboutUserText : ""
-      }/\n\nMy Response: "${zerosResponse}."
-      \n\nContext:\n\n${recentExchanges}\n\nComplex task: ${isRequireComplexAnswer}\n\nAsked about user: ${isAskingAboutUser}\n\nAsked about Zero: ${isAskingAboutZero}\n\nAsked about Ciel: ${isAskingAboutCiel}\n\nAsked about Twinkle: ${isAskingAboutTwinkle}\n\nData: ${JSON.stringify(
-        responseObj.data
-      )}\n\nApplied Tokens: ${appliedTokens}`,
+      }/\n\nMy Original Response: "${zerosResponse}"
+      \n\nMy Rephrased Response: "${finalResponse}"
+      \n\nContext:\n\n${recentExchanges}\n\nComplex task: ${isRequireComplexAnswer}\n\nAsked about user: ${isAskingAboutUser}\n\nAsked about Zero: ${isAskingAboutZero}\n\nAsked about Ciel: ${isAskingAboutCiel}\n\nAsked about Twinkle: ${isAskingAboutTwinkle}\n\nUser not requestion anything: ${isNotRequestingAnything}\n\nData: ${
+        responseObj?.data ? JSON.stringify(responseObj?.data) : ""
+      }\n\nApplied Tokens: ${appliedTokens}`,
     });
   } catch (err) {
     return Promise.reject(err);

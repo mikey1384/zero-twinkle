@@ -47,10 +47,12 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
     }
     const {
       isAskingAboutZero,
+      isAskingAboutZeroProfile,
       isAskingAboutCiel,
       isAskingAboutTwinkle,
       isAskingAboutUser,
       isRequireComplexAnswer,
+      isNotRequestingAnything,
     } = await checkConditionsUsingGPT3({
       prompt: `Zero: let's talk!\n${
         zerosPreviousComment?.content
@@ -65,11 +67,12 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
         : appliedTokens,
       recentExchanges,
       effectiveUsername,
-      isAskingAboutZero,
+      isAskingAboutZero: isAskingAboutZero || isAskingAboutZeroProfile,
       isAskingAboutCiel,
       isAskingAboutTwinkle,
       isAskingAboutUser,
       isRequireComplexAnswer,
+      isNotRequestingAnything,
       userId: comment.userId,
       userAuthLevel,
       contentType: "comment",
