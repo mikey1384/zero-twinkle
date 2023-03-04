@@ -65,6 +65,7 @@ async function checkConditionsUsingGPT3({ prompt, effectiveUsername }) {
         condition: condition.value,
       });
     }
+    result.isWrongJSONFormat = true;
   }
   return Promise.resolve(result);
 }
