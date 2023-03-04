@@ -180,7 +180,7 @@ async function returnResponse({
         isAskingAboutUser ? aboutUserText : ""
       }/\n\nMy Original Response: "${zerosResponse}"
       \n\nMy Rephrased Response: "${finalResponse}"
-      \n\nContext:\n\n${recentExchanges}\n\nComplex task: ${isRequireComplexAnswer}\n\nAsked about user: ${isAskingAboutUser}\n\nAsked about Zero: ${isAskingAboutZero}\n\nAsked about Ciel: ${isAskingAboutCiel}\n\nAsked about Twinkle: ${isAskingAboutTwinkle}\n\nUser not requestion anything: ${isNotRequestingAnything}\n\nData: ${
+      \n\nContext:\n\n${recentExchanges}\n\nComplex task: ${isRequireComplexAnswer}\n\nAsked about user: ${isAskingAboutUser}\n\nAsked about Zero: ${isAskingAboutZero}\n\nAsked about Ciel: ${isAskingAboutCiel}\n\nAsked about Twinkle: ${isAskingAboutTwinkle}\n\nUser not requesting anything: ${isNotRequestingAnything}\n\nData: ${
         responseObj?.data ? JSON.stringify(responseObj?.data) : ""
       }\n\nApplied Tokens: ${appliedTokens}`,
     });
