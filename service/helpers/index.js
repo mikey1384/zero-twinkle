@@ -45,8 +45,12 @@ async function checkConditionsUsingGPT3({ prompt, effectiveUsername }) {
       value: `${effectiveUsername} is asking to tell a story, or is asking to tell a joke, or is asking to write a tutorial, or is requesting something that requires a lot of resources or tokens`,
     },
     {
+      key: "isNotAskingQuestion",
+      value: `${effectiveUsername} is not asking any question to Zero`,
+    },
+    {
       key: "isNotRequestingAnything",
-      value: `${effectiveUsername} is saying something Zero doesn't know how to respond to`,
+      value: `${effectiveUsername} is not making any request to Zero`,
     },
   ];
   const JSONResponse = await checkIsPromptMatchConditionUsingGPT3JSON({

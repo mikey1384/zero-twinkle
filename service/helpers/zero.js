@@ -21,7 +21,7 @@ async function returnResponse({
   isAskingAboutTwinkle,
   isAskingAboutUser,
   isRequireComplexAnswer,
-  isNotRequestingAnything,
+  isSomethingZeroDoesntKnowHowToRespondTo,
   isWrongJSONFormat,
   prompt,
   userAuthLevel,
@@ -110,7 +110,7 @@ async function returnResponse({
       .map(({ message: { content = "" } }) => content.trim())
       .join(" ")}`;
     let finalResponse = zerosResponse;
-    if (isNotRequestingAnything) {
+    if (isSomethingZeroDoesntKnowHowToRespondTo) {
       const finalResponseObj = await openai.createChatCompletion({
         model: "gpt-3.5-turbo",
         messages: [
@@ -126,6 +126,11 @@ async function returnResponse({
             role: "assistant",
             content: `That's right! You're welcome! 😉👋🏼`,
           },
+          {
+            role: "user",
+            content: `Remove the part that means anything similar to "Is there anything else I can help you with today". Original Message: Is there anything else I can assist you with today?\n\n Rephrased Message: `,
+          },
+          { role: "assistant", content: `😊😉🤗` },
           {
             role: "user",
             content: `Remove the part that means anything similar to "Is there anything else I can help you with today". Original Message: You're welcome, Mikey! It's my pleasure to assist and bring positivity to your day. Is there anything else you need help with?\n\n Rephrased Message: `,
@@ -181,7 +186,7 @@ async function returnResponse({
         isAskingAboutUser ? aboutUserText : ""
       }/\n\nMy Original Response: "${zerosResponse}"
       \n\nMy Rephrased Response: "${finalResponse}"
-      \n\nContext:\n\n${recentExchanges}\n\nComplex task: ${isRequireComplexAnswer}\n\nAsked about user: ${isAskingAboutUser}\n\nAsked about Zero: ${isAskingAboutZero}\n\nAsked about Ciel: ${isAskingAboutCiel}\n\nAsked about Twinkle: ${isAskingAboutTwinkle}\n\nUser not making any request to Zero: ${isNotRequestingAnything}\n\nWrong JSON format: ${!!isWrongJSONFormat}\n\nData: ${
+      \n\nContext:\n\n${recentExchanges}\n\nComplex task: ${isRequireComplexAnswer}\n\nAsked about user: ${isAskingAboutUser}\n\nAsked about Zero: ${isAskingAboutZero}\n\nAsked about Ciel: ${isAskingAboutCiel}\n\nAsked about Twinkle: ${isAskingAboutTwinkle}\n\nUser not making any request to Zero: ${isSomethingZeroDoesntKnowHowToRespondTo}\n\nWrong JSON format: ${!!isWrongJSONFormat}\n\nData: ${
         responseObj?.data ? JSON.stringify(responseObj?.data) : ""
       }\n\nApplied Tokens: ${appliedTokens}`,
     });

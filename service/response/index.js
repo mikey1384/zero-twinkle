@@ -52,6 +52,7 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
       isAskingAboutTwinkle,
       isAskingAboutUser,
       isRequireComplexAnswer,
+      isNotAskingQuestion,
       isNotRequestingAnything,
       isWrongJSONFormat,
     } = await checkConditionsUsingGPT3({
@@ -73,7 +74,8 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
       isAskingAboutTwinkle,
       isAskingAboutUser,
       isRequireComplexAnswer,
-      isNotRequestingAnything,
+      isSomethingZeroDoesntKnowHowToRespondTo:
+        isNotAskingQuestion && isNotRequestingAnything,
       isWrongJSONFormat,
       userId: comment.userId,
       userAuthLevel,
