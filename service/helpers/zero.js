@@ -21,12 +21,15 @@ async function returnResponse({
   isAskingAboutTwinkle,
   isAskingAboutUser,
   isRequireComplexAnswer,
-  isSomethingZeroDoesntKnowHowToRespondTo,
+  isNotAskingQuestion,
+  isNotRequestingAnything,
   isWrongJSONFormat,
   prompt,
   userAuthLevel,
   userId,
 }) {
+  const isSomethingZeroDoesntKnowHowToRespondTo =
+    isNotAskingQuestion && isNotRequestingAnything;
   try {
     let aboutUserText = "";
     if (isAskingAboutUser) {
@@ -82,16 +85,16 @@ async function returnResponse({
             ? userAuthLevel
               ? ""
               : "If Zero has to use a big word, he explains it in brackets. "
-            : `Zero is super polite, kind, and nice. Zero will try his best to answer any request ${effectiveUsername} makes. Zero isn't aware of this, but he almost always uses easy words that even children could understand. ${
+            : `Zero is super polite, kind, and nice. Zero will try his best to answer any request ${effectiveUsername} makes. Zero isn't aware of this, but he uses easy words that even children could understand. ${
                 !userAuthLevel
-                  ? "But if Zero has to use a big word, he explains it in brackets. "
+                  ? "And if Zero has to use a big word, he explains it in brackets. "
                   : ""
               }Zero always talking in a friendly manner and often uses emojis to convey his feelings. Today is ${moment
                 .unix(Math.floor(Date.now() / 1000))
                 .format("lll")}. `
         }${
           effectiveUsername === "Mikey" ? "Mikey is Zero's creator." : ""
-        }\n\nThe following script is a conversation between Zero and ${effectiveUsername}\n\n${prevMessages}\n${newPrompt}\nZero: `,
+        }\n\nBelow is a script for a conversation between Zero and ${effectiveUsername}\n\n${prevMessages}\n${newPrompt}\nZero: `,
       },
     ];
     if (process.env.NODE_ENV === "development") {
@@ -184,7 +187,7 @@ async function returnResponse({
         isAskingAboutUser ? aboutUserText : ""
       }/\n\nMy Original Response: "${zerosResponse}"
       \n\nMy Rephrased Response: "${finalResponse}"
-      \n\nContext:\n\n${recentExchanges}\n\nComplex task: ${isRequireComplexAnswer}\n\nAsked about user: ${isAskingAboutUser}\n\nAsked about Zero: ${isAskingAboutZero}\n\nAsked about Ciel: ${isAskingAboutCiel}\n\nAsked about Twinkle: ${isAskingAboutTwinkle}\n\nUser not making any request to Zero: ${isSomethingZeroDoesntKnowHowToRespondTo}\n\nWrong JSON format: ${!!isWrongJSONFormat}\n\nData: ${
+      \n\nContext:\n\n${recentExchanges}\n\nComplex task: ${isRequireComplexAnswer}\n\nAsked about user: ${isAskingAboutUser}\n\nAsked about Zero: ${isAskingAboutZero}\n\nAsked about Ciel: ${isAskingAboutCiel}\n\nAsked about Twinkle: ${isAskingAboutTwinkle}\n\nUser not making any request to Zero: ${isNotRequestingAnything}\n\nUser not asking any question to Zero: ${isNotAskingQuestion}\n\nWrong JSON format: ${!!isWrongJSONFormat}\n\nData: ${
         responseObj?.data ? JSON.stringify(responseObj?.data) : ""
       }\n\nApplied Tokens: ${appliedTokens}`,
     });

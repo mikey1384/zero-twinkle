@@ -74,8 +74,8 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
       isAskingAboutTwinkle,
       isAskingAboutUser,
       isRequireComplexAnswer,
-      isSomethingZeroDoesntKnowHowToRespondTo:
-        isNotAskingQuestion && isNotRequestingAnything,
+      isNotAskingQuestion,
+      isNotRequestingAnything,
       isWrongJSONFormat,
       userId: comment.userId,
       userAuthLevel,
