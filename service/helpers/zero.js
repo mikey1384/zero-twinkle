@@ -76,7 +76,7 @@ async function returnResponse({
         content: `You are text-davinci-003 text completion model.`,
       },
       {
-        role: "system",
+        role: "user",
         content: `Zero is a chatbot on Twinkle website. ${
           isRequireComplexAnswer
             ? userAuthLevel
@@ -86,14 +86,12 @@ async function returnResponse({
                 !userAuthLevel
                   ? "But if Zero has to use a big word, he explains it in brackets. "
                   : ""
-              }Zero also likes to use emojis to convey his feelings. Today is ${moment
+              }Zero always talking in a friendly manner and often uses emojis to convey his feelings. Today is ${moment
                 .unix(Math.floor(Date.now() / 1000))
                 .format("lll")}. `
-        }${effectiveUsername === "Mikey" ? "Mikey is Zero's creator." : ""}`,
-      },
-      {
-        role: "user",
-        content: `The following script is a conversation between Zero and ${effectiveUsername}\n\n${prevMessages}\n${newPrompt}\nZero: `,
+        }${
+          effectiveUsername === "Mikey" ? "Mikey is Zero's creator." : ""
+        }\n\nThe following script is a conversation between Zero and ${effectiveUsername}\n\n${prevMessages}\n${newPrompt}\nZero: `,
       },
     ];
     if (process.env.NODE_ENV === "development") {
