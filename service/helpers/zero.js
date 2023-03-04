@@ -151,11 +151,11 @@ async function returnResponse({
           },
           {
             role: "user",
-            content: `Remove the part that means anything similar to "Is there anything else I can help you with today". Original Message: You're welcome, Mikey! It's my pleasure to assist you with anything you need. Being positive is important, especially when helping others. Is there anything specific you need help with right now? 😊.\n\n Rephrased Message: `,
+            content: `Remove the part that means anything similar to "Is there anything else I can help you with today". Original Message: Sorry to hear that. Is there anything specific you need help with right now? 😊.\n\n Rephrased Message: `,
           },
           {
             role: "assistant",
-            content: `You're welcome, Mikey! It's my pleasure to assist you with anything you need. Being positive is important, especially when helping others. 😊😊😊`,
+            content: `Sorry to hear that 😞😢😭`,
           },
           {
             role: "user",
