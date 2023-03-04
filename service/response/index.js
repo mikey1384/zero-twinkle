@@ -51,7 +51,7 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
       isAskingAboutCiel,
       isAskingAboutTwinkle,
       isAskingAboutUser,
-      isRequireComplexAnswer,
+      isCostsManyTokens,
       isNotAskingQuestion,
       isNotRequestingAnything,
       isWrongJSONFormat,
@@ -64,16 +64,14 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
       effectiveUsername,
     });
     const { zerosResponse, reportMessage } = await returnResponse({
-      appliedTokens: isRequireComplexAnswer
-        ? appliedTokens + 500
-        : appliedTokens,
+      appliedTokens: isCostsManyTokens ? appliedTokens + 500 : appliedTokens,
       recentExchanges,
       effectiveUsername,
       isAskingAboutZero: isAskingAboutZero || isAskingAboutZeroProfile,
       isAskingAboutCiel,
       isAskingAboutTwinkle,
       isAskingAboutUser,
-      isRequireComplexAnswer,
+      isCostsManyTokens,
       isNotAskingQuestion,
       isNotRequestingAnything,
       isWrongJSONFormat,

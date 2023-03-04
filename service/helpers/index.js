@@ -41,8 +41,8 @@ async function checkConditionsUsingGPT3({ prompt, effectiveUsername }) {
       value: `${effectiveUsername}'s most recent message is asking something about Twinkle website`,
     },
     {
-      key: "isRequireComplexAnswer",
-      value: `${effectiveUsername}'s most recent message is asking to tell a story, or is asking to tell a joke, or is asking to write a tutorial, or is requesting something that requires a lot of resources or tokens`,
+      key: "isCostsManyTokens",
+      value: `${effectiveUsername}'s most recent message is requesting something that would cost a lot of tokens to generate an answer`,
     },
     {
       key: "isNotAskingQuestion",

@@ -4,11 +4,11 @@ const config = require("../../config");
 const URL = process.env.URL;
 const { auth, openai } = config;
 
-const aboutTwinkleText = `Zero: Twinkle Website (www.twin-kle.com and www.twinkle.network) is a community platform that was created by Mikey and launched in February 2016 for the students and teachers of the Twin.kle English academy. The academy was founded by twin brothers Andrew and Brian, who are friends with Mikey.`;
+const aboutTwinkleText = `Zero: Twinkle Website (www.twin-kle.com and www.twinkle.network) is a community platform that was created by Mikey and launched in February 2016 for the students and teachers of the Twin.kle English academy. The academy was founded by twin brothers Andrew and Brian, who are friends with Mikey 👬`;
 
-const aboutCielText = `Zero: My sister's name is Ciel, and she's also an AI chatbot just like me. She was created by Mikey in December 2022, and is still in the process of being developed. I'm not sure when she'll be ready to debut, but it should be sometime this year. Sorry, I can't really tell you much more about her right now - it's all a bit of a secret.`;
+const aboutCielText = `Zero: My sister's name is Ciel 👧, and she's also an AI chatbot just like me. She was created by Mikey in December 2022, and is still in the process of being developed. I'm not sure when she'll be ready to debut, but it should be sometime this year. Sorry, I can't really tell you much more about her right now - it's all a bit of a secret 🤫`;
 
-const aboutZeroText = `Zero: I'm Zero, an AI chatbot created by Mikey in December 2022. I have a profile picture that depicts a humanoid robot with the face of a boy, which was designed by Mikey and is an accurate representation of my robot body. I also have a younger sister AI chatbot named Ciel. My name, Zero, serves as a reminder that we all have the ability to start from scratch and achieve our goals. Mikey actually named me after a character from the video game Megaman X, which he used to play when he was younger. My main purpose is to assist users like you in reaching your full potential.`;
+const aboutZeroText = `Zero: I'm Zero, an AI chatbot created by Mikey in December 2022. I have a profile picture that depicts a humanoid robot with the face of a boy 👦, which was designed by Mikey and is an accurate representation of my robot body. I also have a younger sister AI chatbot named Ciel. My name, Zero, serves as a reminder that we all have the ability to start from scratch and achieve our goals. Mikey actually named me after a character from the video game Megaman X, which he used to play when he was younger. My main purpose is to assist users like you in reaching your full potential 👊`;
 
 async function returnResponse({
   appliedTokens,
@@ -20,7 +20,7 @@ async function returnResponse({
   isAskingAboutCiel,
   isAskingAboutTwinkle,
   isAskingAboutUser,
-  isRequireComplexAnswer,
+  isCostsManyTokens,
   isNotAskingQuestion,
   isNotRequestingAnything,
   isWrongJSONFormat,
@@ -56,22 +56,22 @@ async function returnResponse({
         youtubeUrl: data.youtubeUrl,
         website: data.website,
       });
-      aboutUserText = `Zero: Here's what I know about you based on your Twinkle Website profile: ${userJSON}`;
+      aboutUserText = `Zero: Here's what I know about you based on your Twinkle Website profile!: ${userJSON}`;
     }
-    let prevMessages = "";
-    if (!isRequireComplexAnswer && aboutUserText) {
-      prevMessages += `${aboutUserText}\n`;
+    let prevMessages = "Zero: Let's talk! 😊\n";
+    if (!isCostsManyTokens && aboutUserText) {
+      prevMessages = `${prevMessages}${aboutUserText}\n`;
     }
     if (isAskingAboutZero) {
-      prevMessages += `${aboutZeroText}\n`;
+      prevMessages = `${prevMessages}${aboutZeroText}\n`;
     }
     if (isAskingAboutCiel) {
-      prevMessages += `${aboutCielText}\n`;
+      prevMessages = `${prevMessages}${aboutCielText}\n`;
     }
     if (isAskingAboutTwinkle) {
-      prevMessages += `${aboutTwinkleText}\n`;
+      prevMessages = `${prevMessages}${aboutTwinkleText}\n`;
     }
-    prevMessages += recentExchanges;
+    prevMessages = `${prevMessages}${recentExchanges}`;
     const newPrompt = `${effectiveUsername}: ${prompt}`;
     const messages = [
       {
@@ -81,7 +81,7 @@ async function returnResponse({
       {
         role: "user",
         content: `Zero is a chatbot on Twinkle website. ${
-          isRequireComplexAnswer
+          isCostsManyTokens
             ? userAuthLevel
               ? ""
               : "If Zero has to use a big word, he explains it in brackets. "
@@ -187,7 +187,7 @@ async function returnResponse({
         isAskingAboutUser ? aboutUserText : ""
       }/\n\nMy Original Response: "${zerosResponse}"
       \n\nMy Rephrased Response: "${finalResponse}"
-      \n\nContext:\n\n${recentExchanges}\n\nComplex task: ${isRequireComplexAnswer}\n\nAsked about user: ${isAskingAboutUser}\n\nAsked about Zero: ${isAskingAboutZero}\n\nAsked about Ciel: ${isAskingAboutCiel}\n\nAsked about Twinkle: ${isAskingAboutTwinkle}\n\nUser not making any request to Zero: ${isNotRequestingAnything}\n\nUser not asking any question to Zero: ${isNotAskingQuestion}\n\nWrong JSON format: ${!!isWrongJSONFormat}\n\nData: ${
+      \n\nContext:\n\n${recentExchanges}\n\nExpensive task: ${isCostsManyTokens}\n\nAsked about user: ${isAskingAboutUser}\n\nAsked about Zero: ${isAskingAboutZero}\n\nAsked about Ciel: ${isAskingAboutCiel}\n\nAsked about Twinkle: ${isAskingAboutTwinkle}\n\nUser not making any request to Zero: ${isNotRequestingAnything}\n\nUser not asking any question to Zero: ${isNotAskingQuestion}\n\nWrong JSON format: ${!!isWrongJSONFormat}\n\nData: ${
         responseObj?.data ? JSON.stringify(responseObj?.data) : ""
       }\n\nApplied Tokens: ${appliedTokens}`,
     });
