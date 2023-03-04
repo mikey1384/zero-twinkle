@@ -22,6 +22,7 @@ async function returnResponse({
   isAskingAboutUser,
   isRequireComplexAnswer,
   isNotRequestingAnything,
+  isWrongJSONFormat,
   prompt,
   userAuthLevel,
   userId,
@@ -135,11 +136,11 @@ async function returnResponse({
           },
           {
             role: "user",
-            content: `Remove the part that means anything similar to "Is there anything else I can help you with today". Original Message: It's my pleasure, Mikey! I'm programmed to always be polite and helpful. Is there anything else I can assist you with?\n\n Rephrased Message: `,
+            content: `Remove the part that means anything similar to "Is there anything else I can help you with today". Original Message: Glad to make you laugh, Mikey! Always here to brighten your day.\n\n Rephrased Message: `,
           },
           {
             role: "assistant",
-            content: `It's my pleasure, Mikey! I'm programmed to always be polite and helpful. 💪🤗😉`,
+            content: `Glad to make you laugh, Mikey! Always here to brighten your day.`,
           },
           {
             role: "user",
@@ -180,7 +181,7 @@ async function returnResponse({
         isAskingAboutUser ? aboutUserText : ""
       }/\n\nMy Original Response: "${zerosResponse}"
       \n\nMy Rephrased Response: "${finalResponse}"
-      \n\nContext:\n\n${recentExchanges}\n\nComplex task: ${isRequireComplexAnswer}\n\nAsked about user: ${isAskingAboutUser}\n\nAsked about Zero: ${isAskingAboutZero}\n\nAsked about Ciel: ${isAskingAboutCiel}\n\nAsked about Twinkle: ${isAskingAboutTwinkle}\n\nUser not requesting anything: ${isNotRequestingAnything}\n\nData: ${
+      \n\nContext:\n\n${recentExchanges}\n\nComplex task: ${isRequireComplexAnswer}\n\nAsked about user: ${isAskingAboutUser}\n\nAsked about Zero: ${isAskingAboutZero}\n\nAsked about Ciel: ${isAskingAboutCiel}\n\nAsked about Twinkle: ${isAskingAboutTwinkle}\n\nUser not making any request to Zero: ${isNotRequestingAnything}\n\nWrong JSON format: ${!!isWrongJSONFormat}\n\nData: ${
         responseObj?.data ? JSON.stringify(responseObj?.data) : ""
       }\n\nApplied Tokens: ${appliedTokens}`,
     });

@@ -53,6 +53,7 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
       isAskingAboutUser,
       isRequireComplexAnswer,
       isNotRequestingAnything,
+      isWrongJSONFormat,
     } = await checkConditionsUsingGPT3({
       prompt: `Zero: let's talk!\n${
         zerosPreviousComment?.content
@@ -73,6 +74,7 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
       isAskingAboutUser,
       isRequireComplexAnswer,
       isNotRequestingAnything,
+      isWrongJSONFormat,
       userId: comment.userId,
       userAuthLevel,
       contentType: "comment",
