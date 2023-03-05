@@ -52,6 +52,7 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
       isAskingAboutUser,
       isCostsManyTokens,
       isAskingFactualQuestion,
+      isAskingMathQuestion,
       isWantsSomethingExplained,
       isNotAskingQuestion,
       isNotRequestingAnything,
@@ -71,6 +72,7 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
       isAskingAboutUser,
       isWantsSomethingExplained:
         isAskingFactualQuestion || isWantsSomethingExplained,
+      isAskingMathQuestion,
       isCostsManyTokens,
       isNotAskingQuestion,
       isNotRequestingAnything,

@@ -21,6 +21,7 @@ async function returnResponse({
   isAskingAboutTwinkle,
   isAskingAboutUser,
   isWantsSomethingExplained,
+  isAskingMathQuestion,
   isCostsManyTokens,
   isNotAskingQuestion,
   isNotRequestingAnything,
@@ -175,6 +176,7 @@ async function returnResponse({
       !isAskingAboutZero &&
       !isAskingAboutTwinkle &&
       !isAskingAboutCiel &&
+      !isAskingMathQuestion &&
       isWantsSomethingExplained
     ) {
       const finalResponseObj = await openai.createChatCompletion({
@@ -211,7 +213,7 @@ async function returnResponse({
         isAskingAboutUser ? aboutUserText : ""
       }/\n\nMy Original Response: "${zerosResponse}"
       \n\nMy Rephrased Response: "${finalResponse}"
-      \n\nContext:\n\n${recentExchanges}\n\nExpensive task: ${isCostsManyTokens}\n\nAsked about user: ${isAskingAboutUser}\n\nAsked about Zero: ${isAskingAboutZero}\n\nAsked about Ciel: ${isAskingAboutCiel}\n\nAsked about Twinkle: ${isAskingAboutTwinkle}\n\nUser not making any request to Zero: ${isNotRequestingAnything}\n\nUser not asking any question to Zero: ${isNotAskingQuestion}\n\nWants something explained: ${isWantsSomethingExplained}\n\nWrong JSON format: ${!!isWrongJSONFormat}\n\nData: ${
+      \n\nContext:\n\n${recentExchanges}\n\nExpensive task: ${isCostsManyTokens}\n\nAsked about user: ${isAskingAboutUser}\n\nAsked about Zero: ${isAskingAboutZero}\n\nAsked about Ciel: ${isAskingAboutCiel}\n\nAsked about Twinkle: ${isAskingAboutTwinkle}\n\nUser not making any request to Zero: ${isNotRequestingAnything}\n\nUser not asking any question to Zero: ${isNotAskingQuestion}\n\nUser is asking a math question: ${isAskingMathQuestion}\n\nWants something explained: ${isWantsSomethingExplained}\n\nWrong JSON format: ${!!isWrongJSONFormat}\n\nData: ${
         responseObj?.data ? JSON.stringify(responseObj?.data) : ""
       }\n\nApplied Tokens: ${appliedTokens}`,
     });
