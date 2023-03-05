@@ -28,9 +28,7 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
       return Promise.resolve();
     }
     latestCommentId = comment.id;
-    const prompt = comment.content
-      .replace(/\bme\b/g, `me (${effectiveUsername})`)
-      .replace(/\bmy\b/g, `my (${effectiveUsername}'s)`);
+    const prompt = comment.content;
     const recentExchangeRows = await poolQuery(
       `
       SELECT promptSummary AS prompt, responseSummary AS response, timeStamp FROM zero_prompts WHERE responseSummary IS NOT NULL AND platform = 'twinkle' AND userId = ? AND timeStamp < ? ORDER BY timeStamp DESC LIMIT 5;
@@ -47,6 +45,7 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
     }
     const {
       isAskingAboutZero,
+      isRequestingSelfIntro,
       isAskingAboutZeroProfile,
       isAskingAboutCiel,
       isAskingAboutTwinkle,
@@ -56,18 +55,15 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
       isNotRequestingAnything,
       isWrongJSONFormat,
     } = await checkConditionsUsingGPT3({
-      prompt: `Zero: let's talk!\n${
-        zerosPreviousComment?.content
-          ? `Zero: ${zerosPreviousComment?.content}\n`
-          : ""
-      }${effectiveUsername}: ${prompt}`,
+      prompt: `Zero: Hello, ${effectiveUsername}. What can I do for you?\n\n${effectiveUsername}: ${prompt}`,
       effectiveUsername,
     });
     const { zerosResponse, reportMessage } = await returnResponse({
       appliedTokens: isCostsManyTokens ? appliedTokens + 500 : appliedTokens,
       recentExchanges,
       effectiveUsername,
-      isAskingAboutZero: isAskingAboutZero || isAskingAboutZeroProfile,
+      isAskingAboutZero:
+        isAskingAboutZero || isRequestingSelfIntro || isAskingAboutZeroProfile,
       isAskingAboutCiel,
       isAskingAboutTwinkle,
       isAskingAboutUser,

@@ -82,7 +82,7 @@ async function returnResponse({
         role: "user",
         content: `Zero is a friendly chatbot on Twinkle website. ${
           effectiveUsername === "Mikey" ? "Mikey is Zero's creator." : ""
-        }\n\nZero will try his best to answer any request ${effectiveUsername} makes. Today is ${moment
+        }\n\nZero answers any request ${effectiveUsername} makes and always responds to ${effectiveUsername}'s messages using a friendly tone. Today is ${moment
           .unix(Math.floor(Date.now() / 1000))
           .format(
             "lll"
@@ -168,7 +168,13 @@ async function returnResponse({
       finalResponse = `${finalResponseObj.data.choices
         .map(({ message: { content = "" } }) => content.trim())
         .join(" ")}`;
-    } else {
+    } else if (
+      zerosResponse.split(" ")?.length > 1 &&
+      !isAskingAboutUser &&
+      !isAskingAboutZero &&
+      !isAskingAboutTwinkle &&
+      !isAskingAboutCiel
+    ) {
       const firstWord = zerosResponse.split(" ")[0];
       const finalResponseObj = await openai.createChatCompletion({
         model: "gpt-3.5-turbo",
@@ -184,7 +190,7 @@ async function returnResponse({
                 ? userAuthLevel
                   ? ""
                   : "If the message contains difficult words, explain it in brackets. "
-                : `Make this message easy for even 7 year olds could understand. Do not add new content than what was in the original text.${
+                : `Make this message easy for even young students could understand. Use a slightly more friendly tone. Do not add anything to the original message.${
                     userAuthLevel ? "" : " Use emojis if appropriate."
                   } ${
                     userAuthLevel

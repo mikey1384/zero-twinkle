@@ -22,35 +22,39 @@ async function checkConditionsUsingGPT3({ prompt, effectiveUsername }) {
   const conditions = [
     {
       key: "isAskingAboutUser",
-      value: `${effectiveUsername}'s most recent message is asking questions about ${effectiveUsername} like "who am I?"`,
+      value: `${effectiveUsername} is asking questions about ${effectiveUsername} like "who am I?"`,
+    },
+    {
+      key: "isRequestingSelfIntro",
+      value: `${effectiveUsername} is saying "tell me about yourself"`,
     },
     {
       key: "isAskingAboutZero",
-      value: `${effectiveUsername}'s most recent message is asking Zero to introduce himself or talk about himself`,
+      value: `${effectiveUsername} is asking who Zero is`,
     },
     {
       key: "isAskingAboutZeroProfile",
-      value: `${effectiveUsername}'s most recent message is asking questions to Zero about Zero's profile such as pfp (profile picture), bio, or username`,
+      value: `${effectiveUsername} is asking Zero about Zero's profile such as pfp (profile picture), bio, or username`,
     },
     {
       key: "isAskingAboutCiel",
-      value: `${effectiveUsername}'s most recent message is asking something about Zero's sister or Ciel`,
+      value: `${effectiveUsername} is asking something about Zero's sister or Ciel`,
     },
     {
       key: "isAskingAboutTwinkle",
-      value: `${effectiveUsername}'s most recent message is asking something about Twinkle website`,
+      value: `${effectiveUsername} is asking something about Twinkle website`,
     },
     {
       key: "isCostsManyTokens",
-      value: `${effectiveUsername}'s most recent message is requesting something that would cost a lot of tokens to generate an answer`,
+      value: `${effectiveUsername} is requesting something that would cost a lot of tokens to generate an answer`,
     },
     {
       key: "isNotAskingQuestion",
-      value: `${effectiveUsername}'s most recent message is not a question`,
+      value: `${effectiveUsername} is not asking a question`,
     },
     {
       key: "isNotRequestingAnything",
-      value: `${effectiveUsername}'s most recent message is not a request`,
+      value: `${effectiveUsername} is not making a request`,
     },
   ];
   const JSONResponse = await checkIsPromptMatchConditionUsingGPT3JSON({
