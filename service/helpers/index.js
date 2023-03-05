@@ -70,7 +70,7 @@ async function checkConditionsUsingGPT3({ prompt, effectiveUsername }) {
     },
     {
       key: "isNotRequestingAnything",
-      value: `${effectiveUsername} is not making a request`,
+      value: `${effectiveUsername} is not requesting anything`,
     },
   ];
   const JSONResponse = await checkIsPromptMatchConditionUsingGPT3JSON({
