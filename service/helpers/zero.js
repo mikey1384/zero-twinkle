@@ -184,7 +184,7 @@ async function returnResponse({
                 ? userAuthLevel
                   ? ""
                   : "If the message contains difficult words, explain it in brackets. "
-                : `Change the tone so that it's super friendly. Do not add any extra greetings that weren't included in the original text.${
+                : `Change the tone so that it's friendly. Do not add any extra greetings that weren't included in the original text.${
                     userAuthLevel ? "" : " Use emojis if appropriate."
                   } Also make it easy for even 7 year olds could understand. ${
                     userAuthLevel
