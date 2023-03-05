@@ -186,7 +186,7 @@ async function returnResponse({
           },
           {
             role: "user",
-            content: `This is an "easifier." Anything that goes in comes out as an output in a language people with IQ of 50 can understand.${
+            content: `This is an "easifier." Anything that goes in comes out as an output in a language young children or grownups with IQ of 50 can understand.${
               userAuthLevel ? "" : " Emojis are added if appropriate."
             } ${
               userAuthLevel ? "" : "Difficult words are explained in brackets. "
