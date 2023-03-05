@@ -46,6 +46,7 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
     const {
       isAskingAboutZero,
       isRequestingSelfIntro,
+      isAskingToTalkAboutUser,
       isAskingAboutZeroProfile,
       isAskingAboutCiel,
       isAskingAboutTwinkle,
@@ -69,7 +70,7 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
         isAskingAboutZero || isRequestingSelfIntro || isAskingAboutZeroProfile,
       isAskingAboutCiel,
       isAskingAboutTwinkle,
-      isAskingAboutUser,
+      isAskingAboutUser: isAskingToTalkAboutUser || isAskingAboutUser,
       isWantsSomethingExplained:
         isAskingFactualQuestion || isWantsSomethingExplained,
       isAskingMathQuestion,

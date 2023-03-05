@@ -22,7 +22,11 @@ async function checkConditionsUsingGPT3({ prompt, effectiveUsername }) {
   const conditions = [
     {
       key: "isAskingAboutUser",
-      value: `${effectiveUsername} is asking questions about ${effectiveUsername} like "who am I?"`,
+      value: `${effectiveUsername} is asking "who am I?"`,
+    },
+    {
+      key: "isAskingToTalkAboutUser",
+      value: `${effectiveUsername} is saying "talk about me"`,
     },
     {
       key: "isRequestingSelfIntro",
@@ -94,6 +98,7 @@ async function checkIsPromptMatchConditionUsingGPT3JSON({
   conditions,
   prompt,
 }) {
+  console.log(prompt);
   const response = await openai.createChatCompletion({
     model: "gpt-3.5-turbo",
     messages: [
