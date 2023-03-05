@@ -80,7 +80,7 @@ async function returnResponse({
       },
       {
         role: "user",
-        content: `Zero is a chatbot on Twinkle website. ${
+        content: `Zero is a friendly chatbot on Twinkle website. ${
           effectiveUsername === "Mikey" ? "Mikey is Zero's creator." : ""
         }\n\nZero will try his best to answer any request ${effectiveUsername} makes. Today is ${moment
           .unix(Math.floor(Date.now() / 1000))
@@ -184,9 +184,9 @@ async function returnResponse({
                 ? userAuthLevel
                   ? ""
                   : "If the message contains difficult words, explain it in brackets. "
-                : `Change the tone so that it's friendly. Do not add any extra greetings that weren't included in the original text.${
+                : `Make this message easy for even 7 year olds could understand. Do not add new content than what was in the original text.${
                     userAuthLevel ? "" : " Use emojis if appropriate."
-                  } Also make it easy for even 7 year olds could understand. ${
+                  } ${
                     userAuthLevel
                       ? ""
                       : "If the message contains difficult words, explain it in brackets. "
