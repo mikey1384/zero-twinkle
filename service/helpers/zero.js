@@ -81,20 +81,12 @@ async function returnResponse({
       {
         role: "user",
         content: `Zero is a chatbot on Twinkle website. ${
-          isCostsManyTokens
-            ? userAuthLevel
-              ? ""
-              : "If Zero has to use a big word, he explains it in brackets. "
-            : `Zero is super polite, kind, and nice. Zero will try his best to answer any request ${effectiveUsername} makes. Zero isn't aware of this, but he uses easy words that even children could understand. ${
-                !userAuthLevel
-                  ? "And if Zero has to use a big word, he explains it in brackets. "
-                  : ""
-              }Zero always talking in a friendly manner and often uses emojis to convey his feelings. Today is ${moment
-                .unix(Math.floor(Date.now() / 1000))
-                .format("lll")}. `
-        }${
           effectiveUsername === "Mikey" ? "Mikey is Zero's creator." : ""
-        }\n\nBelow is a script for a conversation between Zero and ${effectiveUsername}\n\n${prevMessages}\n${newPrompt}\nZero: `,
+        }\n\nZero will try his best to answer any request ${effectiveUsername} makes. Today is ${moment
+          .unix(Math.floor(Date.now() / 1000))
+          .format(
+            "lll"
+          )}. Below is a script for a conversation between Zero and ${effectiveUsername}.\n\n${prevMessages}\n${newPrompt}\nZero: `,
       },
     ];
     if (process.env.NODE_ENV === "development") {
@@ -174,6 +166,39 @@ async function returnResponse({
         top_p: 1,
       });
       finalResponse = `${finalResponseObj.data.choices
+        .map(({ message: { content = "" } }) => content.trim())
+        .join(" ")}`;
+    } else {
+      const firstWord = zerosResponse.split(" ")[0];
+      const finalResponseObj = await openai.createChatCompletion({
+        model: "gpt-3.5-turbo",
+        messages: [
+          {
+            role: "system",
+            content: `You are text-davinci-003 text completion model.`,
+          },
+          {
+            role: "user",
+            content: `${
+              isCostsManyTokens
+                ? userAuthLevel
+                  ? ""
+                  : "If the message contains difficult words, explain it in brackets. "
+                : `Change the tone so that it's super friendly. Do not add any extra greetings that weren't included in the original text.${
+                    userAuthLevel ? "" : " Use emojis if appropriate."
+                  } Also make it easy for even 7 year olds could understand. ${
+                    userAuthLevel
+                      ? ""
+                      : "If the message contains difficult words, explain it in brackets. "
+                  }`
+            }\n\nOriginal Message: ${zerosResponse}\n\n Rephrased Message: ${firstWord}`,
+          },
+        ],
+        temperature: 0.7,
+        max_tokens: appliedTokens,
+        top_p: 1,
+      });
+      finalResponse = `${firstWord} ${finalResponseObj.data.choices
         .map(({ message: { content = "" } }) => content.trim())
         .join(" ")}`;
     }
