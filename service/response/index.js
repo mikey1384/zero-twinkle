@@ -44,7 +44,7 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
       recentExchanges += `Zero: ${zerosPreviousComment?.content}\n`;
     }
     const {
-      isAskingAboutZero,
+      isAskingWhoZeroIs,
       isRequestingSelfIntro,
       isAskingToTalkAboutUser,
       isAskingAboutZeroProfile,
@@ -66,8 +66,8 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
       appliedTokens: isCostsManyTokens ? appliedTokens + 500 : appliedTokens,
       recentExchanges,
       effectiveUsername,
-      isAskingAboutZero:
-        isAskingAboutZero || isRequestingSelfIntro || isAskingAboutZeroProfile,
+      isAskingWhoZeroIs:
+        isAskingWhoZeroIs || isRequestingSelfIntro || isAskingAboutZeroProfile,
       isAskingAboutCiel,
       isAskingAboutTwinkle,
       isAskingAboutUser: isAskingToTalkAboutUser || isAskingAboutUser,

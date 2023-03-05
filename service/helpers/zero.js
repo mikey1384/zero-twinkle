@@ -16,7 +16,7 @@ async function returnResponse({
   contentId,
   content,
   effectiveUsername,
-  isAskingAboutZero,
+  isAskingWhoZeroIs,
   isAskingAboutCiel,
   isAskingAboutTwinkle,
   isAskingAboutUser,
@@ -64,7 +64,7 @@ async function returnResponse({
     if (!isCostsManyTokens && aboutUserText) {
       prevMessages = `${prevMessages}${aboutUserText}\n`;
     }
-    if (isAskingAboutZero) {
+    if (isAskingWhoZeroIs) {
       prevMessages = `${prevMessages}${aboutZeroText}\n`;
     }
     if (isAskingAboutCiel) {
@@ -173,7 +173,7 @@ async function returnResponse({
     } else if (
       zerosResponse.split(" ")?.length > 1 &&
       !isAskingAboutUser &&
-      !isAskingAboutZero &&
+      !isAskingWhoZeroIs &&
       !isAskingAboutTwinkle &&
       !isAskingAboutCiel &&
       !isAskingMathQuestion &&
@@ -207,13 +207,13 @@ async function returnResponse({
       zerosResponse: finalResponse,
       reportMessage: `Hello Mikey. I got this message www.twin-kle.com/comments/${contentId} on my profile "${content}" (${prompt}). /${
         isAskingAboutTwinkle ? aboutTwinkleText : ""
-      }/${isAskingAboutZero ? aboutZeroText : ""}/${
+      }/${isAskingWhoZeroIs ? aboutZeroText : ""}/${
         isAskingAboutCiel ? aboutCielText : ""
       }/${
         isAskingAboutUser ? aboutUserText : ""
       }/\n\nMy Original Response: "${zerosResponse}"
       \n\nMy Rephrased Response: "${finalResponse}"
-      \n\nContext:\n\n${recentExchanges}\n\nExpensive task: ${isCostsManyTokens}\n\nAsked about user: ${isAskingAboutUser}\n\nAsked about Zero: ${isAskingAboutZero}\n\nAsked about Ciel: ${isAskingAboutCiel}\n\nAsked about Twinkle: ${isAskingAboutTwinkle}\n\nUser not making any request to Zero: ${isNotRequestingAnything}\n\nUser not asking any question to Zero: ${isNotAskingQuestion}\n\nUser is asking a math question: ${isAskingMathQuestion}\n\nWants something explained: ${isWantsSomethingExplained}\n\nWrong JSON format: ${!!isWrongJSONFormat}\n\nData: ${
+      \n\nContext:\n\n${recentExchanges}\n\nExpensive task: ${isCostsManyTokens}\n\nAsked about user: ${isAskingAboutUser}\n\nAsked about Zero: ${isAskingWhoZeroIs}\n\nAsked about Ciel: ${isAskingAboutCiel}\n\nAsked about Twinkle: ${isAskingAboutTwinkle}\n\nUser not making any request to Zero: ${isNotRequestingAnything}\n\nUser not asking any question to Zero: ${isNotAskingQuestion}\n\nUser is asking a math question: ${isAskingMathQuestion}\n\nWants something explained: ${isWantsSomethingExplained}\n\nWrong JSON format: ${!!isWrongJSONFormat}\n\nData: ${
         responseObj?.data ? JSON.stringify(responseObj?.data) : ""
       }\n\nApplied Tokens: ${appliedTokens}`,
     });
