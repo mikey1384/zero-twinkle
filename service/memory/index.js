@@ -87,6 +87,14 @@ async function summarizeMemories() {
         },
         {
           role: "user",
+          content: `Original Version: make it longer\n\nSuper Concise Version: `,
+        },
+        {
+          role: "assistant",
+          content: `make it longer`,
+        },
+        {
+          role: "user",
           content: `Original Version: I'm glad to hear that, Mikey! 😊\n\nSuper Concise Version: `,
         },
         {

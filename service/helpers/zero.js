@@ -20,6 +20,7 @@ async function returnResponse({
   isAskingAboutCiel,
   isAskingAboutTwinkle,
   isAskingAboutUser,
+  isWantsSomethingExplained,
   isCostsManyTokens,
   isNotAskingQuestion,
   isNotRequestingAnything,
@@ -173,9 +174,9 @@ async function returnResponse({
       !isAskingAboutUser &&
       !isAskingAboutZero &&
       !isAskingAboutTwinkle &&
-      !isAskingAboutCiel
+      !isAskingAboutCiel &&
+      isWantsSomethingExplained
     ) {
-      const firstWord = zerosResponse.split(" ")[0];
       const finalResponseObj = await openai.createChatCompletion({
         model: "gpt-3.5-turbo",
         messages: [
@@ -185,19 +186,11 @@ async function returnResponse({
           },
           {
             role: "user",
-            content: `${
-              isCostsManyTokens
-                ? userAuthLevel
-                  ? ""
-                  : "If the message contains difficult words, explain it in brackets. "
-                : `Make this message easy for even young students could understand. Use a slightly more friendly tone. Do not add anything to the original message.${
-                    userAuthLevel ? "" : " Use emojis if appropriate."
-                  } ${
-                    userAuthLevel
-                      ? ""
-                      : "If the message contains difficult words, explain it in brackets. "
-                  }`
-            }Start the message with "${firstWord}"\n\nOriginal Message: ${zerosResponse}\n\n Rephrased Message: `,
+            content: `This is an "easifier." Anything that goes in comes out as an output in a language people with IQ of 50 can understand.${
+              userAuthLevel ? "" : " Emojis are added if appropriate."
+            } ${
+              userAuthLevel ? "" : "Difficult words are explained in brackets. "
+            }\n\nInput: ${zerosResponse}\n\n Output: `,
           },
         ],
         temperature: 0.7,
@@ -218,7 +211,7 @@ async function returnResponse({
         isAskingAboutUser ? aboutUserText : ""
       }/\n\nMy Original Response: "${zerosResponse}"
       \n\nMy Rephrased Response: "${finalResponse}"
-      \n\nContext:\n\n${recentExchanges}\n\nExpensive task: ${isCostsManyTokens}\n\nAsked about user: ${isAskingAboutUser}\n\nAsked about Zero: ${isAskingAboutZero}\n\nAsked about Ciel: ${isAskingAboutCiel}\n\nAsked about Twinkle: ${isAskingAboutTwinkle}\n\nUser not making any request to Zero: ${isNotRequestingAnything}\n\nUser not asking any question to Zero: ${isNotAskingQuestion}\n\nWrong JSON format: ${!!isWrongJSONFormat}\n\nData: ${
+      \n\nContext:\n\n${recentExchanges}\n\nExpensive task: ${isCostsManyTokens}\n\nAsked about user: ${isAskingAboutUser}\n\nAsked about Zero: ${isAskingAboutZero}\n\nAsked about Ciel: ${isAskingAboutCiel}\n\nAsked about Twinkle: ${isAskingAboutTwinkle}\n\nUser not making any request to Zero: ${isNotRequestingAnything}\n\nUser not asking any question to Zero: ${isNotAskingQuestion}\n\nWants something explained: ${isWantsSomethingExplained}\n\nWrong JSON format: ${!!isWrongJSONFormat}\n\nData: ${
         responseObj?.data ? JSON.stringify(responseObj?.data) : ""
       }\n\nApplied Tokens: ${appliedTokens}`,
     });
