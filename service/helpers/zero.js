@@ -88,7 +88,7 @@ async function returnResponse({
           .unix(Math.floor(Date.now() / 1000))
           .format(
             "lll"
-          )}. The characters do not have access to the information above. Below is a script for a conversation between Zero and ${effectiveUsername} talking to each other on Twinkle Website.\n\n${prevMessages}\n${newPrompt}\nZero: `,
+          )}. The characters do not have access to the information above. Below is a script for a conversation between Zero and ${effectiveUsername} talking to each other on Twinkle Website. Output Zero's response\n\n${prevMessages}\n${newPrompt}\nZero: `,
       },
     ];
     if (process.env.NODE_ENV === "development") {
@@ -188,17 +188,18 @@ async function returnResponse({
           },
           {
             role: "user",
-            content: `When there's an advanced word, provide simplified explanations in brackets.${
+            content: `When there's a very advanced word, provide simplified explanations in brackets.${
               userAuthLevel ? "" : " Add emojis if needed."
             }\n\nInput: Schrödinger's cat is a thought experiment in quantum mechanics. It involves a hypothetical cat that may be both alive and dead, depending on the state of a radioactive atom in a sealed box. The experiment is used to illustrate the concept of superposition and the interpretation of quantum mechanics.\n\n Output: `,
           },
           {
             role: "assistant",
-            content: `Schrödinger's cat is a thought experiment (a game you play in your head to think about something in a different way) in quantum mechanics. It involves a hypothetical (something that is not real, but you are imagining it to think about what might happen or what you would do in that situation) cat that may be both alive and dead, depending on the state of a radioactive (something that gives off a type of energy called radiation) atom in a sealed box. The experiment is used to illustrate the concept of superposition (when two waves of energy, like light or sound waves, come together and make a new wave) and the interpretation of quantum mechanics.`,
+            content: `Schrödinger's cat is a thought experiment in quantum mechanics. It involves a hypothetical cat that may be both alive and dead, depending on the state of a radioactive atom in a sealed box. The experiment is used to illustrate the concept of superposition and the interpretation of quantum mechanics.\n\n=======\nThought experiment: a game you play in your head to think about something in a different way\nHypothetical: something that is not real, but you are imagining it to think about what might happen or what you would do in that situation\nRadioactive: something that gives off a type of energy called radiation\nSuperposition: when two waves of energy, like light or sound waves, come together and make a new wave`,
           },
           {
             role: "user",
-            content: `When there's an advanced word, provide simplified explanations in brackets.\n\nInput: ${zerosResponse}\n\n Output: `,
+            content: `Add simplified explanations of difficult words and phrases at the bottom.
+            \n\nInput: ${zerosResponse}\n\n Output: `,
           },
         ],
         temperature: 0.7,

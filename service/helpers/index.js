@@ -69,8 +69,12 @@ async function checkConditionsUsingGPT3({ prompt, effectiveUsername }) {
       value: `${effectiveUsername} is not asking a question`,
     },
     {
-      key: "isNotRequestingAnything",
-      value: `${effectiveUsername} is not requesting anything`,
+      key: "isInterjection",
+      value: `${effectiveUsername} only saying one word, and it's an interjection such as "aha," "oh," "wow"`,
+    },
+    {
+      key: "isNotMakingRequest",
+      value: `${effectiveUsername} isn't making any request`,
     },
   ];
   const JSONResponse = await checkIsPromptMatchConditionUsingGPT3JSON({
@@ -80,6 +84,7 @@ async function checkConditionsUsingGPT3({ prompt, effectiveUsername }) {
   let result = null;
   try {
     result = JSON.parse(JSONResponse);
+    console.log(result);
   } catch (e) {
     console.log("wrong JSON format", JSONResponse);
     result = {};
@@ -107,11 +112,7 @@ async function checkIsPromptMatchConditionUsingGPT3JSON({
       },
       {
         role: "user",
-        content: `This JSON generator reads the script below and analyze whether ${conditions
-          .map(({ value }) => `${value}`)
-          .join(
-            ", "
-          )} are met and return a single JSON object with keys ${conditions
+        content: `This JSON generator reads the script below and returns a single JSON object with keys ${conditions
           .map(({ key }) => `"${key}"`)
           .join(
             ", "
