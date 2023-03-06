@@ -27,7 +27,6 @@ async function returnResponse({
   isNotRequestingAnything,
   isWrongJSONFormat,
   prompt,
-  userAuthLevel,
   userId,
 }) {
   const isSomethingZeroDoesntKnowHowToRespondTo =
@@ -188,9 +187,7 @@ async function returnResponse({
           },
           {
             role: "user",
-            content: `When there's a very advanced word, provide simplified explanations in brackets.${
-              userAuthLevel ? "" : " Add emojis if needed."
-            }\n\nInput: Schrödinger's cat is a thought experiment in quantum mechanics. It involves a hypothetical cat that may be both alive and dead, depending on the state of a radioactive atom in a sealed box. The experiment is used to illustrate the concept of superposition and the interpretation of quantum mechanics.\n\n Output: `,
+            content: `Add simplified explanations of difficult words and phrases at the bottom that's easy enough for people with low IQ to understand.\n\nInput: Schrödinger's cat is a thought experiment in quantum mechanics. It involves a hypothetical cat that may be both alive and dead, depending on the state of a radioactive atom in a sealed box. The experiment is used to illustrate the concept of superposition and the interpretation of quantum mechanics.\n\n Output: `,
           },
           {
             role: "assistant",
@@ -198,8 +195,7 @@ async function returnResponse({
           },
           {
             role: "user",
-            content: `Add simplified explanations of difficult words and phrases at the bottom.
-            \n\nInput: ${zerosResponse}\n\n Output: `,
+            content: `Add simplified explanations of difficult words and phrases at the bottom that's easy enough for people with low IQ to understand.\n\nInput: ${zerosResponse}\n\n Output: `,
           },
         ],
         temperature: 0.7,
