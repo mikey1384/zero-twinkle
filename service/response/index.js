@@ -47,7 +47,7 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
       isAskingWhoZeroIs,
       isRequestingSelfIntro,
       isAskingToTalkAboutUser,
-      isAskingZerosProfile,
+      isZerosProfileRelated,
       isAskingZerosDesire,
       isTalkingZerosGender,
       isAskingZerosProperties,
@@ -73,7 +73,7 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
       isAskingWhoZeroIs:
         isAskingWhoZeroIs ||
         isRequestingSelfIntro ||
-        isAskingZerosProfile ||
+        isZerosProfileRelated ||
         isAskingZerosDesire ||
         isTalkingZerosGender ||
         isAskingZerosProperties,

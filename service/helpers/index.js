@@ -37,7 +37,7 @@ async function checkConditionsUsingGPT3({ prompt, effectiveUsername }) {
       value: `${effectiveUsername} is asking "who are you?"`,
     },
     {
-      key: "isAskingZerosProfile",
+      key: "isZerosProfileRelated",
       value: `${effectiveUsername} is asking Zero about Zero's profile such as pfp (profile picture), bio, or username`,
     },
     {
