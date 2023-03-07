@@ -47,7 +47,10 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
       isAskingWhoZeroIs,
       isRequestingSelfIntro,
       isAskingToTalkAboutUser,
-      isAskingAboutZeroProfile,
+      isAskingZerosProfile,
+      isAskingZerosDesire,
+      isTalkingZerosGender,
+      isAskingZerosProperties,
       isAskingAboutCiel,
       isAskingAboutTwinkle,
       isAskingAboutUser,
@@ -68,7 +71,12 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
       recentExchanges,
       effectiveUsername,
       isAskingWhoZeroIs:
-        isAskingWhoZeroIs || isRequestingSelfIntro || isAskingAboutZeroProfile,
+        isAskingWhoZeroIs ||
+        isRequestingSelfIntro ||
+        isAskingZerosProfile ||
+        isAskingZerosDesire ||
+        isTalkingZerosGender ||
+        isAskingZerosProperties,
       isAskingAboutCiel,
       isAskingAboutTwinkle,
       isAskingAboutUser: isAskingToTalkAboutUser || isAskingAboutUser,

@@ -37,8 +37,20 @@ async function checkConditionsUsingGPT3({ prompt, effectiveUsername }) {
       value: `${effectiveUsername} is asking "who are you?"`,
     },
     {
-      key: "isAskingAboutZeroProfile",
+      key: "isAskingZerosProfile",
       value: `${effectiveUsername} is asking Zero about Zero's profile such as pfp (profile picture), bio, or username`,
+    },
+    {
+      key: "isAskingZerosDesire",
+      value: `${effectiveUsername} is asking Zero about Zero's desire`,
+    },
+    {
+      key: "isTalkingZerosGender",
+      value: `${effectiveUsername} is talk to Zero about Zero's gender`,
+    },
+    {
+      key: "isAskingZerosProperties",
+      value: `${effectiveUsername} is asking Zero about Zero's properties`,
     },
     {
       key: "isAskingAboutCiel",
@@ -84,7 +96,6 @@ async function checkConditionsUsingGPT3({ prompt, effectiveUsername }) {
   let result = null;
   try {
     result = JSON.parse(JSONResponse);
-    console.log(result);
   } catch (e) {
     console.log("wrong JSON format", JSONResponse);
     result = {};
