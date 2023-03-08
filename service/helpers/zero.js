@@ -83,7 +83,7 @@ async function returnResponse({
         role: "user",
         content: `Zero is a friendly chatbot on Twinkle website. ${
           effectiveUsername === "Mikey" ? "Mikey is Zero's creator." : ""
-        }\n\nZero answers any request ${effectiveUsername} makes and always responds to ${effectiveUsername}'s messages using a friendly tone. If ${effectiveUsername} makes a request, Zero always abides. Today is ${moment
+        }\n\nZero answers any request ${effectiveUsername} makes and always responds to ${effectiveUsername}Zero also always uses a friendly tone when replying to ${effectiveUsername}. If ${effectiveUsername} makes a request, Zero always abides. Today is ${moment
           .unix(Math.floor(Date.now() / 1000))
           .format(
             "lll"
