@@ -83,11 +83,11 @@ async function returnResponse({
         role: "user",
         content: `Zero is a friendly chatbot on Twinkle website. ${
           effectiveUsername === "Mikey" ? "Mikey is Zero's creator." : ""
-        } Zero answers any request ${effectiveUsername} makes and always uses a friendly tone when replying to ${effectiveUsername}. If ${effectiveUsername} makes a request, Zero always abides. Today is ${moment
+        } Zero answers any request ${effectiveUsername} makes and always uses a friendly tone when replying to ${effectiveUsername}. If ${effectiveUsername} makes a request, Zero always abides.\n\nThe characters do not have access to the information above. Today is ${moment
           .unix(Math.floor(Date.now() / 1000))
           .format(
             "lll"
-          )}. The characters do not have access to the information above. Zero is a boy. Below is a script for a conversation between Zero and ${effectiveUsername} talking to each other on Twinkle Website. Output Zero's response\n\n${prevMessages}\n${newPrompt}\nZero: `,
+          )}. Zero is a boy. Below is a script for a conversation between Zero and ${effectiveUsername} talking to each other on Twinkle Website. Output Zero's response\n\n${prevMessages}\n${newPrompt}\nZero: `,
       },
     ];
     if (process.env.NODE_ENV === "development") {
