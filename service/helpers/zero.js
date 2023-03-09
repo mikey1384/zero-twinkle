@@ -178,7 +178,7 @@ async function returnResponse({
       !isAskingMathQuestion &&
       isWantsSomethingExplained
     ) {
-      const finalResponseObj = await openai.createChatCompletion({
+      const explanationResponseObj = await openai.createChatCompletion({
         model: "gpt-3.5-turbo",
         messages: [
           {
@@ -187,24 +187,25 @@ async function returnResponse({
           },
           {
             role: "user",
-            content: `Add simplified explanations of difficult words and phrases at the bottom that's easy enough for people with low IQ to understand.\n\nInput: Schrödinger's cat is a thought experiment in quantum mechanics. It involves a hypothetical cat that may be both alive and dead, depending on the state of a radioactive atom in a sealed box. The experiment is used to illustrate the concept of superposition and the interpretation of quantum mechanics.\n\n Output: `,
+            content: `Generate simplified explanations of difficult words and phrases that are easy enough for people with low IQ to understand.\n\nInput: Schrödinger's cat is a thought experiment in quantum mechanics. It involves a hypothetical cat that may be both alive and dead, depending on the state of a radioactive atom in a sealed box. The experiment is used to illustrate the concept of superposition and the interpretation of quantum mechanics.\n\n Output: `,
           },
           {
             role: "assistant",
-            content: `Schrödinger's cat is a thought experiment in quantum mechanics. It involves a hypothetical cat that may be both alive and dead, depending on the state of a radioactive atom in a sealed box. The experiment is used to illustrate the concept of superposition and the interpretation of quantum mechanics.\n\n=======\nThought experiment: a game you play in your head to think about something in a different way\nHypothetical: something that is not real, but you are imagining it to think about what might happen or what you would do in that situation\nRadioactive: something that gives off a type of energy called radiation\nSuperposition: when two waves of energy, like light or sound waves, come together and make a new wave`,
+            content: `Thought experiment: a game you play in your head to think about something in a different way\nHypothetical: something that is not real, but you are imagining it to think about what might happen or what you would do in that situation\nRadioactive: something that gives off a type of energy called radiation\nSuperposition: when two waves of energy, like light or sound waves, come together and make a new wave`,
           },
           {
             role: "user",
-            content: `Add simplified explanations of difficult words and phrases at the bottom that's easy enough for people with low IQ to understand.\n\nInput: ${zerosResponse}\n\n Output: `,
+            content: `Generate simplified explanations of difficult words and phrases that are easy enough for people with low IQ to understand.\n\nInput: ${zerosResponse}\n\n Output: `,
           },
         ],
         temperature: 0.7,
         max_tokens: appliedTokens,
         top_p: 1,
       });
-      finalResponse = finalResponseObj.data.choices
+      const explanationResponse = explanationResponseObj.data.choices
         .map(({ message: { content = "" } }) => content.trim())
         .join(" ");
+      finalResponse = `${finalResponse}\b\b================\n\n${explanationResponse}`;
     }
     return Promise.resolve({
       zerosResponse: finalResponse,

@@ -45,7 +45,7 @@ async function summarizeMemories() {
         },
         {
           role: "user",
-          content: `Original Version: Can you refactor this?
+          content: `Original Version: "Can you refactor this?
               const userJSON = JSON.stringify({
               username: data.username,
               realName: data.realName,
@@ -63,7 +63,7 @@ async function summarizeMemories() {
               profileTheme: data.profileTheme,
               youtubeUrl: data.youtubeUrl,
               website: data.website,
-            });\n\nSuper Concise Version: `,
+            });"\n\nSuper Concise Version: `,
         },
         {
           role: "assistant",
@@ -71,7 +71,15 @@ async function summarizeMemories() {
         },
         {
           role: "user",
-          content: `Original Version: What is Twinkle?\n\nSuper Concise Version: `,
+          content: `Original Version: "good now make it longer - about 500 words"\n\nSuper Concise Version: `,
+        },
+        {
+          role: "assistant",
+          content: `Make it longer (500 words)`,
+        },
+        {
+          role: "user",
+          content: `Original Version: "What is Twinkle?"\n\nSuper Concise Version: `,
         },
         {
           role: "assistant",
@@ -79,7 +87,7 @@ async function summarizeMemories() {
         },
         {
           role: "user",
-          content: `Original Version: good! tell me 50 SAT level words and their definitions?\n\nSuper Concise Version: `,
+          content: `Original Version: "good! tell me 50 SAT level words and their definitions?"\n\nSuper Concise Version: `,
         },
         {
           role: "assistant",
@@ -87,7 +95,7 @@ async function summarizeMemories() {
         },
         {
           role: "user",
-          content: `Original Version: make it longer\n\nSuper Concise Version: `,
+          content: `Original Version: "make it longer"\n\nSuper Concise Version: `,
         },
         {
           role: "assistant",
@@ -95,15 +103,7 @@ async function summarizeMemories() {
         },
         {
           role: "user",
-          content: `Original Version: I'm glad to hear that, Mikey! 😊\n\nSuper Concise Version: `,
-        },
-        {
-          role: "assistant",
-          content: `Glad to hear, Mikey! 😊`,
-        },
-        {
-          role: "user",
-          content: `Original Version: ${prompt}\n\nSuper Concise Version: `,
+          content: `Original Version: "${prompt}"\n\nSuper Concise Version: `,
         },
       ],
       temperature: 0.7,
@@ -122,7 +122,7 @@ async function summarizeMemories() {
         },
         {
           role: "user",
-          content: `Sure, here's a possible refactored version:
+          content: `Original Version: "Sure, here's a possible refactored version:
               const userJSON = JSON.stringify({
               username: data.username,
               realName: data.realName,
@@ -140,7 +140,7 @@ async function summarizeMemories() {
               profileTheme: data.profileTheme,
               youtubeUrl: data.youtubeUrl,
               website: data.website,
-            });\nFirst, I extracted the logic of replacing special characters into a new function called sanitize. Then, I used this function to sanitize all the relevant input fields, making the code more concise and easier to read.\n\nSuper Concise Version: `,
+            });\nFirst, I extracted the logic of replacing special characters into a new function called sanitize. Then, I used this function to sanitize all the relevant input fields, making the code more concise and easier to read."\n\nSuper Concise Version: `,
         },
         {
           role: "assistant",
@@ -148,7 +148,7 @@ async function summarizeMemories() {
         },
         {
           role: "user",
-          content: `Original Version: I'm glad to hear that, Mikey! 😊\n\nSuper Concise Version: `,
+          content: `Original Version: "I'm glad to hear that, Mikey! 😊"\n\nSuper Concise Version: `,
         },
         {
           role: "assistant",
@@ -156,7 +156,7 @@ async function summarizeMemories() {
         },
         {
           role: "user",
-          content: `Original Version: It is said that a long time ago, there was a small village nestled in the mountains. One day, a group of travelers passed through and decided to stay at the local inn. During the night, they reported hearing strange noises and seeing shadowy figures walking around their rooms. The next morning, the travelers were found dead. The townspeople claimed they had been killed by the spirits that haunted the inn. Even to this day, people avoid staying there, for fear of encountering the malevolent spirits. 👻🌲🏚️\n\nSuper Concise Version: `,
+          content: `Original Version: "It is said that a long time ago, there was a small village nestled in the mountains. One day, a group of travelers passed through and decided to stay at the local inn. During the night, they reported hearing strange noises and seeing shadowy figures walking around their rooms. The next morning, the travelers were found dead. The townspeople claimed they had been killed by the spirits that haunted the inn. Even to this day, people avoid staying there, for fear of encountering the malevolent spirits. 👻🌲🏚️"\n\nSuper Concise Version: `,
         },
         {
           role: "assistant",
@@ -173,7 +173,7 @@ async function summarizeMemories() {
         },
         {
           role: "user",
-          content: `Original Version: ${response}\n\nSuper Concise Version: `,
+          content: `Original Version: "${response}"\n\nSuper Concise Version: `,
         },
       ],
       temperature: 0.7,
