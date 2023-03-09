@@ -73,8 +73,8 @@ async function checkConditionsUsingGPT3({ prompt, effectiveUsername }) {
       value: `${effectiveUsername} is asking a math question`,
     },
     {
-      key: "isCostsManyTokens",
-      value: `${effectiveUsername} is requesting something that would cost a lot of tokens to generate an answer`,
+      key: "isAskingForLongResponse",
+      value: `${effectiveUsername} is requesting for a long answer`,
     },
     {
       key: "isNotAskingQuestion",
