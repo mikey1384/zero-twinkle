@@ -204,7 +204,7 @@ async function returnResponse({
     const explanationResponse = explanationResponseObj.data.choices
       .map(({ message: { content = "" } }) => content.trim())
       .join(" ");
-    finalResponse = `${finalResponse}\b\b================\n\n${explanationResponse}`;
+    finalResponse = `${finalResponse}\n\n================\n${explanationResponse}`;
 
     return Promise.resolve({
       zerosResponse: finalResponse,
