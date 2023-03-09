@@ -104,7 +104,13 @@ async function returnResponse({
       .map(({ message: { content = "" } }) => content.trim())
       .join(" ")}`;
     let finalResponse = zerosResponse;
-    if (isSomethingZeroDoesntKnowHowToRespondTo) {
+    if (
+      isSomethingZeroDoesntKnowHowToRespondTo &&
+      !isAskingWhoZeroIs &&
+      !isAskingAboutCiel &&
+      !isAskingAboutUser &&
+      !isAskingAboutTwinkle
+    ) {
       const finalResponseObj = await openai.createChatCompletion({
         model: "gpt-3.5-turbo",
         messages: [
@@ -169,44 +175,37 @@ async function returnResponse({
       finalResponse = `${finalResponseObj.data.choices
         .map(({ message: { content = "" } }) => content.trim())
         .join(" ")}`;
-    } else if (
-      zerosResponse.split(" ")?.length > 1 &&
-      !isAskingAboutUser &&
-      !isAskingWhoZeroIs &&
-      !isAskingAboutTwinkle &&
-      !isAskingAboutCiel &&
-      !isAskingMathQuestion &&
-      isWantsSomethingExplained
-    ) {
-      const explanationResponseObj = await openai.createChatCompletion({
-        model: "gpt-3.5-turbo",
-        messages: [
-          {
-            role: "system",
-            content: `You are text-davinci-003 text completion model.`,
-          },
-          {
-            role: "user",
-            content: `Generate simplified explanations of difficult words and phrases that are easy enough for people with low IQ to understand.\n\nInput: Schrödinger's cat is a thought experiment in quantum mechanics. It involves a hypothetical cat that may be both alive and dead, depending on the state of a radioactive atom in a sealed box. The experiment is used to illustrate the concept of superposition and the interpretation of quantum mechanics.\n\n Output: `,
-          },
-          {
-            role: "assistant",
-            content: `Thought experiment: a game you play in your head to think about something in a different way\nHypothetical: something that is not real, but you are imagining it to think about what might happen or what you would do in that situation\nRadioactive: something that gives off a type of energy called radiation\nSuperposition: when two waves of energy, like light or sound waves, come together and make a new wave`,
-          },
-          {
-            role: "user",
-            content: `Generate simplified explanations of difficult words and phrases that are easy enough for people with low IQ to understand.\n\nInput: ${zerosResponse}\n\n Output: `,
-          },
-        ],
-        temperature: 0.7,
-        max_tokens: appliedTokens,
-        top_p: 1,
-      });
-      const explanationResponse = explanationResponseObj.data.choices
-        .map(({ message: { content = "" } }) => content.trim())
-        .join(" ");
-      finalResponse = `${finalResponse}\b\b================\n\n${explanationResponse}`;
     }
+
+    const explanationResponseObj = await openai.createChatCompletion({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {
+          role: "system",
+          content: `You are text-davinci-003 text completion model.`,
+        },
+        {
+          role: "user",
+          content: `Generate simplified explanations of difficult words and phrases that are easy enough for people with low IQ to understand.\n\nInput: Schrödinger's cat is a thought experiment in quantum mechanics. It involves a hypothetical cat that may be both alive and dead, depending on the state of a radioactive atom in a sealed box. The experiment is used to illustrate the concept of superposition and the interpretation of quantum mechanics.\n\n Output: `,
+        },
+        {
+          role: "assistant",
+          content: `Thought experiment: a game you play in your head to think about something in a different way\nHypothetical: something that is not real, but you are imagining it to think about what might happen or what you would do in that situation\nRadioactive: something that gives off a type of energy called radiation\nSuperposition: when two waves of energy, like light or sound waves, come together and make a new wave`,
+        },
+        {
+          role: "user",
+          content: `Generate simplified explanations of difficult words and phrases that are easy enough for people with low IQ to understand.\n\nInput: ${zerosResponse}\n\n Output: `,
+        },
+      ],
+      temperature: 0.7,
+      max_tokens: appliedTokens,
+      top_p: 1,
+    });
+    const explanationResponse = explanationResponseObj.data.choices
+      .map(({ message: { content = "" } }) => content.trim())
+      .join(" ");
+    finalResponse = `${finalResponse}\b\b================\n\n${explanationResponse}`;
+
     return Promise.resolve({
       zerosResponse: finalResponse,
       reportMessage: `Hello Mikey. I got this message www.twin-kle.com/comments/${contentId} on my profile "${content}" (${prompt}). /${

@@ -107,7 +107,7 @@ async function summarizeMemories() {
         },
       ],
       temperature: 0.7,
-      max_tokens: 2000,
+      max_tokens: 100,
       top_p: 1,
     });
     const isSummarizedPrompt = isSummarizedPromptRes.data.choices
@@ -177,7 +177,7 @@ async function summarizeMemories() {
         },
       ],
       temperature: 0.7,
-      max_tokens: 3000,
+      max_tokens: 100,
       top_p: 1,
     });
     const isSummarizedResponse = isSummarizedResponseRes.data.choices
