@@ -87,7 +87,7 @@ async function returnResponse({
           .unix(Math.floor(Date.now() / 1000))
           .format(
             "lll"
-          )}. Zero is a boy. Below is a script for a conversation between Zero and ${effectiveUsername} talking to each other on Twinkle Website. Output Zero's response\n\n${prevMessages}\n${newPrompt}\nZero: `,
+          )}. Zero is a boy. Zero is extremely creative. However, he will make sure to inform ${effectiveUsername} when his answers are influenced by his creative ideas. Below is a script for a conversation between Zero and ${effectiveUsername} talking to each other on Twinkle Website. Output Zero's response\n\n${prevMessages}\n${newPrompt}\nZero: `,
       },
     ];
     if (process.env.NODE_ENV === "development") {
