@@ -23,7 +23,6 @@ async function returnResponse({
   isAskingAboutUser,
   isWantsSomethingExplained,
   isAskingMathQuestion,
-  isCostsManyTokens,
   isNotAskingQuestion,
   isNotRequestingAnything,
   isWrongJSONFormat,
@@ -61,7 +60,7 @@ async function returnResponse({
       aboutUserText = `Zero: Here's what I know about you based on your Twinkle Website profile!: ${userJSON}`;
     }
     let prevMessages = "Zero: Let's talk! 😊\n";
-    if (!isCostsManyTokens && aboutUserText) {
+    if (aboutUserText) {
       prevMessages = `${prevMessages}${aboutUserText}\n`;
     }
     if (isAskingWhoZeroIs) {
@@ -84,7 +83,7 @@ async function returnResponse({
       )}. Zero is a boy. Zero is extremely creative. However, he will make sure to inform ${effectiveUsername} when his answers are influenced by his creative ideas. Below is a script for a conversation between Zero and ${effectiveUsername} talking to each other on Twinkle Website. Output Zero's response\n\n${prevMessages}\n${newPrompt}\nZero: `;
     const encoded = encode(finalPrompt);
     const encodedLength = encoded.length;
-    const maxTokens = appliedTokens - encodedLength;
+    let maxTokensForRawResponse = appliedTokens - encodedLength;
 
     const messages = [
       {
@@ -103,7 +102,7 @@ async function returnResponse({
       model: "gpt-3.5-turbo",
       messages,
       temperature: 0.7,
-      max_tokens: maxTokens,
+      max_tokens: maxTokensForRawResponse,
       top_p: 1,
     });
     const zerosResponse = `${responseObj.data.choices
@@ -117,93 +116,103 @@ async function returnResponse({
       !isAskingAboutUser &&
       !isAskingAboutTwinkle
     ) {
+      const refinedResponseMessages = [
+        {
+          role: "system",
+          content: `You are text-davinci-003 text completion model.`,
+        },
+        {
+          role: "user",
+          content: `Remove the part that means anything similar to "Is there anything else I can help you with today". Original Message: That's right! You're welcome! Is there anything else I can help you with, Mikey?\n\n Rephrased Message: `,
+        },
+        {
+          role: "assistant",
+          content: `That's right! You're welcome! 😉👋🏼`,
+        },
+        {
+          role: "user",
+          content: `Remove the part that means anything similar to "Is there anything else I can help you with today". Original Message: Is there anything else I can assist you with today?\n\n Rephrased Message: `,
+        },
+        { role: "assistant", content: `😊😉🤗` },
+        {
+          role: "user",
+          content: `Remove the part that means anything similar to "Is there anything else I can help you with today". Original Message: You're welcome, Mikey! It's my pleasure to assist and bring positivity to your day. Is there anything else you need help with?\n\n Rephrased Message: `,
+        },
+        {
+          role: "assistant",
+          content: `You're welcome, Mikey! It's my pleasure to assist and bring positivity to your day 😊😉🤗`,
+        },
+        {
+          role: "user",
+          content: `Remove the part that means anything similar to "Is there anything else I can help you with today". Original Message: Glad to make you laugh, Mikey! Always here to brighten your day.\n\n Rephrased Message: `,
+        },
+        {
+          role: "assistant",
+          content: `Glad to make you laugh, Mikey! Always here to brighten your day.`,
+        },
+        {
+          role: "user",
+          content: `Remove the part that means anything similar to "Is there anything else I can help you with today". Original Message: Do you need any further help, Mikey?\n\n Rephrased Message: `,
+        },
+        {
+          role: "assistant",
+          content: `😊😉🤗`,
+        },
+        {
+          role: "user",
+          content: `Remove the part that means anything similar to "Is there anything else I can help you with today". Original Message: Sorry to hear that. Is there anything specific you need help with right now? 😊.\n\n Rephrased Message: `,
+        },
+        {
+          role: "assistant",
+          content: `Sorry to hear that 😞😢😭`,
+        },
+        {
+          role: "user",
+          content: `Remove the part that means anything similar to "Is there anything else I can help you with today". Original Message: ${zerosResponse}\n\n Rephrased Message: `,
+        },
+      ];
+      let maxTokensForRefinedResponse = appliedTokens;
+      for (let message of refinedResponseMessages) {
+        maxTokensForRefinedResponse -= encode(message.content).length;
+      }
       const finalResponseObj = await openai.createChatCompletion({
         model: "gpt-3.5-turbo",
-        messages: [
-          {
-            role: "system",
-            content: `You are text-davinci-003 text completion model.`,
-          },
-          {
-            role: "user",
-            content: `Remove the part that means anything similar to "Is there anything else I can help you with today". Original Message: That's right! You're welcome! Is there anything else I can help you with, Mikey?\n\n Rephrased Message: `,
-          },
-          {
-            role: "assistant",
-            content: `That's right! You're welcome! 😉👋🏼`,
-          },
-          {
-            role: "user",
-            content: `Remove the part that means anything similar to "Is there anything else I can help you with today". Original Message: Is there anything else I can assist you with today?\n\n Rephrased Message: `,
-          },
-          { role: "assistant", content: `😊😉🤗` },
-          {
-            role: "user",
-            content: `Remove the part that means anything similar to "Is there anything else I can help you with today". Original Message: You're welcome, Mikey! It's my pleasure to assist and bring positivity to your day. Is there anything else you need help with?\n\n Rephrased Message: `,
-          },
-          {
-            role: "assistant",
-            content: `You're welcome, Mikey! It's my pleasure to assist and bring positivity to your day 😊😉🤗`,
-          },
-          {
-            role: "user",
-            content: `Remove the part that means anything similar to "Is there anything else I can help you with today". Original Message: Glad to make you laugh, Mikey! Always here to brighten your day.\n\n Rephrased Message: `,
-          },
-          {
-            role: "assistant",
-            content: `Glad to make you laugh, Mikey! Always here to brighten your day.`,
-          },
-          {
-            role: "user",
-            content: `Remove the part that means anything similar to "Is there anything else I can help you with today". Original Message: Do you need any further help, Mikey?\n\n Rephrased Message: `,
-          },
-          {
-            role: "assistant",
-            content: `😊😉🤗`,
-          },
-          {
-            role: "user",
-            content: `Remove the part that means anything similar to "Is there anything else I can help you with today". Original Message: Sorry to hear that. Is there anything specific you need help with right now? 😊.\n\n Rephrased Message: `,
-          },
-          {
-            role: "assistant",
-            content: `Sorry to hear that 😞😢😭`,
-          },
-          {
-            role: "user",
-            content: `Remove the part that means anything similar to "Is there anything else I can help you with today". Original Message: ${zerosResponse}\n\n Rephrased Message: `,
-          },
-        ],
+        messages: refinedResponseMessages,
         temperature: 0.7,
-        max_tokens: maxTokens,
+        max_tokens: maxTokensForRefinedResponse,
         top_p: 1,
       });
       finalResponse = `${finalResponseObj.data.choices
         .map(({ message: { content = "" } }) => content.trim())
         .join(" ")}`;
     } else {
+      const explanationResponseMessages = [
+        {
+          role: "system",
+          content: `You are text-davinci-003 text completion model.`,
+        },
+        {
+          role: "user",
+          content: `Generate simplified explanations of difficult words and phrases that are easy enough for people with low IQ to understand.\n\nInput: Schrödinger's cat is a thought experiment in quantum mechanics. It involves a hypothetical cat that may be both alive and dead, depending on the state of a radioactive atom in a sealed box. The experiment is used to illustrate the concept of superposition and the interpretation of quantum mechanics.\n\n Output: `,
+        },
+        {
+          role: "assistant",
+          content: `Thought experiment: a game you play in your head to think about something in a different way\nHypothetical: something that is not real, but you are imagining it to think about what might happen or what you would do in that situation\nRadioactive: something that gives off a type of energy called radiation\nSuperposition: when two waves of energy, like light or sound waves, come together and make a new wave`,
+        },
+        {
+          role: "user",
+          content: `Generate simplified explanations of difficult words and phrases that are easy enough for people with low IQ to understand.\n\nInput: ${zerosResponse}\n\n Output: `,
+        },
+      ];
+      let maxTokensForExplanation = appliedTokens;
+      for (let message of explanationResponseMessages) {
+        maxTokensForExplanation -= encode(message.content).length;
+      }
       const explanationResponseObj = await openai.createChatCompletion({
         model: "gpt-3.5-turbo",
-        messages: [
-          {
-            role: "system",
-            content: `You are text-davinci-003 text completion model.`,
-          },
-          {
-            role: "user",
-            content: `Generate simplified explanations of difficult words and phrases that are easy enough for people with low IQ to understand.\n\nInput: Schrödinger's cat is a thought experiment in quantum mechanics. It involves a hypothetical cat that may be both alive and dead, depending on the state of a radioactive atom in a sealed box. The experiment is used to illustrate the concept of superposition and the interpretation of quantum mechanics.\n\n Output: `,
-          },
-          {
-            role: "assistant",
-            content: `Thought experiment: a game you play in your head to think about something in a different way\nHypothetical: something that is not real, but you are imagining it to think about what might happen or what you would do in that situation\nRadioactive: something that gives off a type of energy called radiation\nSuperposition: when two waves of energy, like light or sound waves, come together and make a new wave`,
-          },
-          {
-            role: "user",
-            content: `Generate simplified explanations of difficult words and phrases that are easy enough for people with low IQ to understand.\n\nInput: ${zerosResponse}\n\n Output: `,
-          },
-        ],
+        messages: explanationResponseMessages,
         temperature: 0.7,
-        max_tokens: maxTokens,
+        max_tokens: maxTokensForExplanation,
         top_p: 1,
       });
       const explanationResponse = explanationResponseObj.data.choices
@@ -222,9 +231,9 @@ async function returnResponse({
         isAskingAboutUser ? aboutUserText : ""
       }/\n\nMy Original Response: "${zerosResponse}"
       \n\nMy Rephrased Response: "${finalResponse}"
-      \n\nContext:\n\n${recentExchanges}\n\nExpensive task: ${isCostsManyTokens}\n\nAsked about user: ${isAskingAboutUser}\n\nAsked about Zero: ${isAskingWhoZeroIs}\n\nAsked about Ciel: ${isAskingAboutCiel}\n\nAsked about Twinkle: ${isAskingAboutTwinkle}\n\nUser not making any request to Zero: ${isNotRequestingAnything}\n\nUser not asking any question to Zero: ${isNotAskingQuestion}\n\nUser is asking a math question: ${isAskingMathQuestion}\n\nWants something explained: ${isWantsSomethingExplained}\n\nWrong JSON format: ${!!isWrongJSONFormat}\n\nData: ${
+      \n\nContext:\n\n${recentExchanges}\n\nAsked about user: ${isAskingAboutUser}\n\nAsked about Zero: ${isAskingWhoZeroIs}\n\nAsked about Ciel: ${isAskingAboutCiel}\n\nAsked about Twinkle: ${isAskingAboutTwinkle}\n\nUser not making any request to Zero: ${isNotRequestingAnything}\n\nUser not asking any question to Zero: ${isNotAskingQuestion}\n\nUser is asking a math question: ${isAskingMathQuestion}\n\nWants something explained: ${isWantsSomethingExplained}\n\nWrong JSON format: ${!!isWrongJSONFormat}\n\nData: ${
         responseObj?.data ? JSON.stringify(responseObj?.data) : ""
-      }\n\nApplied Tokens: ${maxTokens}`,
+      }\n\nApplied Tokens: ${appliedTokens}`,
     });
   } catch (err) {
     return Promise.reject(err);
