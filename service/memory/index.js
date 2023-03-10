@@ -45,7 +45,7 @@ async function summarizeMemories() {
         },
         {
           role: "user",
-          content: `Original Version: "Can you refactor this?
+          content: `{"PhraseToMakeConcise": "Can you refactor this?
               const userJSON = JSON.stringify({
               username: data.username,
               realName: data.realName,
@@ -63,7 +63,7 @@ async function summarizeMemories() {
               profileTheme: data.profileTheme,
               youtubeUrl: data.youtubeUrl,
               website: data.website,
-            });"\n\nSuper Concise Version: `,
+            });"}\n\nSuper Concise Version: `,
         },
         {
           role: "assistant",
@@ -71,7 +71,7 @@ async function summarizeMemories() {
         },
         {
           role: "user",
-          content: `Original Version: "good now make it longer - about 500 words"\n\nSuper Concise Version: `,
+          content: `{"PhraseToMakeConcise": "good now make it longer - about 500 words"}\n\nSuper Concise Version: `,
         },
         {
           role: "assistant",
@@ -79,7 +79,7 @@ async function summarizeMemories() {
         },
         {
           role: "user",
-          content: `Original Version: "What is Twinkle?"\n\nSuper Concise Version: `,
+          content: `{"PhraseToMakeConcise": "What is Twinkle?"}\n\nSuper Concise Version: `,
         },
         {
           role: "assistant",
@@ -87,7 +87,7 @@ async function summarizeMemories() {
         },
         {
           role: "user",
-          content: `Original Version: "good! tell me 50 SAT level words and their definitions?"\n\nSuper Concise Version: `,
+          content: `{"PhraseToMakeConcise": "good! tell me 50 SAT level words and their definitions?"}\n\nSuper Concise Version: `,
         },
         {
           role: "assistant",
@@ -95,7 +95,7 @@ async function summarizeMemories() {
         },
         {
           role: "user",
-          content: `Original Version: "make it longer"\n\nSuper Concise Version: `,
+          content: `{"PhraseToMakeConcise": "make it longer"}\n\nSuper Concise Version: `,
         },
         {
           role: "assistant",
@@ -103,11 +103,11 @@ async function summarizeMemories() {
         },
         {
           role: "user",
-          content: `Original Version: "${prompt}"\n\nSuper Concise Version: `,
+          content: `{"PhraseToMakeConcise": "${prompt}"}\n\nSuper Concise Version: `,
         },
       ],
       temperature: 0.7,
-      max_tokens: 100,
+      max_tokens: 50,
       top_p: 1,
     });
     const isSummarizedPrompt = isSummarizedPromptRes.data.choices
@@ -177,7 +177,7 @@ async function summarizeMemories() {
         },
       ],
       temperature: 0.7,
-      max_tokens: 100,
+      max_tokens: 50,
       top_p: 1,
     });
     const isSummarizedResponse = isSummarizedResponseRes.data.choices
