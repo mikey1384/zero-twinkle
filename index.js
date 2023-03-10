@@ -16,7 +16,7 @@ const channelId = Number(process.env.ZERO_CHAT_ROOM_ID);
 const respondProfileMsgInterval = 20;
 const summarizeMemoriesInterval = 20;
 const tagVideosToPlaylistInterval = 60;
-const defaultMaxTokens = 3300;
+const defaultMaxTokens = 4000;
 
 async function runCheckAndRespondToProfileMessages({
   appliedTokens = defaultMaxTokens,
