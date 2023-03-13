@@ -13,7 +13,7 @@ const socket = io.connect(URL);
 const zeroId = Number(process.env.ZERO_TWINKLE_ID);
 const channelId = Number(process.env.ZERO_CHAT_ROOM_ID);
 
-const respondProfileMsgInterval = 20;
+const respondProfileMsgInterval = 5;
 const summarizeMemoriesInterval = 20;
 const tagVideosToPlaylistInterval = 60;
 const defaultMaxTokens = 4000;
