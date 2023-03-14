@@ -22,6 +22,7 @@ async function returnResponse({
   isAskingAboutTwinkle,
   isAskingAboutUser,
   isWantsSomethingExplained,
+  isInterjection,
   isAskingMathQuestion,
   isNotAskingQuestion,
   isNotRequestingAnything,
@@ -30,7 +31,7 @@ async function returnResponse({
   userId,
 }) {
   const isSomethingZeroDoesntKnowHowToRespondTo =
-    isNotAskingQuestion && isNotRequestingAnything;
+    (isNotAskingQuestion && isNotRequestingAnything) || isInterjection;
   try {
     let aboutUserText = "";
     if (isAskingAboutUser) {

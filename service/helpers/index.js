@@ -77,12 +77,12 @@ async function checkConditionsUsingGPT3({ prompt, effectiveUsername }) {
       value: `${effectiveUsername} is not asking a question`,
     },
     {
-      key: "isInterjection",
-      value: `${effectiveUsername} only saying one word, and it's an interjection such as "aha," "oh," "wow"`,
+      key: "isWantsSomethingDone",
+      value: `${effectiveUsername} is asking Zero to do something`,
     },
     {
-      key: "isNotMakingRequest",
-      value: `${effectiveUsername} isn't making any request`,
+      key: "isInterjection",
+      value: `${effectiveUsername} only saying one word, and it's an interjection such as "aha," "oh," "wow"`,
     },
   ];
   const JSONResponse = await checkIsPromptMatchConditionUsingGPT3JSON({

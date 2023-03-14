@@ -58,7 +58,7 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
       isAskingMathQuestion,
       isWantsSomethingExplained,
       isNotAskingQuestion,
-      isNotMakingRequest,
+      isWantsSomethingDone,
       isInterjection,
       isWrongJSONFormat,
     } = await checkConditionsUsingGPT3({
@@ -82,8 +82,9 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
       isWantsSomethingExplained:
         isAskingFactualQuestion || isWantsSomethingExplained,
       isAskingMathQuestion,
-      isNotAskingQuestion: isNotAskingQuestion || isInterjection,
-      isNotRequestingAnything: isNotMakingRequest || isInterjection,
+      isNotAskingQuestion,
+      isNotRequestingAnything: !isWantsSomethingDone,
+      isInterjection,
       isWrongJSONFormat,
       userId: comment.userId,
       userAuthLevel,
