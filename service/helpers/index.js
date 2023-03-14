@@ -77,7 +77,15 @@ async function checkConditionsUsingGPT3({ prompt, effectiveUsername }) {
       value: `${effectiveUsername} is not asking a question`,
     },
     {
-      key: "isWantsSomethingDone",
+      key: "userIsCommandingZero",
+      value: `${effectiveUsername} is commanding Zero to do something`,
+    },
+    {
+      key: "userIsRequestingZero",
+      value: `${effectiveUsername} is requesting Zero to do something`,
+    },
+    {
+      key: "userWantsSomethingDone",
       value: `${effectiveUsername} is asking Zero to do something`,
     },
     {
