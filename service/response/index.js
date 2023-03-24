@@ -6,7 +6,7 @@ const socket = io.connect(URL);
 const config = require("../../config");
 const { auth } = config;
 const { returnResponse } = require("../helpers/zero");
-const { poolQuery, checkConditionsUsingGPT3 } = require("../helpers");
+const { poolQuery, checkConditionsUsingGPT } = require("../helpers");
 
 const zeroId = Number(process.env.ZERO_TWINKLE_ID);
 const channelId = Number(process.env.ZERO_CHAT_ROOM_ID);
@@ -63,7 +63,7 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
       userWantsSomethingDone,
       isInterjection,
       isWrongJSONFormat,
-    } = await checkConditionsUsingGPT3({
+    } = await checkConditionsUsingGPT({
       prompt: `Zero: Hello, ${effectiveUsername}. What can I do for you?\n\n${effectiveUsername}: ${prompt}`,
       effectiveUsername,
     });

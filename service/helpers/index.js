@@ -1,5 +1,6 @@
 const { writePool, readPool } = require("../pool");
 const config = require("../../config");
+const { encode } = require("gpt-3-encoder");
 const { openai, yesNoMaxTokens } = config;
 
 function poolQuery(query, params) {
@@ -18,7 +19,7 @@ function poolQuery(query, params) {
   });
 }
 
-async function checkConditionsUsingGPT3({ prompt, effectiveUsername }) {
+async function checkConditionsUsingGPT({ prompt, effectiveUsername }) {
   const conditions = [
     {
       key: "isAskingAboutUser",
@@ -93,7 +94,7 @@ async function checkConditionsUsingGPT3({ prompt, effectiveUsername }) {
       value: `${effectiveUsername} only saying one word, and it's an interjection such as "aha," "oh," "wow"`,
     },
   ];
-  const JSONResponse = await checkIsPromptMatchConditionUsingGPT3JSON({
+  const JSONResponse = await checkIsPromptMatchConditionUsingGPTJSON({
     conditions,
     prompt,
   });
@@ -104,7 +105,7 @@ async function checkConditionsUsingGPT3({ prompt, effectiveUsername }) {
     console.log("wrong JSON format", JSONResponse);
     result = {};
     for (const condition of conditions) {
-      result[condition.key] = await checkIsPromptMatchConditionUsingGPT3({
+      result[condition.key] = await checkIsPromptMatchConditionUsingGPT({
         prompt,
         condition: condition.value,
       });
@@ -114,43 +115,63 @@ async function checkConditionsUsingGPT3({ prompt, effectiveUsername }) {
   return Promise.resolve(result);
 }
 
-async function checkIsPromptMatchConditionUsingGPT3JSON({
-  conditions,
-  prompt,
-}) {
-  const response = await openai.createChatCompletion({
-    model: "gpt-3.5-turbo",
-    messages: [
-      {
-        role: "system",
-        content: "You are text-davinci-003 text completion model.",
-      },
-      {
-        role: "user",
-        content: `This JSON generator reads the script below and returns a single JSON object with keys ${conditions
-          .map(({ key }) => `"${key}"`)
-          .join(
-            ", "
-          )} and value being the boolean value of whether they are met.\n\nScript: ${prompt}\n\nJSON: `,
-      },
-    ],
-    temperature: 0.7,
-    max_tokens: 3000,
-    top_p: 1,
-  });
-  const responseText = response.data.choices
-    .map(({ message: { content = "" } }) => content.trim())
-    .join(" ");
+async function checkIsPromptMatchConditionUsingGPTJSON({ conditions, prompt }) {
+  const messages = [
+    {
+      role: "user",
+      content: `This JSON generator reads the script below and returns a single JSON object with keys ${conditions
+        .map(({ key }) => `"${key}"`)
+        .join(
+          ", "
+        )} and value being the boolean value of whether they are met.\n\nScript: ${prompt}\n\nJSON: `,
+    },
+  ];
+  const maxTokens = 4000;
+  let appliedTokens = maxTokens;
+  for (const message of messages) {
+    appliedTokens -= encode(message.content).length;
+  }
+
+  let responseText;
+
+  try {
+    const response = await openai.createChatCompletion({
+      model: "gpt-4",
+      messages,
+      max_tokens: appliedTokens,
+      top_p: 0.1,
+    });
+
+    responseText = response.data.choices
+      .map(({ message: { content = "" } }) => content.trim())
+      .join(" ");
+  } catch (error) {
+    console.error("Error with GPT-4, falling back to GPT-3.5-turbo:", error);
+    try {
+      const response = await openai.createChatCompletion({
+        model: "gpt-3.5-turbo",
+        messages,
+        max_tokens: appliedTokens,
+        top_p: 0.1,
+      });
+      responseText = response.data.choices
+        .map(({ message: { content = "" } }) => content.trim())
+        .join(" ");
+    } catch (error) {
+      console.error("Error with GPT-3.5-turbo:", error);
+      throw error;
+    }
+  }
+
   return responseText;
 }
 
-async function checkIsPromptMatchConditionUsingGPT3({ prompt, condition }) {
+async function checkIsPromptMatchConditionUsingGPT({ prompt, condition }) {
   const response = await openai.createCompletion({
     model: "text-davinci-003",
     prompt: `When you enter a prompt, I'm going to say "yes" if ${condition}, and say "no" if otherwise. Enter a prompt here: \n\n\n ${prompt}\n\n\n`,
-    temperature: 0.7,
     max_tokens: yesNoMaxTokens,
-    top_p: 1,
+    top_p: 0.1,
     best_of: 3,
     frequency_penalty: 0,
     presence_penalty: 0,
@@ -163,6 +184,6 @@ async function checkIsPromptMatchConditionUsingGPT3({ prompt, condition }) {
 
 module.exports = {
   poolQuery,
-  checkConditionsUsingGPT3,
-  checkIsPromptMatchConditionUsingGPT3,
+  checkConditionsUsingGPT,
+  checkIsPromptMatchConditionUsingGPT,
 };

@@ -40,10 +40,6 @@ async function summarizeMemories() {
       model: "gpt-3.5-turbo",
       messages: [
         {
-          role: "system",
-          content: "You are text-davinci-003 text completion model.",
-        },
-        {
           role: "user",
           content: `{"PhraseToMakeConcise": "Can you refactor this?
               const userJSON = JSON.stringify({
@@ -106,9 +102,8 @@ async function summarizeMemories() {
           content: `{"PhraseToMakeConcise": "${prompt}"}\n\nSuper Concise Version: `,
         },
       ],
-      temperature: 0.7,
       max_tokens: 50,
-      top_p: 1,
+      top_p: 0.1,
     });
     const isSummarizedPrompt = isSummarizedPromptRes.data.choices
       .map(({ message: { content = "" } }) => content.trim())
@@ -116,10 +111,6 @@ async function summarizeMemories() {
     const isSummarizedResponseRes = await openai.createChatCompletion({
       model: "gpt-3.5-turbo",
       messages: [
-        {
-          role: "system",
-          content: "You are text-davinci-003 text completion model.",
-        },
         {
           role: "user",
           content: `Original Version: "Sure, here's a possible refactored version:
@@ -176,9 +167,8 @@ async function summarizeMemories() {
           content: `Original Version: "${response}"\n\nSuper Concise Version: `,
         },
       ],
-      temperature: 0.7,
       max_tokens: 50,
-      top_p: 1,
+      top_p: 0.1,
     });
     const isSummarizedResponse = isSummarizedResponseRes.data.choices
       .map(({ message: { content = "" } }) => content.trim())

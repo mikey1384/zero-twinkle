@@ -88,10 +88,6 @@ async function returnResponse({
 
     const messages = [
       {
-        role: "system",
-        content: `You are text-davinci-003 text completion model.`,
-      },
-      {
         role: "user",
         content: finalPrompt,
       },
@@ -104,7 +100,6 @@ async function returnResponse({
       messages,
       temperature: 0.7,
       max_tokens: maxTokensForRawResponse,
-      top_p: 1,
     });
     const zerosResponse = `${responseObj.data.choices
       .map(({ message: { content = "" } }) => content.trim())
@@ -118,10 +113,6 @@ async function returnResponse({
       !isAskingAboutTwinkle
     ) {
       const refinedResponseMessages = [
-        {
-          role: "system",
-          content: `You are text-davinci-003 text completion model.`,
-        },
         {
           role: "user",
           content: `Remove the part that means anything similar to "Is there anything else I can help you with today". Original Message: That's right! You're welcome! Is there anything else I can help you with, Mikey?\n\n Rephrased Message: `,
@@ -179,19 +170,14 @@ async function returnResponse({
       const finalResponseObj = await openai.createChatCompletion({
         model: "gpt-3.5-turbo",
         messages: refinedResponseMessages,
-        temperature: 0.7,
         max_tokens: maxTokensForRefinedResponse,
-        top_p: 1,
+        top_p: 0.1,
       });
       finalResponse = `${finalResponseObj.data.choices
         .map(({ message: { content = "" } }) => content.trim())
         .join(" ")}`;
     } else {
       const explanationResponseMessages = [
-        {
-          role: "system",
-          content: `You are text-davinci-003 text completion model.`,
-        },
         {
           role: "user",
           content: `Generate simplified explanations of difficult words and phrases that are easy enough for people with low IQ to understand.\n\nInput: Schrödinger's cat is a thought experiment in quantum mechanics. It involves a hypothetical cat that may be both alive and dead, depending on the state of a radioactive atom in a sealed box. The experiment is used to illustrate the concept of superposition and the interpretation of quantum mechanics.\n\n Output: `,
@@ -212,9 +198,8 @@ async function returnResponse({
       const explanationResponseObj = await openai.createChatCompletion({
         model: "gpt-3.5-turbo",
         messages: explanationResponseMessages,
-        temperature: 0.7,
         max_tokens: maxTokensForExplanation,
-        top_p: 1,
+        top_p: 0.1,
       });
       const explanationResponse = explanationResponseObj.data.choices
         .map(({ message: { content = "" } }) => content.trim())
