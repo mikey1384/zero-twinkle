@@ -96,7 +96,7 @@ async function returnResponse({
       console.log(messages);
     }
     const responseObj = await openai.createChatCompletion({
-      model: "gpt-4-0314",
+      model: "gpt-4",
       messages,
       temperature: 0.7,
       max_tokens: maxTokensForRawResponse,
@@ -168,7 +168,7 @@ async function returnResponse({
         maxTokensForRefinedResponse -= encode(message.content).length;
       }
       const finalResponseObj = await openai.createChatCompletion({
-        model: "gpt-4-0314",
+        model: "gpt-4",
         messages: refinedResponseMessages,
         max_tokens: maxTokensForRefinedResponse,
         top_p: 0.1,
@@ -196,7 +196,7 @@ async function returnResponse({
         maxTokensForExplanation -= encode(message.content).length;
       }
       const explanationResponseObj = await openai.createChatCompletion({
-        model: "gpt-4-0314",
+        model: "gpt-4",
         messages: explanationResponseMessages,
         max_tokens: maxTokensForExplanation,
         top_p: 0.1,
