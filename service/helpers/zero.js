@@ -196,7 +196,7 @@ async function returnResponse({
         maxTokensForExplanation -= encode(message.content).length;
       }
       const explanationResponseObj = await openai.createChatCompletion({
-        model: "gpt-4",
+        model: "gpt-3.5-turbo",
         messages: explanationResponseMessages,
         max_tokens: maxTokensForExplanation,
         top_p: 0.1,

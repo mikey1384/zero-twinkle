@@ -37,7 +37,7 @@ async function summarizeMemories() {
     }
     const { prompt, response } = row;
     const isSummarizedPromptRes = await openai.createChatCompletion({
-      model: "gpt-4",
+      model: "gpt-3.5-turbo",
       messages: [
         {
           role: "user",
@@ -109,7 +109,7 @@ async function summarizeMemories() {
       .map(({ message: { content = "" } }) => content.trim())
       .join(" ");
     const isSummarizedResponseRes = await openai.createChatCompletion({
-      model: "gpt-4",
+      model: "gpt-3.5-turbo",
       messages: [
         {
           role: "user",
