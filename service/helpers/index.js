@@ -136,7 +136,7 @@ async function checkIsPromptMatchConditionUsingGPTJSON({ conditions, prompt }) {
 
   try {
     const response = await openai.createChatCompletion({
-      model: "gpt-4",
+      model: "gpt-4-0314",
       messages,
       max_tokens: appliedTokens,
       top_p: 0.1,
@@ -146,10 +146,13 @@ async function checkIsPromptMatchConditionUsingGPTJSON({ conditions, prompt }) {
       .map(({ message: { content = "" } }) => content.trim())
       .join(" ");
   } catch (error) {
-    console.error("Error with GPT-4, falling back to GPT-3.5-turbo:", error);
+    console.error(
+      "Error with GPT-4-0314, falling back to GPT-3.5-turbo-0301:",
+      error
+    );
     try {
       const response = await openai.createChatCompletion({
-        model: "gpt-3.5-turbo",
+        model: "gpt-3.5-turbo-0301",
         messages,
         max_tokens: appliedTokens,
         top_p: 0.1,
@@ -158,7 +161,7 @@ async function checkIsPromptMatchConditionUsingGPTJSON({ conditions, prompt }) {
         .map(({ message: { content = "" } }) => content.trim())
         .join(" ");
     } catch (error) {
-      console.error("Error with GPT-3.5-turbo:", error);
+      console.error("Error with GPT-3.5-turbo-0301:", error);
       throw error;
     }
   }
