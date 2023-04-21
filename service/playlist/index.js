@@ -210,7 +210,7 @@ async function suggestTag(videoData) {
     const tag = response.data.choices
       .map(({ message: { content = "" } }) => content.trim())
       .join(" ");
-    return (tag || "").replace(/"/g, "");
+    return (tag || "").replace(/[".]/g, "");
   } catch (error) {
     console.error(`Error while processing video category: ${error}`);
     return [];
