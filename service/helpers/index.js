@@ -182,30 +182,7 @@ async function checkIsPromptMatchConditionUsingGPT({ prompt, condition }) {
   return (responseText.toLowerCase() || "").includes("yes");
 }
 
-function compressForGPT(text) {
-  const words = text.split(" ");
-  const compressedWords = words.map((word) => {
-    if (!isEnglishWord(word) || word[0] === word[0]?.toUpperCase?.()) {
-      return word;
-    } else if (word.length === 1) {
-      return ".";
-    } else if (word.length === 2) {
-      return word[0] + ".";
-    } else if (word.length === 3) {
-      return word[0] + "." + word[word.length - 1];
-    } else {
-      return word.slice(0, 2) + "." + word[word.length - 1];
-    }
-  });
-  return compressedWords.join(" ");
-
-  function isEnglishWord(word) {
-    return /^[A-Za-z]+$/.test(word);
-  }
-}
-
 module.exports = {
-  compressForGPT,
   poolQuery,
   checkConditionsUsingGPT,
   checkIsPromptMatchConditionUsingGPT,
