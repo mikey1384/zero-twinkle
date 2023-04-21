@@ -202,7 +202,7 @@ async function suggestTag(videoData) {
         },
         {
           role: "user",
-          content: `Prompt: Based on the given video metadata, suggest a concise category label using no more than two words: ${videoData}\n\nLabel: `,
+          content: `Prompt: Based on the given video metadata, suggest a concise category label using ideally a single word and no more than two words: ${videoData}\n\nLabel: `,
         },
       ],
       max_tokens: 50,
