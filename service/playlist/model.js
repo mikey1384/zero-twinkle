@@ -31,7 +31,7 @@ async function sendEmailReportForPLRewardLevel({
 
 async function sendEmailReport({
   playlists,
-  playlistRewardLevel,
+  newRewardLevel,
   newPlaylistName,
   videoId,
   videoRewardLevel,
@@ -74,8 +74,8 @@ async function sendEmailReport({
             : ""
         }
         ${
-          !videoRewardLevel && playlistRewardLevel
-            ? `<p>set video's reward level to ${playlistRewardLevel}</p>`
+          !videoRewardLevel && newRewardLevel
+            ? `<p>set video's reward level to ${newRewardLevel}</p>`
             : ""
         }
         <a target="_blank" href="${

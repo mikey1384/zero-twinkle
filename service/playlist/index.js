@@ -211,7 +211,7 @@ async function tagVideosToPlaylist() {
       content
     );
 
-    let playlistRewardLevel = null;
+    let appliedVideoRewardLevel = 0;
     const isNewVideo = videosWithTheSameVideoCode.length < 2;
 
     for (let { playlistId, rewardLevel } of playlists) {
@@ -225,20 +225,20 @@ async function tagVideosToPlaylist() {
           playlistId,
         ]);
       }
-      if (!!rewardLevel && !playlistRewardLevel) {
-        playlistRewardLevel = rewardLevel;
+      if (!!rewardLevel && rewardLevel > appliedVideoRewardLevel) {
+        appliedVideoRewardLevel = rewardLevel;
       }
     }
 
-    if (!videoRewardLevel && playlistRewardLevel && isNewVideo) {
+    if (!videoRewardLevel && appliedVideoRewardLevel && isNewVideo) {
       await poolQuery(`UPDATE vq_videos SET ? WHERE id = ?`, [
-        { rewardLevel: playlistRewardLevel },
+        { rewardLevel: appliedVideoRewardLevel },
         videoId,
       ]);
     }
     await sendEmailReport({
       playlists,
-      playlistRewardLevel,
+      newRewardLevel: appliedVideoRewardLevel,
       newPlaylistName,
       videoId,
       videoRewardLevel,
