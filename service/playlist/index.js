@@ -213,7 +213,7 @@ async function suggestTag(videoData) {
     return (tag || "").replace(/[".]/g, "");
   } catch (error) {
     console.error(`Error while processing video category: ${error}`);
-    return [];
+    return "";
   }
 }
 
