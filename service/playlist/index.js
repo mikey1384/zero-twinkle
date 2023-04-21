@@ -123,7 +123,14 @@ async function tagVideosToPlaylist() {
           playlists = [{ playlistId, title, rewardLevel }];
           break;
         }
-        if (["bazbattles", "dude perfect", "TED-ED"].includes(tag)) {
+        if (
+          [
+            "bazbattles",
+            "dude perfect",
+            "TED-ED",
+            "Daniel Naroditsky",
+          ].includes(tag)
+        ) {
           playlists = [{ playlistId, title, rewardLevel }];
           break;
         }
