@@ -2,6 +2,31 @@ const nodemailer = require("nodemailer");
 const config = require("../../config");
 const { mailAuth } = config;
 
+async function sendEmailReportForPLRewardLevel({
+  rewardLevel,
+  playlistId,
+  playlistTitle,
+}) {
+  const smtpTransport = nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    auth: mailAuth,
+  });
+  await smtpTransport.verify();
+  const mailOptions = {
+    from: "twinkle.notification@gmail.com",
+    to: "mikey@twin-kle.com",
+    subject: `Set reward level for ${playlistTitle} to ${rewardLevel}`,
+    html: `
+      <p>Set reward level for ${playlistTitle} to ${rewardLevel}</p>
+      <p>Playlist id: ${playlistId}</p>
+      `,
+  };
+  smtpTransport.sendMail(mailOptions);
+  return Promise.resolve();
+}
+
 async function sendEmailReport({
   playlists,
   playlistRewardLevel,
@@ -73,4 +98,4 @@ async function sendEmailReport({
   return Promise.resolve();
 }
 
-module.exports = { sendEmailReport };
+module.exports = { sendEmailReport, sendEmailReportForPLRewardLevel };

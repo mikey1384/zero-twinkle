@@ -4,6 +4,7 @@ const {
   checkAndRespondToProfileMessages,
   summarizeMemories,
   tagVideosToPlaylist,
+  setPlaylistRewardLevel,
 } = require("./service");
 const config = require("./config");
 const { defaultMaxTokens } = require("./constants");
@@ -17,6 +18,7 @@ const channelId = Number(process.env.ZERO_CHAT_ROOM_ID);
 const respondProfileMsgInterval = 5;
 const summarizeMemoriesInterval = 20;
 const tagVideosToPlaylistInterval = 60;
+const setPlaylistRewardLevelInterval = 60;
 
 async function runCheckAndRespondToProfileMessages({
   appliedTokens = defaultMaxTokens,
@@ -80,4 +82,5 @@ async function runCheckAndRespondToProfileMessages({
 
 setInterval(summarizeMemories, summarizeMemoriesInterval * 1000);
 setInterval(tagVideosToPlaylist, tagVideosToPlaylistInterval * 1000);
+setInterval(setPlaylistRewardLevel, setPlaylistRewardLevelInterval * 1000);
 runCheckAndRespondToProfileMessages();

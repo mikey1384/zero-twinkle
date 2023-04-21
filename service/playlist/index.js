@@ -1,10 +1,73 @@
 const { poolQuery } = require("../helpers");
-const { sendEmailReport } = require("./model");
+const { sendEmailReport, sendEmailReportForPLRewardLevel } = require("./model");
 const config = require("../../config");
 const { openai } = config;
 
 const userId = Number(process.env.ZERO_TWINKLE_ID);
 let lastVideoId = 0;
+
+async function setPlaylistRewardLevel() {
+  const [playlist] = await poolQuery(`
+    SELECT id, title, description, rewardLevel FROM vq_playlists WHERE rewardLevel IS NULL
+  `);
+  if (!playlist) {
+    return;
+  }
+  const { id, title, description } = playlist;
+  const videoIdRows = await poolQuery(
+    `SELECT videoId FROM vq_playlistvideos WHERE playlistId = ? LIMIT 5`,
+    id
+  );
+  const videoIds = videoIdRows.map(({ videoId }) => videoId);
+  const videos = await poolQuery(
+    `SELECT id, title, rewardLevel, ytChannelName FROM vq_videos WHERE id IN (?)`,
+    [videoIds]
+  );
+  const videoTitles = videos.map(({ title }) => title);
+  const videoChannelNames = videos.map(({ ytChannelName }) => ytChannelName);
+  const videoRewardLevels = videos.map(({ rewardLevel }) => rewardLevel);
+  const playlistData = JSON.stringify({
+    "Playlist Title": title,
+    "Playlist Description": description,
+    "Video Titles": videoTitles,
+    "Video Channel Names": videoChannelNames,
+    "Video Educational Levels": videoRewardLevels,
+  });
+  const response = await openai.createChatCompletion({
+    model: "gpt-3.5-turbo",
+    messages: [
+      {
+        role: "system",
+        content:
+          "You are a helpful tool that analyzes playlist metadata and determines its educational value on a scale of 0 to 5.",
+      },
+      {
+        role: "user",
+        content: `Based on the given playlist metadata, return a digit based on how educational this playlist is on a scale from 0 (not educational at all) to 5 (extremely educational): ${playlistData}\n\nDigit: `,
+      },
+    ],
+    max_tokens: 1,
+  });
+  const rawRewardLevel = response.data.choices
+    .map(({ message: { content = "" } }) => content.trim())
+    .join(" ");
+  const regex = /\d+/;
+  const matchedNumber = rawRewardLevel.match(regex);
+  let rewardLevel = 0;
+  if (matchedNumber) {
+    const number = parseInt(matchedNumber[0], 10);
+    rewardLevel = Math.min(Math.max(number, 0), 5);
+  }
+  await poolQuery(`UPDATE vq_playlists SET rewardLevel = ? WHERE id = ?`, [
+    rewardLevel,
+    id,
+  ]);
+  sendEmailReportForPLRewardLevel({
+    rewardLevel,
+    playlistId: id,
+    playlistTitle: title,
+  });
+}
 
 async function tagVideosToPlaylist() {
   try {
@@ -212,4 +275,4 @@ async function suggestTag(videoData) {
   }
 }
 
-module.exports = { tagVideosToPlaylist };
+module.exports = { tagVideosToPlaylist, setPlaylistRewardLevel };
