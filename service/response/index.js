@@ -2,11 +2,17 @@ const request = require("axios");
 const io = require("socket.io-client");
 const URL = process.env.URL;
 const socket = io.connect(URL);
+const { encode } = require("gpt-3-encoder");
 
 const config = require("../../config");
 const { auth } = config;
 const { returnResponse } = require("../helpers/zero");
-const { poolQuery, checkConditionsUsingGPT } = require("../helpers");
+const { isLongThreshold } = require("../../constants");
+const {
+  poolQuery,
+  checkConditionsUsingGPT,
+  compressForGPT,
+} = require("../helpers");
 
 const zeroId = Number(process.env.ZERO_TWINKLE_ID);
 const channelId = Number(process.env.ZERO_CHAT_ROOM_ID);
@@ -28,7 +34,12 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
       return Promise.resolve();
     }
     latestCommentId = comment.id;
-    const prompt = comment.content;
+    let prompt = comment.content;
+    const encoded = encode(prompt);
+    const encodedLength = encoded.length;
+    if (encodedLength > isLongThreshold) {
+      prompt = compressForGPT(comment.content);
+    }
     const recentExchangeRows = await poolQuery(
       `
       SELECT promptSummary AS prompt, responseSummary AS response, timeStamp FROM zero_prompts WHERE responseSummary IS NOT NULL AND platform = 'twinkle' AND userId = ? AND timeStamp < ? ORDER BY timeStamp DESC LIMIT 5;
@@ -38,10 +49,15 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
     recentExchangeRows.reverse();
     let recentExchanges = "";
     for (let row of recentExchangeRows) {
-      recentExchanges += `${effectiveUsername}: ${row.prompt}\nZero: ${row.response}\n`;
+      recentExchanges += `${effectiveUsername}: ${row.prompt.substring(
+        0,
+        200
+      )}\nZero: ${row.response.substring(0, 200)}\n`;
     }
     if (zerosPreviousComment?.content) {
-      recentExchanges += `Zero: ${zerosPreviousComment?.content}\n`;
+      recentExchanges += `Zero: ${compressForGPT(
+        zerosPreviousComment?.content
+      )}\n`;
     }
     const {
       isAskingWhoZeroIs,

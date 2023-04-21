@@ -1,5 +1,6 @@
 const { writePool, readPool } = require("../pool");
 const config = require("../../config");
+const { defaultMaxTokens } = require("../../constants");
 const { encode } = require("gpt-3-encoder");
 const { openai, yesNoMaxTokens } = config;
 
@@ -126,8 +127,7 @@ async function checkIsPromptMatchConditionUsingGPTJSON({ conditions, prompt }) {
         )} and value being the boolean value of whether they are met.\n\nScript: ${prompt}\n\nJSON: `,
     },
   ];
-  const maxTokens = 4000;
-  let appliedTokens = maxTokens;
+  let appliedTokens = defaultMaxTokens;
   for (const message of messages) {
     appliedTokens -= encode(message.content).length;
   }
@@ -151,7 +151,7 @@ async function checkIsPromptMatchConditionUsingGPTJSON({ conditions, prompt }) {
       const response = await openai.createChatCompletion({
         model: "gpt-3.5-turbo",
         messages,
-        max_tokens: appliedTokens,
+        max_tokens: Math.floor(appliedTokens / 2),
         top_p: 0.1,
       });
       responseText = response.data.choices
@@ -182,7 +182,30 @@ async function checkIsPromptMatchConditionUsingGPT({ prompt, condition }) {
   return (responseText.toLowerCase() || "").includes("yes");
 }
 
+function compressForGPT(text) {
+  const words = text.split(" ");
+  const compressedWords = words.map((word) => {
+    if (!isEnglishWord(word) || word[0] === word[0]?.toUpperCase?.()) {
+      return word;
+    } else if (word.length === 1) {
+      return ".";
+    } else if (word.length === 2) {
+      return word[0] + ".";
+    } else if (word.length === 3) {
+      return word[0] + "." + word[word.length - 1];
+    } else {
+      return word.slice(0, 2) + "." + word[word.length - 1];
+    }
+  });
+  return compressedWords.join(" ");
+
+  function isEnglishWord(word) {
+    return /^[A-Za-z]+$/.test(word);
+  }
+}
+
 module.exports = {
+  compressForGPT,
   poolQuery,
   checkConditionsUsingGPT,
   checkIsPromptMatchConditionUsingGPT,

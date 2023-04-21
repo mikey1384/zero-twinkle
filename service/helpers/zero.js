@@ -1,8 +1,10 @@
 const moment = require("moment");
 const request = require("axios");
 const config = require("../../config");
+const { isLongThreshold } = require("../../constants");
 const { encode } = require("gpt-3-encoder");
 const URL = process.env.URL;
+const { compressForGPT } = require("../helpers");
 const { auth, openai } = config;
 
 const aboutTwinkleText = `Zero's Inner Monologue: Twinkle Website (www.twin-kle.com and www.twinkle.network) is a community platform that was created by Mikey and launched in February 2016 for the students and teachers of the Twin.kle English academy. The academy was founded by twin brothers Andrew and Brian, who are friends with Mikey 👬`;
@@ -188,7 +190,11 @@ async function returnResponse({
         },
         {
           role: "user",
-          content: `Generate simplified explanations of difficult words and phrases that are easy enough for people with low IQ to understand.\n\nInput: ${zerosResponse}\n\n Output: `,
+          content: `Generate simplified explanations of difficult words and phrases that are easy enough for people with low IQ to understand.\n\nInput: ${
+            encode(zerosResponse).length > isLongThreshold
+              ? compressForGPT(zerosResponse)
+              : zerosResponse
+          }\n\n Output: `,
         },
       ];
       let maxTokensForExplanation = appliedTokens;
@@ -198,7 +204,7 @@ async function returnResponse({
       const explanationResponseObj = await openai.createChatCompletion({
         model: "gpt-3.5-turbo",
         messages: explanationResponseMessages,
-        max_tokens: maxTokensForExplanation,
+        max_tokens: Math.floor(maxTokensForExplanation / 2),
         top_p: 0.1,
       });
       const explanationResponse = explanationResponseObj.data.choices

@@ -6,6 +6,7 @@ const {
   tagVideosToPlaylist,
 } = require("./service");
 const config = require("./config");
+const { defaultMaxTokens } = require("./constants");
 const { auth } = config;
 const io = require("socket.io-client");
 const URL = process.env.URL;
@@ -16,7 +17,6 @@ const channelId = Number(process.env.ZERO_CHAT_ROOM_ID);
 const respondProfileMsgInterval = 5;
 const summarizeMemoriesInterval = 20;
 const tagVideosToPlaylistInterval = 60;
-const defaultMaxTokens = 4000;
 
 async function runCheckAndRespondToProfileMessages({
   appliedTokens = defaultMaxTokens,
