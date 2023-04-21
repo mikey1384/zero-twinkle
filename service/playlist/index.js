@@ -67,40 +67,6 @@ async function tagVideosToPlaylist() {
       }
     }
 
-    let suggestedByZero = false;
-    let playlistCreatedByZero = false;
-    if (playlists.length === 0) {
-      const suggestedTag = await suggestTag(
-        `Video Title: ${videoTitle}, Channel Name: ${ytChannelName}, Tags: ${ytTags}`
-      );
-      if (suggestedTag) {
-        suggestedByZero = true;
-        const [{ id: playlistId, title, rewardLevel } = {}] = await poolQuery(
-          `SELECT * FROM vq_playlists WHERE title = ?`,
-          suggestedTag
-        );
-        if (title) {
-          playlists.push({ playlistId, title, rewardLevel });
-        } else {
-          const { insertId } = await poolQuery(
-            `INSERT INTO vq_playlists SET ?`,
-            {
-              title: suggestedTag,
-              creator: userId,
-              timeStamp: Math.floor(Date.now() / 1000),
-            }
-          );
-          playlists.push({
-            playlistId: insertId,
-            title: suggestedTag.toLowerCase(),
-            rewardLevel: null,
-          });
-          newPlaylistName = suggestedTag;
-          playlistCreatedByZero = true;
-        }
-      }
-    }
-
     const dupes = {};
     if (playlists[0]) {
       dupes[playlists[0].title.toLowerCase()] = true;
@@ -141,6 +107,40 @@ async function tagVideosToPlaylist() {
       }
       if (playlists.length === 5) {
         break;
+      }
+    }
+
+    let suggestedByZero = false;
+    let playlistCreatedByZero = false;
+    if (playlists.length === 0) {
+      const suggestedTag = await suggestTag(
+        `Video Title: ${videoTitle}, Channel Name: ${ytChannelName}, Tags: ${ytTags}`
+      );
+      if (suggestedTag) {
+        suggestedByZero = true;
+        const [{ id: playlistId, title, rewardLevel } = {}] = await poolQuery(
+          `SELECT * FROM vq_playlists WHERE title = ?`,
+          suggestedTag
+        );
+        if (title) {
+          playlists.push({ playlistId, title, rewardLevel });
+        } else {
+          const { insertId } = await poolQuery(
+            `INSERT INTO vq_playlists SET ?`,
+            {
+              title: suggestedTag,
+              creator: userId,
+              timeStamp: Math.floor(Date.now() / 1000),
+            }
+          );
+          playlists.push({
+            playlistId: insertId,
+            title: suggestedTag.toLowerCase(),
+            rewardLevel: null,
+          });
+          newPlaylistName = suggestedTag;
+          playlistCreatedByZero = true;
+        }
       }
     }
 
