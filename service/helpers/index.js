@@ -6,14 +6,19 @@ const { openai, yesNoMaxTokens } = config;
 
 function poolQuery(query, params) {
   return new Promise((resolve, reject) => {
-    if (query.substring(0, 6) === "SELECT") {
-      readPool.query(query, params, (err, results) => {
-        if (err) return reject(err);
+    const trimmedQuery = query.trim();
+    if (trimmedQuery.substring(0, 6) === "SELECT") {
+      readPool.query(trimmedQuery, params, (err, results) => {
+        if (err) {
+          return reject(err);
+        }
         return resolve(results);
       });
     } else {
-      writePool.query(query, params, (err, results) => {
-        if (err) return reject(err);
+      writePool.query(trimmedQuery, params, (err, results) => {
+        if (err) {
+          return reject(err);
+        }
         return resolve(results);
       });
     }

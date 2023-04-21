@@ -9,6 +9,8 @@ async function sendEmailReport({
   videoId,
   videoRewardLevel,
   ytTags,
+  suggestedByZero,
+  playlistCreatedByZero,
 }) {
   const playlistsText = playlists
     .map(({ playlistId, title }) => `${title} (${playlistId})`)
@@ -55,6 +57,14 @@ async function sendEmailReport({
         ${
           newPlaylistName
             ? `<p>New playlist "${newPlaylistName}" has been created for this video</p>`
+            : ""
+        }
+        ${
+          suggestedByZero ? `<p>This playlist tagging was done by Zero</p>` : ""
+        }
+        ${
+          playlistCreatedByZero
+            ? `<p>This playlist was created by Zero</p>`
             : ""
         }
       `,

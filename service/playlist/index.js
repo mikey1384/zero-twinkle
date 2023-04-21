@@ -1,5 +1,7 @@
 const { poolQuery } = require("../helpers");
 const { sendEmailReport } = require("./model");
+const config = require("../../config");
+const { openai } = config;
 
 const userId = Number(process.env.ZERO_TWINKLE_ID);
 let lastVideoId = 0;
@@ -12,10 +14,11 @@ async function tagVideosToPlaylist() {
         videoId,
         ytTags,
         rewardLevel: videoRewardLevel,
+        videoTitle,
         ytChannelName,
       } = {},
     ] = await poolQuery(
-      `SELECT id AS videoId, ytTags, ytChannelName, rewardLevel, content FROM vq_videos WHERE isDeleted != '1' AND id NOT IN (SELECT videoId AS id FROM vq_playlistvideos) ORDER BY id DESC LIMIT 1`
+      `SELECT id AS videoId, ytTags, ytChannelName, rewardLevel, title AS videoTitle, content FROM vq_videos WHERE isDeleted != '1' AND id NOT IN (SELECT videoId AS id FROM vq_playlistvideos) ORDER BY id DESC LIMIT 1`
     );
     if (!ytTags || !videoId || videoId === lastVideoId) {
       return;
@@ -24,6 +27,7 @@ async function tagVideosToPlaylist() {
     const tags = JSON.parse(ytTags);
     let playlists = [];
     let newPlaylistName = "";
+
     if (ytChannelName) {
       let [{ id: playlistId, title, rewardLevel } = {}] = await poolQuery(
         `SELECT * FROM vq_playlists WHERE title = ?`,
@@ -63,6 +67,40 @@ async function tagVideosToPlaylist() {
       }
     }
 
+    let suggestedByZero = false;
+    let playlistCreatedByZero = false;
+    if (playlists.length === 0) {
+      const suggestedTag = await suggestTag(
+        `Video Title: ${videoTitle}, Channel Name: ${ytChannelName}, Tags: ${ytTags}`
+      );
+      if (suggestedTag) {
+        suggestedByZero = true;
+        const [{ id: playlistId, title, rewardLevel } = {}] = await poolQuery(
+          `SELECT * FROM vq_playlists WHERE title = ?`,
+          suggestedTag
+        );
+        if (title) {
+          playlists.push({ playlistId, title, rewardLevel });
+        } else {
+          const { insertId } = await poolQuery(
+            `INSERT INTO vq_playlists SET ?`,
+            {
+              title: suggestedTag,
+              creator: userId,
+              timeStamp: Math.floor(Date.now() / 1000),
+            }
+          );
+          playlists.push({
+            playlistId: insertId,
+            title: suggestedTag.toLowerCase(),
+            rewardLevel: null,
+          });
+          newPlaylistName = suggestedTag;
+          playlistCreatedByZero = true;
+        }
+      }
+    }
+
     const dupes = {};
     if (playlists[0]) {
       dupes[playlists[0].title.toLowerCase()] = true;
@@ -76,25 +114,23 @@ async function tagVideosToPlaylist() {
         tag
       );
       if (title) {
+        const lowerCaseTitle = title.toLowerCase();
+        const lowerCaseYtChannelName = ytChannelName.toLowerCase();
         if (
           tag === "national geographic" &&
-          ytChannelName.toLowerCase() === "national geographic"
+          lowerCaseYtChannelName === lowerCaseTitle
         ) {
           playlists = [{ playlistId, title, rewardLevel }];
           break;
         }
-        if (
-          tag === "bazbattles" ||
-          tag === "dude perfect" ||
-          tag === "TED-ED"
-        ) {
+        if (["bazbattles", "dude perfect", "TED-ED"].includes(tag)) {
           playlists = [{ playlistId, title, rewardLevel }];
           break;
         }
-        if (!dupes[title.toLowerCase()]) {
+        if (!dupes[lowerCaseTitle]) {
           playlists.push({ playlistId, title, rewardLevel });
+          dupes[lowerCaseTitle] = true;
         }
-        dupes[title.toLowerCase()] = true;
       }
       if (playlists.length === 5) {
         break;
@@ -138,10 +174,39 @@ async function tagVideosToPlaylist() {
       videoId,
       videoRewardLevel,
       ytTags,
+      suggestedByZero,
+      playlistCreatedByZero,
     });
     lastVideoId = videoId;
   } catch (error) {
     return console.error(error);
+  }
+}
+
+async function suggestTag(videoData) {
+  try {
+    const response = await openai.createChatCompletion({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a helpful tool that generates an appropriate category label",
+        },
+        {
+          role: "user",
+          content: `Prompt: Based on the given video metadata, suggest a concise category label using no more than two words: ${videoData}\n\nLabel: `,
+        },
+      ],
+      max_tokens: 50,
+    });
+    const tag = response.data.choices
+      .map(({ message: { content = "" } }) => content.trim())
+      .join(" ");
+    return (tag || "").replace(/"/g, "");
+  } catch (error) {
+    console.error(`Error while processing video category: ${error}`);
+    return [];
   }
 }
 
