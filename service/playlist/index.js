@@ -7,64 +7,70 @@ const userId = Number(process.env.ZERO_TWINKLE_ID);
 let lastVideoId = 0;
 
 async function setPlaylistRewardLevel() {
-  const [playlist] = await poolQuery(`
-    SELECT id, title, description, rewardLevel FROM vq_playlists WHERE rewardLevel IS NULL
-  `);
-  if (!playlist) {
-    return;
+  try {
+    const [playlist] = await poolQuery(`
+      SELECT id, title, description, rewardLevel FROM vq_playlists WHERE rewardLevel IS NULL
+    `);
+    if (!playlist) {
+      return;
+    }
+    const { id, title, description } = playlist;
+    const videoIdRows = await poolQuery(
+      `SELECT videoId FROM vq_playlistvideos WHERE playlistId = ? LIMIT 5`,
+      id
+    );
+    const videoIds = videoIdRows.map(({ videoId }) => videoId);
+    const videos = await poolQuery(
+      `SELECT id, title, rewardLevel, ytChannelName FROM vq_videos WHERE id IN (?)`,
+      [videoIds]
+    );
+    const videoTitles = videos.map(({ title }) => title);
+    const videoChannelNames = videos.map(({ ytChannelName }) => ytChannelName);
+    const videoRewardLevels = videos.map(({ rewardLevel }) => rewardLevel);
+    const playlistData = JSON.stringify({
+      "Playlist Title": title,
+      "Playlist Description": description,
+      "Video Titles": videoTitles,
+      "Video Channel Names": videoChannelNames,
+      "Video Educational Levels": videoRewardLevels,
+    });
+    const response = await openai.createChatCompletion({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a helpful tool that analyzes playlist metadata and determines its educational value on a scale of 0 to 5.",
+        },
+        {
+          role: "user",
+          content: `Evaluate the educational value of the given playlist metadata on a scale from 0 (not educational at all) to 5 (extremely educational). For videos with an educational level of 0, assess their educational value based on their title, description, and associated YouTube channel names. Return a single JSON object with a key "digit" representing the educational value and "explanation" detailing the reasoning behind the value. Playlist Metadata: ${playlistData}\n\nJSON: `,
+        },
+      ],
+      max_tokens: 200,
+      top_p: 0.1,
+      temperature: 0.1,
+    });
+    const ResultingJSON = response.data.choices
+      .map(({ message: { content = "" } }) => content.trim())
+      .join(" ");
+    const result = JSON.parse(ResultingJSON);
+    const rewardLevel = result.digit;
+    await poolQuery(`UPDATE vq_playlists SET rewardLevel = ? WHERE id = ?`, [
+      rewardLevel,
+      id,
+    ]);
+    sendEmailReportForPLRewardLevel({
+      rewardLevel,
+      playlistId: id,
+      playlistTitle: title,
+      explanation: result.explanation,
+    });
+  } catch (error) {
+    console.error("An error occurred:", error);
+    await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait for 5 seconds
+    await setPlaylistRewardLevel();
   }
-  const { id, title, description } = playlist;
-  const videoIdRows = await poolQuery(
-    `SELECT videoId FROM vq_playlistvideos WHERE playlistId = ? LIMIT 5`,
-    id
-  );
-  const videoIds = videoIdRows.map(({ videoId }) => videoId);
-  const videos = await poolQuery(
-    `SELECT id, title, rewardLevel, ytChannelName FROM vq_videos WHERE id IN (?)`,
-    [videoIds]
-  );
-  const videoTitles = videos.map(({ title }) => title);
-  const videoChannelNames = videos.map(({ ytChannelName }) => ytChannelName);
-  const videoRewardLevels = videos.map(({ rewardLevel }) => rewardLevel);
-  const playlistData = JSON.stringify({
-    "Playlist Title": title,
-    "Playlist Description": description,
-    "Video Titles": videoTitles,
-    "Video Channel Names": videoChannelNames,
-    "Video Educational Levels": videoRewardLevels,
-  });
-  const response = await openai.createChatCompletion({
-    model: "gpt-3.5-turbo",
-    messages: [
-      {
-        role: "system",
-        content:
-          "You are a helpful tool that analyzes playlist metadata and determines its educational value on a scale of 0 to 5.",
-      },
-      {
-        role: "user",
-        content: `Evaluate the educational value of the given playlist metadata on a scale from 0 (not educational at all) to 5 (extremely educational). For videos with an educational level of 0, assess their educational value based on their title, description, and associated YouTube channel names. Return a single JSON object with a key "digit" representing the educational value and "explanation" detailing the reasoning behind the value. Playlist Metadata: ${playlistData}\n\nJSON: `,
-      },
-    ],
-    max_tokens: 200,
-    top_p: 0.1,
-    temperature: 0.1,
-  });
-  const ResultingJSON = response.data.choices
-    .map(({ message: { content = "" } }) => content.trim())
-    .join(" ");
-  const result = JSON.parse(ResultingJSON);
-  const rewardLevel = result.digit;
-  await poolQuery(`UPDATE vq_playlists SET rewardLevel = ? WHERE id = ?`, [
-    rewardLevel,
-    id,
-  ]);
-  sendEmailReportForPLRewardLevel({
-    rewardLevel,
-    playlistId: id,
-    playlistTitle: title,
-    explanation: result.explanation,
-  });
 }
 
 async function tagVideosToPlaylist() {
