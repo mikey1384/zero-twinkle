@@ -43,7 +43,7 @@ async function setPlaylistRewardLevel() {
       },
       {
         role: "user",
-        content: `Analyze the given playlist metadata and determine its educational value on a scale from 0 (not educational at all) to 5 (extremely educational). Return a single JSON object with a key "digit" for the educational value and "explanation" for the reasoning behind the value. Playlist Metadata: ${playlistData}\n\nJSON: `,
+        content: `Evaluate the educational value of the given playlist metadata on a scale from 0 (not educational at all) to 5 (extremely educational). For videos with an educational level of 0, assess their educational value based on their title, description, and associated YouTube channel names. Return a single JSON object with a key "digit" representing the educational value and "explanation" detailing the reasoning behind the value. Playlist Metadata: ${playlistData}\n\nJSON: `,
       },
     ],
     max_tokens: 200,
