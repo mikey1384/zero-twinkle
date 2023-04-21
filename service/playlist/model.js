@@ -6,6 +6,7 @@ async function sendEmailReportForPLRewardLevel({
   rewardLevel,
   playlistId,
   playlistTitle,
+  explanation,
 }) {
   const smtpTransport = nodemailer.createTransport({
     host: "smtp.gmail.com",
@@ -21,6 +22,7 @@ async function sendEmailReportForPLRewardLevel({
     html: `
       <p>Set reward level for ${playlistTitle} to ${rewardLevel}</p>
       <p>Playlist id: ${playlistId}</p>
+      <p>Explanation: ${explanation}</p>
       `,
   };
   smtpTransport.sendMail(mailOptions);

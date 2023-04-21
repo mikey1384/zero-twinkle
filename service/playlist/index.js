@@ -43,21 +43,18 @@ async function setPlaylistRewardLevel() {
       },
       {
         role: "user",
-        content: `Based on the given playlist metadata, return a digit based on how educational this playlist is on a scale from 0 (not educational at all) to 5 (extremely educational): ${playlistData}\n\nDigit: `,
+        content: `Analyze the given playlist metadata and determine its educational value on a scale from 0 (not educational at all) to 5 (extremely educational). Return a single JSON object with a key "digit" for the educational value and "explanation" for the reasoning behind the value. Playlist Metadata: ${playlistData}\n\nJSON: `,
       },
     ],
-    max_tokens: 1,
+    max_tokens: 200,
+    top_p: 0.1,
+    temperature: 0.1,
   });
-  const rawRewardLevel = response.data.choices
+  const ResultingJSON = response.data.choices
     .map(({ message: { content = "" } }) => content.trim())
     .join(" ");
-  const regex = /\d+/;
-  const matchedNumber = rawRewardLevel.match(regex);
-  let rewardLevel = 0;
-  if (matchedNumber) {
-    const number = parseInt(matchedNumber[0], 10);
-    rewardLevel = Math.min(Math.max(number, 0), 5);
-  }
+  const result = JSON.parse(ResultingJSON);
+  const rewardLevel = result.digit;
   await poolQuery(`UPDATE vq_playlists SET rewardLevel = ? WHERE id = ?`, [
     rewardLevel,
     id,
@@ -66,6 +63,7 @@ async function setPlaylistRewardLevel() {
     rewardLevel,
     playlistId: id,
     playlistTitle: title,
+    explanation: result.explanation,
   });
 }
 
