@@ -16,7 +16,7 @@ async function setPlaylistRewardLevel() {
     }
     const { id, title, description } = playlist;
     const videoIdRows = await poolQuery(
-      `SELECT videoId FROM vq_playlistvideos WHERE playlistId = ? LIMIT 5`,
+      `SELECT videoId FROM vq_playlistvideos WHERE playlistId = ? ORDER BY id DESC LIMIT 5`,
       id
     );
     const videoIds = videoIdRows.map(({ videoId }) => videoId);
