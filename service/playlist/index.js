@@ -53,6 +53,7 @@ async function setPlaylistRewardLevel() {
     const ResultingJSON = response.data.choices
       .map(({ message: { content = "" } }) => content.trim())
       .join(" ");
+    console.log(ResultingJSON);
     const result = JSON.parse(ResultingJSON);
     const rewardLevel = result.digit;
     await poolQuery(`UPDATE vq_playlists SET rewardLevel = ? WHERE id = ?`, [
