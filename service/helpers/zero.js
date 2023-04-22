@@ -170,7 +170,7 @@ async function returnResponse({
       const finalResponseObj = await openai.createChatCompletion({
         model: "gpt-3.5-turbo",
         messages: refinedResponseMessages,
-        max_tokens: maxTokensForRefinedResponse,
+        max_tokens: Math.floor(maxTokensForRefinedResponse / 2),
         top_p: 0.1,
       });
       finalResponse = `${finalResponseObj.data.choices
