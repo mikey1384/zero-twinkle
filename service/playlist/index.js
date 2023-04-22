@@ -24,19 +24,6 @@ async function setPlaylistRewardLevel() {
       `SELECT id, title, rewardLevel, ytChannelName FROM vq_videos WHERE id IN (?)`,
       [videoIds]
     );
-    if (!videos.length) {
-      await poolQuery(`UPDATE vq_playlists SET rewardLevel = ? WHERE id = ?`, [
-        0,
-        id,
-      ]);
-      sendEmailReportForPLRewardLevel({
-        rewardLevel: 0,
-        playlistId: id,
-        playlistTitle: title,
-        explanation: "No videos were found in playlist",
-      });
-      return;
-    }
     const videoTitles = videos.map(({ title }) => title);
     const videoChannelNames = videos.map(({ ytChannelName }) => ytChannelName);
     const videoRewardLevels = videos.map(({ rewardLevel }) => rewardLevel);
@@ -62,7 +49,6 @@ async function setPlaylistRewardLevel() {
       ],
       max_tokens: 200,
       top_p: 0.1,
-      temperature: 0.1,
     });
     const ResultingJSON = response.data.choices
       .map(({ message: { content = "" } }) => content.trim())
