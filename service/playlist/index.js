@@ -20,6 +20,7 @@ async function setPlaylistRewardLevel() {
       id
     );
     const videoIds = videoIdRows.map(({ videoId }) => videoId);
+    console.log(videoIds);
     const videos = await poolQuery(
       `SELECT id, title, rewardLevel, ytChannelName FROM vq_videos WHERE id IN (?)`,
       [videoIds]
