@@ -8,11 +8,9 @@ let lastVideoId = 0;
 
 async function setPlaylistRewardLevel() {
   try {
-    console.log("here");
     const [playlist] = await poolQuery(`
       SELECT id, title, description, rewardLevel FROM vq_playlists WHERE rewardLevel IS NULL
     `);
-    console.log(playlist);
     if (!playlist) {
       return;
     }
