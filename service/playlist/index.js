@@ -22,14 +22,18 @@ async function setPlaylistRewardLevel() {
       id
     );
     const videoIds = videoIdRows.map(({ videoId }) => videoId);
-    console.log(videoIds);
-    const videos = await poolQuery(
-      `SELECT id, title, rewardLevel, ytChannelName FROM vq_videos WHERE id IN (?)`,
-      [videoIds]
-    );
-    const videoTitles = videos.map(({ title }) => title);
-    const videoChannelNames = videos.map(({ ytChannelName }) => ytChannelName);
-    const videoRewardLevels = videos.map(({ rewardLevel }) => rewardLevel);
+    let videoTitles = [];
+    let videoChannelNames = [];
+    let videoRewardLevels = [];
+    if (videoIds.length) {
+      const videos = await poolQuery(
+        `SELECT id, title, rewardLevel, ytChannelName FROM vq_videos WHERE id IN (?)`,
+        [videoIds]
+      );
+      videoTitles = videos.map(({ title }) => title);
+      videoChannelNames = videos.map(({ ytChannelName }) => ytChannelName);
+      videoRewardLevels = videos.map(({ rewardLevel }) => rewardLevel);
+    }
     const playlistData = JSON.stringify({
       "Playlist Title": title,
       "Playlist Description": description,
