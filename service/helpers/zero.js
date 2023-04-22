@@ -168,7 +168,7 @@ async function returnResponse({
         maxTokensForRefinedResponse -= encode(message.content).length;
       }
       const finalResponseObj = await openai.createChatCompletion({
-        model: "gpt-4",
+        model: "gpt-3.5-turbo",
         messages: refinedResponseMessages,
         max_tokens: maxTokensForRefinedResponse,
         top_p: 0.1,
