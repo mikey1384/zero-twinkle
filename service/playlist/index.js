@@ -22,7 +22,6 @@ async function setPlaylistRewardLevel() {
     const videoIds = videoIdRows.map(({ videoId }) => videoId);
     let videoTitles = [];
     let videoChannelNames = [];
-    let videoRewardLevels = [];
     if (videoIds.length) {
       const videos = await poolQuery(
         `SELECT id, title, rewardLevel, ytChannelName FROM vq_videos WHERE id IN (?)`,
@@ -30,17 +29,15 @@ async function setPlaylistRewardLevel() {
       );
       videoTitles = videos.map(({ title }) => title);
       videoChannelNames = videos.map(({ ytChannelName }) => ytChannelName);
-      videoRewardLevels = videos.map(({ rewardLevel }) => rewardLevel);
     }
     const playlistData = JSON.stringify({
       "Playlist Title": title,
       "Playlist Description": description,
       "Video Titles": videoTitles,
       "Video Channel Names": videoChannelNames,
-      "Video Educational Levels": videoRewardLevels,
     });
     const response = await openai.createChatCompletion({
-      model: "gpt-3.5-turbo",
+      model: "gpt-4",
       messages: [
         {
           role: "system",
@@ -49,7 +46,7 @@ async function setPlaylistRewardLevel() {
         },
         {
           role: "user",
-          content: `Evaluate the educational value of the given playlist metadata on a scale from 0 (not educational at all) to 5 (extremely educational). For videos with an educational level of 0, assess their educational value based on their title, description, and associated YouTube channel names. Return a single JSON object with a key "digit" representing the educational value and "explanation" detailing the reasoning behind the value. Playlist Metadata: ${playlistData}\n\nJSON: `,
+          content: `Evaluate the educational value of the given playlist metadata on a scale from 0 (not educational at all) to 5 (extremely educational). Assess the educational values of the included videos based on their title, description, and associated YouTube channel names. Return a single JSON object with a key "digit" representing the educational value and "explanation" detailing the reasoning behind the value. Playlist Metadata: ${playlistData}\n\nJSON: `,
         },
       ],
       max_tokens: 2500,
