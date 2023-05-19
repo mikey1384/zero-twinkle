@@ -14,7 +14,7 @@ async function setPlaylistRewardLevel() {
     if (!playlist) {
       return;
     }
-    const { id, title, description } = playlist;
+    const { id, title } = playlist;
     const videoIdRows = await poolQuery(
       `SELECT videoId FROM vq_playlistvideos WHERE playlistId = ? ORDER BY id DESC LIMIT 5`,
       id
@@ -32,7 +32,6 @@ async function setPlaylistRewardLevel() {
     }
     const playlistData = JSON.stringify({
       "Playlist Title": title,
-      "Playlist Description": description,
       "Video Titles": videoTitles,
       "Video Channel Names": videoChannelNames,
     });
@@ -46,7 +45,7 @@ async function setPlaylistRewardLevel() {
         },
         {
           role: "user",
-          content: `Evaluate the educational value of the given playlist metadata on a scale from 0 (not educational at all) to 5 (extremely educational). Assess the educational values of the included videos based on their title, description, and associated YouTube channel names. Return a single JSON object with a key "digit" representing the educational value and "explanation" detailing the reasoning behind the value. Playlist Metadata: ${playlistData}\n\nJSON: `,
+          content: `Evaluate the educational value of the given playlist metadata on a scale from 0 (not educational at all) to 5 (extremely educational). Assess the educational values of the included videos based on their titles and associated YouTube channel names. Return a single JSON object with a key "digit" representing the educational value and "explanation" detailing the reasoning behind the value. Playlist Metadata: ${playlistData}\n\nJSON: `,
         },
       ],
       max_tokens: 2500,
