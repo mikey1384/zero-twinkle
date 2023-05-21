@@ -226,7 +226,9 @@ async function tagVideosToPlaylist() {
         ]);
       }
       if (!!rewardLevel && rewardLevel > appliedVideoRewardLevel) {
-        appliedVideoRewardLevel = rewardLevel;
+        appliedVideoRewardLevel = Math.floor(
+          (Number(rewardLevel) + appliedVideoRewardLevel) / 2
+        );
       }
     }
 
