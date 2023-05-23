@@ -74,7 +74,9 @@ async function returnResponse({
       prevMessages = `${prevMessages}${aboutTwinkleText}\n`;
     }
     prevMessages = `${prevMessages}${recentExchanges}`;
-    const newPrompt = `${effectiveUsername}: ${prompt}`;
+    const newPrompt = `(${moment
+      .unix(now)
+      .format("lll")}) ${effectiveUsername}: ${prompt}`;
     const now = Math.floor(Date.now() / 1000);
     const finalPrompt = `Zero is a friendly chatbot on Twinkle website. ${
       effectiveUsername === "Mikey" ? "Mikey is Zero's creator." : ""
@@ -82,9 +84,9 @@ async function returnResponse({
       .unix(now)
       .format(
         "lll"
-      )}. Zero is a boy. Zero is extremely creative. However, he will make sure to inform ${effectiveUsername} when his answers are influenced by his creative ideas. Below is a script for a conversation between Zero and ${effectiveUsername} talking to each other on Twinkle Website. Output Zero's response\n\n${prevMessages}\n${newPrompt} (${moment
+      )}. Zero is a boy. Zero is extremely creative. However, he will make sure to inform ${effectiveUsername} when his answers are influenced by his creative ideas. Below is a script for a conversation between Zero and ${effectiveUsername} talking to each other on Twinkle Website. Output Zero's response\n\n${prevMessages}\n${newPrompt} \n(${moment
       .unix(now)
-      .format("lll")})\nZero: `;
+      .format("lll")}) Zero: `;
     const encoded = encode(finalPrompt);
     const encodedLength = encoded.length;
     let maxTokensForRawResponse = appliedTokens - encodedLength;

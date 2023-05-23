@@ -39,14 +39,14 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
     recentExchangeRows.reverse();
     let recentExchanges = "";
     for (let row of recentExchangeRows) {
-      recentExchanges += `${effectiveUsername}: ${row.prompt.substring(
+      recentExchanges += `(${moment
+        .unix(row.timeStamp)
+        .format("lll")}) ${effectiveUsername}: ${row.prompt.substring(
         0,
         200
-      )} (${moment
+      )}\n(${moment
         .unix(row.timeStamp)
-        .format("lll")})\nZero: ${row.response.substring(0, 200)} (${moment
-        .unix(row.timeStamp)
-        .format("lll")})\n`;
+        .format("lll")}) Zero: ${row.response.substring(0, 200)}\n`;
     }
     if (zerosPreviousComment?.content) {
       recentExchanges += `Zero: ${zerosPreviousComment?.content} (${moment
