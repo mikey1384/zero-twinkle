@@ -1,4 +1,5 @@
 const request = require("axios");
+const moment = require("moment");
 const io = require("socket.io-client");
 const URL = process.env.URL;
 const socket = io.connect(URL);
@@ -41,10 +42,16 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
       recentExchanges += `${effectiveUsername}: ${row.prompt.substring(
         0,
         200
-      )}\nZero: ${row.response.substring(0, 200)}\n`;
+      )} (${moment
+        .unix(row.timeStamp)
+        .format("lll")})\nZero: ${row.response.substring(0, 200)} (${moment
+        .unix(row.timeStamp)
+        .format("lll")})\n`;
     }
     if (zerosPreviousComment?.content) {
-      recentExchanges += `Zero: ${zerosPreviousComment?.content}\n`;
+      recentExchanges += `Zero: ${zerosPreviousComment?.content} (${moment
+        .unix(zerosPreviousComment?.timeStamp)
+        .format("lll")})\n`;
     }
     const {
       isAskingWhoZeroIs,
