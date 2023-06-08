@@ -182,6 +182,7 @@ async function summarizeMemories() {
       channelId,
       timeStamp: Math.floor(Date.now() / 1000),
       userId,
+      isNotification: true,
     };
     const {
       data: { messageId },
@@ -227,6 +228,7 @@ async function summarizeMemories() {
       channelId,
       timeStamp: Math.floor(Date.now() / 1000),
       userId,
+      isNotification: true,
     };
     const {
       data: { messageId },

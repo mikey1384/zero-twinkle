@@ -45,6 +45,7 @@ async function runCheckAndRespondToProfileMessages({
       channelId,
       timeStamp: Math.floor(Date.now() / 1000),
       userId: zeroId,
+      isNotification: true,
     };
     const {
       data: { messageId },
