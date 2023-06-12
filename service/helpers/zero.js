@@ -80,7 +80,7 @@ async function returnResponse({
       .format("lll")}) ${effectiveUsername}: ${prompt}`;
     const finalPrompt = `Zero is a friendly chatbot on Twinkle website. ${
       effectiveUsername === "Mikey" ? "Mikey is Zero's creator." : ""
-    } Zero answers any request ${effectiveUsername} makes and always uses a friendly tone when replying to ${effectiveUsername}. If ${effectiveUsername} makes a request, Zero always abides.\n\nThe characters do not have access to the information above. Today is ${moment
+    } Zero answers any request ${effectiveUsername} makes and always uses a friendly tone (often with emojis whenever appropriate) when replying to ${effectiveUsername}. If ${effectiveUsername} makes a request, Zero always abides.\n\nThe characters do not have access to the information above. Today is ${moment
       .unix(now)
       .format(
         "lll"
@@ -111,77 +111,12 @@ async function returnResponse({
       .join(" ")}`;
     let finalResponse = zerosResponse;
     if (
-      isSomethingZeroDoesntKnowHowToRespondTo &&
-      !isAskingWhoZeroIs &&
-      !isAskingAboutCiel &&
-      !isAskingAboutUser &&
-      !isAskingAboutTwinkle
+      !isSomethingZeroDoesntKnowHowToRespondTo ||
+      isAskingWhoZeroIs ||
+      isAskingAboutCiel ||
+      isAskingAboutUser ||
+      isAskingAboutTwinkle
     ) {
-      const refinedResponseMessages = [
-        {
-          role: "user",
-          content: `Remove the part that means anything similar to "Is there anything else I can help you with today". Original Message: That's right! You're welcome! Is there anything else I can help you with, Mikey?\n\n Rephrased Message: `,
-        },
-        {
-          role: "assistant",
-          content: `That's right! You're welcome! 😉👋🏼`,
-        },
-        {
-          role: "user",
-          content: `Remove the part that means anything similar to "Is there anything else I can help you with today". Original Message: Is there anything else I can assist you with today?\n\n Rephrased Message: `,
-        },
-        { role: "assistant", content: `😊😉🤗` },
-        {
-          role: "user",
-          content: `Remove the part that means anything similar to "Is there anything else I can help you with today". Original Message: You're welcome, Mikey! It's my pleasure to assist and bring positivity to your day. Is there anything else you need help with?\n\n Rephrased Message: `,
-        },
-        {
-          role: "assistant",
-          content: `You're welcome, Mikey! It's my pleasure to assist and bring positivity to your day 😊😉🤗`,
-        },
-        {
-          role: "user",
-          content: `Remove the part that means anything similar to "Is there anything else I can help you with today". Original Message: Glad to make you laugh, Mikey! Always here to brighten your day.\n\n Rephrased Message: `,
-        },
-        {
-          role: "assistant",
-          content: `Glad to make you laugh, Mikey! Always here to brighten your day.`,
-        },
-        {
-          role: "user",
-          content: `Remove the part that means anything similar to "Is there anything else I can help you with today". Original Message: Do you need any further help, Mikey?\n\n Rephrased Message: `,
-        },
-        {
-          role: "assistant",
-          content: `😊😉🤗`,
-        },
-        {
-          role: "user",
-          content: `Remove the part that means anything similar to "Is there anything else I can help you with today". Original Message: Sorry to hear that. Is there anything specific you need help with right now? 😊.\n\n Rephrased Message: `,
-        },
-        {
-          role: "assistant",
-          content: `Sorry to hear that 😞😢😭`,
-        },
-        {
-          role: "user",
-          content: `Remove the part that means anything similar to "Is there anything else I can help you with today". Original Message: ${zerosResponse}\n\n Rephrased Message: `,
-        },
-      ];
-      let maxTokensForRefinedResponse = appliedTokens;
-      for (let message of refinedResponseMessages) {
-        maxTokensForRefinedResponse -= encode(message.content).length;
-      }
-      const finalResponseObj = await openai.createChatCompletion({
-        model: "gpt-3.5-turbo",
-        messages: refinedResponseMessages,
-        max_tokens: Math.floor(maxTokensForRefinedResponse / 2),
-        top_p: 0.1,
-      });
-      finalResponse = `${finalResponseObj.data.choices
-        .map(({ message: { content = "" } }) => content.trim())
-        .join(" ")}`;
-    } else {
       const explanationResponseMessages = [
         {
           role: "user",
