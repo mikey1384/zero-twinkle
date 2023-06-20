@@ -26,12 +26,9 @@ async function summarizeMemories() {
       );
       channel = data.channel;
     }
-    const [row] = await poolQuery(
-      `
-      SELECT id, prompt, response FROM ai_chatbot_prompts WHERE chatbotId = ? AND responseSummary IS NULL ORDER BY id DESC LIMIT 1;
-    `,
-      zeroId
-    );
+    const [row] = await poolQuery(`
+      SELECT id, prompt, response FROM ai_chatbot_prompts WHERE responseSummary IS NULL ORDER BY id DESC LIMIT 1;
+    `);
     if (!row) {
       processingQuery = false;
       return;
