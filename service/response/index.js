@@ -32,9 +32,9 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
     let prompt = comment.content;
     const recentExchangeRows = await poolQuery(
       `
-      SELECT prompt, response, timeStamp FROM zero_prompts WHERE response IS NOT NULL AND platform = 'twinkle' AND userId = ? AND timeStamp < ? ORDER BY timeStamp DESC LIMIT 5;
+      SELECT prompt, response, timeStamp FROM ai_chatbot_prompts WHERE response IS NOT NULL AND chatbotId = ? AND userId = ? AND timeStamp < ? ORDER BY timeStamp DESC LIMIT 5;
     `,
-      [comment.userId, comment.timeStamp]
+      [zeroId, comment.userId, comment.timeStamp]
     );
     recentExchangeRows.reverse();
     let recentExchanges = "";
@@ -126,9 +126,10 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
     );
     if (comment.id) {
       await poolQuery(
-        `INSERT INTO zero_prompts (platform, contentType, contentId, userId, prompt, response, timeStamp) VALUES ('twinkle', 'comment', ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE prompt = ?, response = ?, timeStamp = ?`,
+        `INSERT INTO ai_chatbot_prompts (contentType, contentId, chatbotId, userId, prompt, response, timeStamp) VALUES ('comment', ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE prompt = ?, response = ?, timeStamp = ?`,
         [
           comment.id,
+          zeroId,
           comment.userId,
           comment.content,
           zerosResponse,

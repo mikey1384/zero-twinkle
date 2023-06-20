@@ -5,7 +5,7 @@ const socket = io.connect(URL);
 const config = require("../../config");
 const { auth, openai } = config;
 const { poolQuery } = require("../helpers");
-const userId = Number(process.env.ZERO_TWINKLE_ID);
+const zeroId = Number(process.env.ZERO_TWINKLE_ID);
 let user = null;
 let channel = null;
 const channelId = Number(process.env.ZERO_CHAT_ROOM_ID);
@@ -28,8 +28,9 @@ async function summarizeMemories() {
     }
     const [row] = await poolQuery(
       `
-      SELECT id, prompt, response FROM zero_prompts WHERE responseSummary IS NULL ORDER BY id DESC LIMIT 1;
-    `
+      SELECT id, prompt, response FROM ai_chatbot_prompts WHERE chatbotId = ? AND responseSummary IS NULL ORDER BY id DESC LIMIT 1;
+    `,
+      zeroId
     );
     if (!row) {
       processingQuery = false;
@@ -174,14 +175,14 @@ async function summarizeMemories() {
       .map(({ message: { content = "" } }) => content.trim())
       .join(" ");
     await poolQuery(
-      `UPDATE zero_prompts SET responseSummary = ?, promptSummary = ? WHERE id = ?`,
+      `UPDATE ai_chatbot_prompts SET responseSummary = ?, promptSummary = ? WHERE id = ?`,
       [isSummarizedResponse, isSummarizedPrompt, row.id]
     );
     const message = {
       content: `Hello Mikey. I made this summary.\n\n${isSummarizedPrompt}\n\n${isSummarizedResponse}`,
       channelId,
       timeStamp: Math.floor(Date.now() / 1000),
-      userId,
+      userId: zeroId,
       isNotification: true,
     };
     const {
@@ -227,7 +228,7 @@ async function summarizeMemories() {
       )}."`,
       channelId,
       timeStamp: Math.floor(Date.now() / 1000),
-      userId,
+      userId: zeroId,
       isNotification: true,
     };
     const {
