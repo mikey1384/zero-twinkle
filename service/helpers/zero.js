@@ -103,7 +103,7 @@ async function returnResponse({
     const responseObj = await openai.createChatCompletion({
       model: "gpt-4",
       messages,
-      temperature: 0.7,
+      temperature: 0,
       max_tokens: maxTokensForRawResponse,
     });
     const zerosResponse = `${responseObj.data.choices
