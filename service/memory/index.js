@@ -4,6 +4,7 @@ const URL = process.env.URL;
 const socket = io.connect(URL);
 const config = require("../../config");
 const { auth, openai } = config;
+const { encode } = require("gpt-3-encoder");
 const { poolQuery } = require("../helpers");
 const zeroId = Number(process.env.ZERO_TWINKLE_ID);
 let user = null;
@@ -162,7 +163,9 @@ async function summarizeMemories() {
         },
         {
           role: "user",
-          content: `Original Version: "${response}"\n\nSuper Concise Version: `,
+          content: `Original Version: "${trimPrompt(
+            response
+          )}"\n\nSuper Concise Version: `,
         },
       ],
       max_tokens: 50,
@@ -250,6 +253,21 @@ async function summarizeMemories() {
     });
     processingQuery = false;
   }
+}
+
+function trimPrompt(finalPrompt) {
+  let trimmedPrompt = finalPrompt;
+  let encoded = encode(trimmedPrompt);
+  let encodedLength = encoded.length;
+
+  while (encodedLength > 2000) {
+    const trimAmount = 10;
+    trimmedPrompt = trimmedPrompt.slice(0, -trimAmount);
+    encoded = encode(trimmedPrompt);
+    encodedLength = encoded.length;
+  }
+
+  return trimmedPrompt;
 }
 
 module.exports = { summarizeMemories };
