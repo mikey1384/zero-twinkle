@@ -98,7 +98,9 @@ async function summarizeMemories() {
         },
         {
           role: "user",
-          content: `{"PhraseToMakeConcise": "${prompt}"}\n\nSuper Concise Version: `,
+          content: `{"PhraseToMakeConcise": "${trimPrompt(
+            prompt
+          )}"}\n\nSuper Concise Version: `,
         },
       ],
       max_tokens: 50,
@@ -256,7 +258,7 @@ async function summarizeMemories() {
 }
 
 function trimPrompt(finalPrompt) {
-  let trimmedPrompt = finalPrompt;
+  let trimmedPrompt = finalPrompt || "";
   let encoded = encode(trimmedPrompt);
   let encodedLength = encoded.length;
 
