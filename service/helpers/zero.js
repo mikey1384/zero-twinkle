@@ -3,7 +3,7 @@ const request = require("axios");
 const config = require("../../config");
 const { encode } = require("gpt-3-encoder");
 const URL = process.env.URL;
-const { auth, openai } = config;
+const { auth, openai, GPT4 } = config;
 
 const aboutTwinkleText = `Zero's Inner Monologue: Twinkle Website (www.twin-kle.com and www.twinkle.network) is a community platform that was created by Mikey and launched in February 2016 for the students and teachers of the Twin.kle English academy. The academy was founded by twin brothers Andrew and Brian, who are friends with Mikey 👬`;
 
@@ -101,7 +101,7 @@ async function returnResponse({
       console.log(messages);
     }
     const responseObj = await openai.createChatCompletion({
-      model: "gpt-4",
+      model: GPT4,
       messages,
       temperature: 0,
       max_tokens: maxTokensForRawResponse,

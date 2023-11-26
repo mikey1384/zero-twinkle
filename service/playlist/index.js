@@ -1,7 +1,7 @@
 const { poolQuery } = require("../helpers");
 const { sendEmailReport, sendEmailReportForPLRewardLevel } = require("./model");
 const config = require("../../config");
-const { openai } = config;
+const { openai, GPT4 } = config;
 
 const userId = Number(process.env.ZERO_TWINKLE_ID);
 let lastVideoId = 0;
@@ -36,7 +36,7 @@ async function setPlaylistRewardLevel() {
       "Video Channel Names": videoChannelNames,
     });
     const response = await openai.createChatCompletion({
-      model: "gpt-4",
+      model: GPT4,
       messages: [
         {
           role: "system",

@@ -2,7 +2,7 @@ const { writePool, readPool } = require("../pool");
 const config = require("../../config");
 const { defaultMaxTokens } = require("../../constants");
 const { encode } = require("gpt-3-encoder");
-const { openai, yesNoMaxTokens } = config;
+const { openai, yesNoMaxTokens, GPT4 } = config;
 
 function poolQuery(query, params) {
   return new Promise((resolve, reject) => {
@@ -141,7 +141,7 @@ async function checkIsPromptMatchConditionUsingGPTJSON({ conditions, prompt }) {
 
   try {
     const response = await openai.createChatCompletion({
-      model: "gpt-4",
+      model: GPT4,
       messages,
       max_tokens: appliedTokens,
       top_p: 0.1,

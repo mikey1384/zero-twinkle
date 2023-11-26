@@ -3,6 +3,7 @@ const configuration = new Configuration({
   apiKey: process.env.OPENAI_API_KEY,
 });
 const openai = new OpenAIApi(configuration);
+const GPT4 = "gpt-4-1106-preview";
 
 module.exports = {
   auth: {
@@ -19,4 +20,5 @@ module.exports = {
   },
   openai,
   yesNoMaxTokens: 1000,
+  GPT4,
 };
