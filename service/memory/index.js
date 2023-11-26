@@ -262,7 +262,7 @@ function trimPrompt(finalPrompt) {
   let encoded = encode(trimmedPrompt);
   let encodedLength = encoded.length;
 
-  while (encodedLength > 2000) {
+  while (encodedLength > 1000) {
     const trimAmount = 10;
     trimmedPrompt = trimmedPrompt.slice(0, -trimAmount);
     encoded = encode(trimmedPrompt);
