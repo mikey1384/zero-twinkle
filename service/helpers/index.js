@@ -2,7 +2,7 @@ const { writePool, readPool } = require("../pool");
 const config = require("../../config");
 const { defaultMaxTokens } = require("../../constants");
 const { encode } = require("gpt-3-encoder");
-const { openai, yesNoMaxTokens, GPT4 } = config;
+const { openai, GPT4 } = config;
 
 function poolQuery(query, params) {
   return new Promise((resolve, reject) => {
@@ -109,14 +109,6 @@ async function checkConditionsUsingGPT({ prompt, effectiveUsername }) {
     result = JSON.parse(JSONResponse);
   } catch (e) {
     console.log("wrong JSON format", JSONResponse);
-    result = {};
-    for (const condition of conditions) {
-      result[condition.key] = await checkIsPromptMatchConditionUsingGPT({
-        prompt,
-        condition: condition.value,
-      });
-    }
-    result.isWrongJSONFormat = true;
   }
   return Promise.resolve(result);
 }
@@ -171,24 +163,7 @@ async function checkIsPromptMatchConditionUsingGPTJSON({ conditions, prompt }) {
   return responseText;
 }
 
-async function checkIsPromptMatchConditionUsingGPT({ prompt, condition }) {
-  const response = await openai.createCompletion({
-    model: "text-davinci-003",
-    prompt: `When you enter a prompt, I'm going to say "yes" if ${condition}, and say "no" if otherwise. Enter a prompt here: \n\n\n ${prompt}\n\n\n`,
-    max_tokens: yesNoMaxTokens,
-    top_p: 0.1,
-    best_of: 3,
-    frequency_penalty: 0,
-    presence_penalty: 0,
-  });
-  const responseText = response.data.choices
-    .map(({ text }) => text.trim())
-    .join(" ");
-  return (responseText.toLowerCase() || "").includes("yes");
-}
-
 module.exports = {
   poolQuery,
   checkConditionsUsingGPT,
-  checkIsPromptMatchConditionUsingGPT,
 };
