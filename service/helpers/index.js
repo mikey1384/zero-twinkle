@@ -110,7 +110,7 @@ async function checkConditionsUsingGPT({ prompt, effectiveUsername }) {
   } catch (e) {
     console.log("wrong JSON format", JSONResponse);
   }
-  return Promise.resolve(result);
+  return Promise.resolve(result || {});
 }
 
 async function checkIsPromptMatchConditionUsingGPTJSON({ conditions, prompt }) {
@@ -160,7 +160,7 @@ async function checkIsPromptMatchConditionUsingGPTJSON({ conditions, prompt }) {
     }
   }
 
-  return responseText;
+  return (responseText || "").replace("```json", "").replace("```", "");
 }
 
 module.exports = {
