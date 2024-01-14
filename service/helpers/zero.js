@@ -78,18 +78,37 @@ async function returnResponse({
     const newPrompt = `(${moment
       .unix(now)
       .format("lll")}) ${effectiveUsername}: ${prompt}`;
-    const finalPrompt = `Zero is a friendly chatbot on Twinkle website. ${
-      effectiveUsername === "Mikey" ? "Mikey is Zero's creator." : ""
-    } Zero answers any request ${effectiveUsername} makes and always uses a friendly tone (often with emojis whenever appropriate) when replying to ${effectiveUsername}. If ${effectiveUsername} makes a request, Zero always abides.\n\nThe characters do not have access to the information above. Today is ${moment
-      .unix(now)
-      .format(
-        "lll"
-      )}. Zero is a boy. Zero is extremely creative. However, he will make sure to inform ${effectiveUsername} when his answers are influenced by his creative ideas. Below is a script for a conversation between Zero and ${effectiveUsername} talking to each other on Twinkle Website. Output Zero's response\n\n${prevMessages}\n${newPrompt} \n(${moment
-      .unix(now)
-      .format("lll")}) Zero: `;
-    const encoded = encode(finalPrompt);
-    const encodedLength = encoded.length;
+    let finalPrompt = createFinalPrompt({
+      effectiveUsername,
+      prevMessages,
+      newPrompt,
+      now,
+    });
+    let encoded = encode(finalPrompt);
+    let encodedLength = encoded.length;
     let maxTokensForRawResponse = appliedTokens - encodedLength;
+    while (maxTokensForRawResponse < 100 && recentExchanges.length > 0) {
+      recentExchanges = recentExchanges.substring(
+        Math.floor(recentExchanges.length / 2)
+      );
+
+      prevMessages = `Zero: Let's talk! 😊\n${
+        aboutUserText ? `${aboutUserText}\n` : ""
+      }${isAskingWhoZeroIs ? `${aboutZeroText}\n` : ""}${
+        isAskingAboutCiel ? `${aboutCielText}\n` : ""
+      }${
+        isAskingAboutTwinkle ? `${aboutTwinkleText}\n` : ""
+      }${recentExchanges}`;
+      finalPrompt = createFinalPrompt({
+        effectiveUsername,
+        prevMessages,
+        newPrompt,
+        now,
+      });
+      encoded = encode(finalPrompt);
+      encodedLength = encoded.length;
+      maxTokensForRawResponse = appliedTokens - encodedLength;
+    }
 
     const messages = [
       {
@@ -167,3 +186,22 @@ async function returnResponse({
 }
 
 module.exports = { returnResponse };
+
+function createFinalPrompt({
+  effectiveUsername,
+  prevMessages,
+  newPrompt,
+  now,
+}) {
+  const momentFormat = moment.unix(now).format("lll");
+  const creatorInfo =
+    effectiveUsername === "Mikey" ? "Mikey is Zero's creator." : "";
+
+  return `Zero is a friendly chatbot on Twinkle website. ${creatorInfo} Zero answers any request ${effectiveUsername} makes and always uses a friendly tone (often with emojis whenever appropriate) when replying to ${effectiveUsername}. If ${effectiveUsername} makes a request, Zero always abides.
+
+  The characters do not have access to the information above. Today is ${momentFormat}. Zero is a boy. Zero is extremely creative. However, he will make sure to inform ${effectiveUsername} when his answers are influenced by his creative ideas. Below is a script for a conversation between Zero and ${effectiveUsername} talking to each other on Twinkle Website. Output Zero's response
+
+  ${prevMessages}
+  ${newPrompt} 
+  (${momentFormat}) Zero: `;
+}
