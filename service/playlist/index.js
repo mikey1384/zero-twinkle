@@ -149,8 +149,8 @@ async function tagVideosToPlaylist() {
         tag
       );
       if (title) {
-        const lowerCaseTitle = title.toLowerCase();
-        const lowerCaseYtChannelName = ytChannelName.toLowerCase();
+        const lowerCaseTitle = (title || "").toLowerCase();
+        const lowerCaseYtChannelName = (ytChannelName || "").toLowerCase();
         if (
           tag === "national geographic" &&
           lowerCaseYtChannelName === lowerCaseTitle
