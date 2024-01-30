@@ -94,7 +94,7 @@ async function returnResponse({
 
     const messages = [
       {
-        role: "user",
+        role: "system",
         content: finalPrompt,
       },
     ];
