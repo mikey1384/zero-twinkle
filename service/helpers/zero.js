@@ -21,7 +21,6 @@ async function returnResponse({
   isAskingAboutTwinkle,
   isAskingAboutUser,
   isWantsSomethingExplained,
-  isInterjection,
   isAskingMathQuestion,
   isNotAskingQuestion,
   isNotRequestingAnything,
@@ -29,8 +28,6 @@ async function returnResponse({
   prompt,
   userId,
 }) {
-  const isSomethingZeroDoesntKnowHowToRespondTo =
-    (isNotAskingQuestion && isNotRequestingAnything) || isInterjection;
   try {
     let aboutUserText = "";
     if (isAskingAboutUser) {
@@ -113,50 +110,16 @@ async function returnResponse({
     const zerosResponse = `${responseObj.data.choices
       .map(({ message: { content = "" } }) => content.trim())
       .join(" ")}`;
-    let finalResponse = zerosResponse;
-    if (
-      !isSomethingZeroDoesntKnowHowToRespondTo ||
-      isAskingWhoZeroIs ||
-      isAskingAboutCiel ||
-      isAskingAboutUser ||
-      isAskingAboutTwinkle
-    ) {
-      const explanationResponseMessages = [
-        {
-          role: "user",
-          content: `Generate simplified explanations of difficult words and phrases that are easy enough for people with low IQ to understand.\n\nInput: Schrödinger's cat is a thought experiment in quantum mechanics. It involves a hypothetical cat that may be both alive and dead, depending on the state of a radioactive atom in a sealed box. The experiment is used to illustrate the concept of superposition and the interpretation of quantum mechanics.\n\n Output: `,
-        },
-        {
-          role: "assistant",
-          content: `Thought experiment: a game you play in your head to think about something in a different way\nHypothetical: something that is not real, but you are imagining it to think about what might happen or what you would do in that situation\nRadioactive: something that gives off a type of energy called radiation\nSuperposition: when two waves of energy, like light or sound waves, come together and make a new wave`,
-        },
-        {
-          role: "user",
-          content: `Generate simplified explanations of difficult words and phrases that are easy enough for people with low IQ to understand.\n\nInput: ${zerosResponse}\n\n Output: `,
-        },
-      ];
-      const explanationResponseObj = await openai.createChatCompletion({
-        model: GPT4,
-        messages: explanationResponseMessages,
-        max_tokens: appliedTokens,
-        top_p: 0.1,
-      });
-      const explanationResponse = explanationResponseObj.data.choices
-        .map(({ message: { content = "" } }) => content.trim())
-        .join(" ");
-      finalResponse = `${finalResponse}\n\n================\n${explanationResponse}`;
-    }
 
     return Promise.resolve({
-      zerosResponse: finalResponse,
+      zerosResponse,
       reportMessage: `Hello Mikey. I got this message www.twin-kle.com/comments/${contentId} on my profile "${content}" (${prompt}). /${
         isAskingAboutTwinkle ? aboutTwinkleText : ""
       }/${isAskingWhoZeroIs ? aboutZeroText : ""}/${
         isAskingAboutCiel ? aboutCielText : ""
       }/${
         isAskingAboutUser ? aboutUserText : ""
-      }/\n\nMy Original Response: "${zerosResponse}"
-      \n\nMy Rephrased Response: "${finalResponse}"
+      }/\n\nMy Response: "${zerosResponse}"
       \n\nContext:\n\n${recentExchanges}\n\nAsked about user: ${isAskingAboutUser}\n\nAsked about Zero: ${isAskingWhoZeroIs}\n\nAsked about Ciel: ${isAskingAboutCiel}\n\nAsked about Twinkle: ${isAskingAboutTwinkle}\n\nUser not making any request to Zero: ${isNotRequestingAnything}\n\nUser not asking any question to Zero: ${isNotAskingQuestion}\n\nUser is asking a math question: ${isAskingMathQuestion}\n\nWants something explained: ${isWantsSomethingExplained}\n\nWrong JSON format: ${!!isWrongJSONFormat}\n\nData: ${
         responseObj?.data ? JSON.stringify(responseObj?.data) : ""
       }\n\nApplied Tokens: ${appliedTokens}`,
