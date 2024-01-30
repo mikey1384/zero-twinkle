@@ -1,7 +1,6 @@
 const moment = require("moment");
 const request = require("axios");
 const config = require("../../config");
-const { encode } = require("gpt-3-encoder");
 const URL = process.env.URL;
 const { auth, openai, GPT4 } = config;
 
@@ -84,31 +83,17 @@ async function returnResponse({
       newPrompt,
       now,
     });
-    let encoded = encode(finalPrompt);
-    let encodedLength = encoded.length;
-    let maxTokensForRawResponse = appliedTokens - encodedLength;
-    while (maxTokensForRawResponse < 100 && recentExchanges.length > 0) {
-      recentExchanges = recentExchanges.substring(
-        Math.floor(recentExchanges.length / 2)
-      );
-
-      prevMessages = `Zero: Let's talk! 😊\n${
-        aboutUserText ? `${aboutUserText}\n` : ""
-      }${isAskingWhoZeroIs ? `${aboutZeroText}\n` : ""}${
-        isAskingAboutCiel ? `${aboutCielText}\n` : ""
-      }${
-        isAskingAboutTwinkle ? `${aboutTwinkleText}\n` : ""
-      }${recentExchanges}`;
-      finalPrompt = createFinalPrompt({
-        effectiveUsername,
-        prevMessages,
-        newPrompt,
-        now,
-      });
-      encoded = encode(finalPrompt);
-      encodedLength = encoded.length;
-      maxTokensForRawResponse = appliedTokens - encodedLength;
-    }
+    prevMessages = `Zero: Let's talk! 😊\n${
+      aboutUserText ? `${aboutUserText}\n` : ""
+    }${isAskingWhoZeroIs ? `${aboutZeroText}\n` : ""}${
+      isAskingAboutCiel ? `${aboutCielText}\n` : ""
+    }${isAskingAboutTwinkle ? `${aboutTwinkleText}\n` : ""}${recentExchanges}`;
+    finalPrompt = createFinalPrompt({
+      effectiveUsername,
+      prevMessages,
+      newPrompt,
+      now,
+    });
 
     const messages = [
       {
@@ -123,7 +108,7 @@ async function returnResponse({
       model: GPT4,
       messages,
       temperature: 0,
-      max_tokens: maxTokensForRawResponse,
+      max_tokens: appliedTokens,
     });
     const zerosResponse = `${responseObj.data.choices
       .map(({ message: { content = "" } }) => content.trim())
@@ -150,14 +135,10 @@ async function returnResponse({
           content: `Generate simplified explanations of difficult words and phrases that are easy enough for people with low IQ to understand.\n\nInput: ${zerosResponse}\n\n Output: `,
         },
       ];
-      let maxTokensForExplanation = appliedTokens;
-      for (let message of explanationResponseMessages) {
-        maxTokensForExplanation -= encode(message.content).length;
-      }
       const explanationResponseObj = await openai.createChatCompletion({
-        model: "gpt-3.5-turbo",
+        model: GPT4,
         messages: explanationResponseMessages,
-        max_tokens: Math.floor(maxTokensForExplanation / 2),
+        max_tokens: appliedTokens,
         top_p: 0.1,
       });
       const explanationResponse = explanationResponseObj.data.choices
