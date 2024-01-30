@@ -41,12 +41,9 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
     for (let row of recentExchangeRows) {
       recentExchanges += `(${moment
         .unix(row.timeStamp)
-        .format("lll")}) ${effectiveUsername}: ${row.prompt.substring(
-        0,
-        200
-      )}\n(${moment
+        .format("lll")}) ${effectiveUsername}: ${row.prompt}\n(${moment
         .unix(row.timeStamp)
-        .format("lll")}) Zero: ${row.response.substring(0, 200)}\n`;
+        .format("lll")}) Zero: ${row.response}\n`;
     }
     if (zerosPreviousComment?.content) {
       recentExchanges += `Zero: ${zerosPreviousComment?.content} (${moment
