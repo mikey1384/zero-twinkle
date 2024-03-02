@@ -209,51 +209,56 @@ async function summarizeMemories() {
     });
     processingQuery = false;
   } catch (error) {
-    console.error(error);
-    if (!user) {
-      const { data } = await request.get(`${URL}/user/session`, auth);
-      user = data;
-    }
-    if (!channel) {
-      const { data = {} } = await request.get(
-        `${URL}/chat/channel?channelId=${channelId}`,
+    try {
+      console.error(error);
+      if (!user) {
+        const { data } = await request.get(`${URL}/user/session`, auth);
+        user = data;
+      }
+      if (!channel) {
+        const { data = {} } = await request.get(
+          `${URL}/chat/channel?channelId=${channelId}`,
+          auth
+        );
+        channel = data.channel;
+      }
+      const message = {
+        content: `Hello Mikey. I got this error "${JSON.stringify(
+          error?.response?.data ||
+            error?.response?.statusText ||
+            error?.response ||
+            error
+        )}."`,
+        channelId,
+        timeStamp: Math.floor(Date.now() / 1000),
+        userId: zeroId,
+        isNotification: true,
+      };
+      const {
+        data: { messageId },
+      } = await request.post(
+        `${URL}/chat`,
+        {
+          message,
+        },
         auth
       );
-      channel = data.channel;
+      const messageToSend = {
+        ...message,
+        id: messageId,
+        username: user.username,
+        profilePicUrl: user.profilePicUrl,
+        isNewMessage: true,
+      };
+      socket.emit("new_chat_message", {
+        message: messageToSend,
+        channel,
+      });
+      processingQuery = false;
+    } catch (error) {
+      console.error(error);
+      processingQuery = false;
     }
-    const message = {
-      content: `Hello Mikey. I got this error "${JSON.stringify(
-        error?.response?.data ||
-          error?.response?.statusText ||
-          error?.response ||
-          error
-      )}."`,
-      channelId,
-      timeStamp: Math.floor(Date.now() / 1000),
-      userId: zeroId,
-      isNotification: true,
-    };
-    const {
-      data: { messageId },
-    } = await request.post(
-      `${URL}/chat`,
-      {
-        message,
-      },
-      auth
-    );
-    const messageToSend = {
-      ...message,
-      id: messageId,
-      username: user.username,
-      profilePicUrl: user.profilePicUrl,
-      isNewMessage: true,
-    };
-    socket.emit("new_chat_message", {
-      message: messageToSend,
-      channel,
-    });
-    processingQuery = false;
   }
 }
 
