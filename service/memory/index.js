@@ -13,6 +13,7 @@ const channelId = Number(process.env.ZERO_CHAT_ROOM_ID);
 let processingQuery = false;
 
 async function summarizeMemories() {
+  let currentRowId = null;
   if (processingQuery) return;
   processingQuery = true;
   try {
@@ -31,9 +32,11 @@ async function summarizeMemories() {
       SELECT id, prompt, response FROM ai_chatbot_prompts WHERE responseSummary IS NULL ORDER BY id DESC LIMIT 1;
     `);
     if (!row) {
+      currentRowId = null;
       processingQuery = false;
       return;
     }
+    currentRowId = row.id;
     const { prompt, response } = row;
     const isSummarizedPromptRes = await openai.createChatCompletion({
       model: "gpt-3.5-turbo",
@@ -221,6 +224,11 @@ async function summarizeMemories() {
           auth
         );
         channel = data.channel;
+      }
+      if (currentRowId) {
+        await poolQuery(
+          `UPDATE ai_chatbot_prompts SET responseSummary = 'There was an error summarizing this memory.' WHERE id = ${currentRowId};`
+        );
       }
       const message = {
         content: `Hello Mikey. I got this error "${JSON.stringify(
