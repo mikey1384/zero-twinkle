@@ -3,7 +3,7 @@ const configuration = new Configuration({
   apiKey: process.env.OPENAI_API_KEY,
 });
 const openai = new OpenAIApi(configuration);
-const GPT4 = "gpt-4-0125-preview";
+const GPT4 = "gpt-4-turbo";
 
 module.exports = {
   auth: {
