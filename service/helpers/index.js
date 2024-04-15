@@ -2,7 +2,11 @@ const { writePool, readPool } = require("../pool");
 const config = require("../../config");
 const { defaultMaxTokens } = require("../../constants");
 const { encode } = require("gpt-3-encoder");
-const { openai, GPT4 } = config;
+const { GPT4 } = config;
+const OpenAI = require("openai");
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 function poolQuery(query, params) {
   return new Promise((resolve, reject) => {
@@ -132,26 +136,26 @@ async function checkIsPromptMatchConditionUsingGPTJSON({ conditions, prompt }) {
   let responseText;
 
   try {
-    const response = await openai.createChatCompletion({
+    const response = await openai.chat.completions.create({
       model: GPT4,
       messages,
       max_tokens: appliedTokens,
       top_p: 0.1,
     });
 
-    responseText = response.data.choices
+    responseText = response.choices
       .map(({ message: { content = "" } }) => content.trim())
       .join(" ");
   } catch (error) {
     console.error("Error with GPT-4, falling back to GPT-3.5-turbo:", error);
     try {
-      const response = await openai.createChatCompletion({
+      const response = await openai.chat.completions.create({
         model: "gpt-3.5-turbo",
         messages,
         max_tokens: Math.floor(appliedTokens / 2),
         top_p: 0.1,
       });
-      responseText = response.data.choices
+      responseText = response.choices
         .map(({ message: { content = "" } }) => content.trim())
         .join(" ");
     } catch (error) {

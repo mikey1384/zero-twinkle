@@ -19,7 +19,7 @@
     "moment": "^2.29.4",
     "mysql2": "^3.1.2",
     "nodemailer": "^6.9.1",
-    "openai": "^3.2.1",
+    "openai": "^4.24.7",
     "socket.io-client": "^4.6.1",
     "yarn": "^1.22.19"
   }

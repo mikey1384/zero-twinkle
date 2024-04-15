@@ -1,8 +1,12 @@
 const moment = require("moment");
 const request = require("axios");
 const config = require("../../config");
+const { auth, GPT4 } = config;
 const URL = process.env.URL;
-const { auth, openai, GPT4 } = config;
+const OpenAI = require("openai");
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 const aboutTwinkleText = `Zero's Inner Monologue: Twinkle Website (www.twin-kle.com and www.twinkle.network) is a community platform that was created by Mikey and launched in February 2016 for the students and teachers of the Twin.kle English academy. The academy was founded by twin brothers Andrew and Brian, who are friends with Mikey 👬`;
 
@@ -16,6 +20,7 @@ async function returnResponse({
   contentId,
   content,
   effectiveUsername,
+  imageUrl,
   isAskingWhoZeroIs,
   isAskingAboutCiel,
   isAskingAboutTwinkle,
@@ -94,20 +99,32 @@ async function returnResponse({
 
     const messages = [
       {
-        role: "system",
-        content: finalPrompt,
+        role: "user",
+        content: [
+          { type: "text", text: finalPrompt },
+          ...(imageUrl
+            ? [
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: imageUrl,
+                  },
+                },
+              ]
+            : []),
+        ],
       },
     ];
     if (process.env.NODE_ENV === "development") {
       console.log(messages);
     }
-    const responseObj = await openai.createChatCompletion({
+    const responseObj = await openai.chat.completions.create({
       model: GPT4,
       messages,
       temperature: 0.5,
       max_tokens: appliedTokens,
     });
-    const zerosResponse = `${responseObj.data.choices
+    const zerosResponse = `${responseObj.choices
       .map(({ message: { content = "" } }) => content.trim())
       .join(" ")}`;
 

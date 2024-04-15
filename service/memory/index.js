@@ -3,9 +3,14 @@ const io = require("socket.io-client");
 const URL = process.env.URL;
 const socket = io.connect(URL);
 const config = require("../../config");
-const { auth, openai } = config;
+const { auth } = config;
 const { encode } = require("gpt-3-encoder");
 const { poolQuery } = require("../helpers");
+const OpenAI = require("openai");
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
 const zeroId = Number(process.env.ZERO_TWINKLE_ID);
 let user = null;
 let channel = null;
@@ -38,7 +43,7 @@ async function summarizeMemories() {
     }
     currentRowId = row.id;
     const { prompt, response } = row;
-    const isSummarizedPromptRes = await openai.createChatCompletion({
+    const isSummarizedPromptRes = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
       messages: [
         {
@@ -109,10 +114,10 @@ async function summarizeMemories() {
       max_tokens: 50,
       top_p: 0.1,
     });
-    const isSummarizedPrompt = isSummarizedPromptRes.data.choices
+    const isSummarizedPrompt = isSummarizedPromptRes.choices
       .map(({ message: { content = "" } }) => content.trim())
       .join(" ");
-    const isSummarizedResponseRes = await openai.createChatCompletion({
+    const isSummarizedResponseRes = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
       messages: [
         {
@@ -176,7 +181,7 @@ async function summarizeMemories() {
       max_tokens: 50,
       top_p: 0.1,
     });
-    const isSummarizedResponse = isSummarizedResponseRes.data.choices
+    const isSummarizedResponse = isSummarizedResponseRes.choices
       .map(({ message: { content = "" } }) => content.trim())
       .join(" ");
     await poolQuery(

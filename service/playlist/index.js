@@ -1,7 +1,11 @@
 const { poolQuery } = require("../helpers");
 const { sendEmailReport, sendEmailReportForPLRewardLevel } = require("./model");
 const config = require("../../config");
-const { openai, GPT4 } = config;
+const { GPT4 } = config;
+const OpenAI = require("openai");
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 const userId = Number(process.env.ZERO_TWINKLE_ID);
 let lastVideoId = 0;
@@ -35,7 +39,7 @@ async function setPlaylistRewardLevel() {
       "Video Titles": videoTitles,
       "Video Channel Names": videoChannelNames,
     });
-    const response = await openai.createChatCompletion({
+    const response = await openai.chat.completions.create({
       model: GPT4,
       messages: [
         {
@@ -51,7 +55,7 @@ async function setPlaylistRewardLevel() {
       max_tokens: 2500,
       top_p: 0.1,
     });
-    const ResultingJSON = response.data.choices
+    const ResultingJSON = response.choices
       .map(({ message: { content = "" } }) => content.trim())
       .join(" ");
     const result = JSON.parse(
@@ -258,7 +262,7 @@ async function tagVideosToPlaylist() {
 
 async function suggestTag(videoData) {
   try {
-    const response = await openai.createChatCompletion({
+    const response = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
       messages: [
         {
@@ -273,7 +277,7 @@ async function suggestTag(videoData) {
       ],
       max_tokens: 50,
     });
-    const tag = response.data.choices
+    const tag = response.choices
       .map(({ message: { content = "" } }) => content.trim())
       .join(" ");
     return (tag || "").replace(/[".]/g, "");

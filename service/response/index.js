@@ -74,6 +74,11 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
       prompt: `Zero: Hello, ${effectiveUsername}. What can I do for you?\n\n${effectiveUsername}: ${prompt}`,
       effectiveUsername,
     });
+
+    const imageUrl =
+      comment.filePath && comment.fileName && isImageFile(comment.fileName)
+        ? `https://d3jvoamd2k4p0s.cloudfront.net/attachments/feed/${comment.filePath}/${comment.fileName}`
+        : null;
     const { zerosResponse, reportMessage } = await returnResponse({
       appliedTokens,
       recentExchanges,
@@ -105,6 +110,7 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
       contentId: comment.id,
       content: comment.content,
       prompt,
+      imageUrl,
     });
     await request.post(
       `${URL}/content/comments`,
@@ -175,6 +181,12 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
   } catch (error) {
     console.error(error);
     return Promise.reject({ error, commentId: latestCommentId });
+  }
+
+  function isImageFile(fileName) {
+    const imageExtensions = [".jpg", ".jpeg", ".png", ".gif"];
+    const extension = fileName.slice(fileName.lastIndexOf(".")).toLowerCase();
+    return imageExtensions.includes(extension);
   }
 }
 
