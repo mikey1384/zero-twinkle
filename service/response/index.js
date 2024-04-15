@@ -7,7 +7,11 @@ const socket = io.connect(URL);
 const config = require("../../config");
 const { auth } = config;
 const { returnResponse } = require("../helpers/zero");
-const { poolQuery, checkConditionsUsingGPT } = require("../helpers");
+const {
+  poolQuery,
+  checkConditionsUsingGPT,
+  isImageFile,
+} = require("../helpers");
 
 const zeroId = Number(process.env.ZERO_TWINKLE_ID);
 const channelId = Number(process.env.ZERO_CHAT_ROOM_ID);
@@ -181,12 +185,6 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
   } catch (error) {
     console.error(error);
     return Promise.reject({ error, commentId: latestCommentId });
-  }
-
-  function isImageFile(fileName) {
-    const imageExtensions = [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"];
-    const extension = fileName.slice(fileName.lastIndexOf(".")).toLowerCase();
-    return imageExtensions.includes(extension);
   }
 }
 

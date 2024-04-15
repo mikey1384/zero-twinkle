@@ -1,6 +1,7 @@
 const moment = require("moment");
 const request = require("axios");
 const config = require("../../config");
+const { isImageFile } = require("../helpers");
 const { auth, GPT4 } = config;
 const URL = process.env.URL;
 const OpenAI = require("openai");
@@ -97,22 +98,23 @@ async function returnResponse({
       now,
     });
 
+    const messageContent = [
+      ...extractTextAndImageObjects(finalPrompt),
+      ...(imageUrl
+        ? [
+            {
+              type: "image_url",
+              image_url: {
+                url: imageUrl,
+              },
+            },
+          ]
+        : []),
+    ];
     const messages = [
       {
         role: "user",
-        content: [
-          { type: "text", text: finalPrompt },
-          ...(imageUrl
-            ? [
-                {
-                  type: "image_url",
-                  image_url: {
-                    url: imageUrl,
-                  },
-                },
-              ]
-            : []),
-        ],
+        content: messageContent,
       },
     ];
     if (process.env.NODE_ENV === "development") {
@@ -147,6 +149,31 @@ async function returnResponse({
 }
 
 module.exports = { returnResponse };
+
+function extractTextAndImageObjects(text) {
+  const content = [];
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  let match;
+  let lastIndex = 0;
+  while ((match = urlRegex.exec(text)) !== null) {
+    const url = match[0].replace(/\)$/, "");
+    const textBeforeUrl = text.slice(lastIndex, match.index);
+    if (textBeforeUrl) {
+      content.push({ type: "text", text: textBeforeUrl });
+    }
+    if (isImageFile(url)) {
+      content.push({ type: "image_url", image_url: { url } });
+    } else {
+      content.push({ type: "text", text: url });
+    }
+    lastIndex = urlRegex.lastIndex;
+  }
+  const textAfterUrls = text.slice(lastIndex);
+  if (textAfterUrls) {
+    content.push({ type: "text", text: textAfterUrls });
+  }
+  return content;
+}
 
 function createFinalPrompt({
   effectiveUsername,

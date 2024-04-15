@@ -167,7 +167,14 @@ async function checkIsPromptMatchConditionUsingGPTJSON({ conditions, prompt }) {
   return (responseText || "").replace("```json", "").replace("```", "");
 }
 
+function isImageFile(fileName) {
+  const imageExtensions = [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"];
+  const extension = fileName.slice(fileName.lastIndexOf(".")).toLowerCase();
+  return imageExtensions.includes(extension);
+}
+
 module.exports = {
+  isImageFile,
   poolQuery,
   checkConditionsUsingGPT,
 };
