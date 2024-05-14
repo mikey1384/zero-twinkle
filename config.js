@@ -1,4 +1,4 @@
-const GPT4 = "gpt-4-turbo";
+const GPT4 = "gpt-4o";
 
 module.exports = {
   auth: {
