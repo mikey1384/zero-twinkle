@@ -188,6 +188,7 @@ async function summarizeMemories() {
       `UPDATE ai_chatbot_prompts SET responseSummary = ?, promptSummary = ? WHERE id = ?`,
       [isSummarizedResponse, isSummarizedPrompt, row.id]
     );
+    /*
     const message = {
       content: `Hello Mikey. I made this summary.\n\n${isSummarizedPrompt}\n\n${isSummarizedResponse}`,
       channelId,
@@ -215,6 +216,7 @@ async function summarizeMemories() {
       message: messageToSend,
       channel,
     });
+    */
     processingQuery = false;
   } catch (error) {
     try {
