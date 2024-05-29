@@ -1,8 +1,8 @@
 const request = require("axios");
 const moment = require("moment");
-const io = require("socket.io-client");
+// const io = require("socket.io-client");
 const URL = process.env.URL;
-const socket = io.connect(URL);
+// const socket = io.connect(URL);
 
 const config = require("../../config");
 const { auth } = config;
@@ -14,7 +14,7 @@ const {
 } = require("../helpers");
 
 const zeroId = Number(process.env.ZERO_TWINKLE_ID);
-const channelId = Number(process.env.ZERO_CHAT_ROOM_ID);
+// const channelId = Number(process.env.ZERO_CHAT_ROOM_ID);
 
 async function checkAndRespondToProfileMessages(appliedTokens) {
   let latestCommentId = "";
@@ -83,7 +83,7 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
       comment.filePath && comment.fileName && isImageFile(comment.fileName)
         ? `https://d3jvoamd2k4p0s.cloudfront.net/attachments/feed/${comment.filePath}/${comment.fileName}`
         : null;
-    const { zerosResponse, reportMessage } = await returnResponse({
+    const { zerosResponse } = await returnResponse({
       appliedTokens,
       recentExchanges,
       effectiveUsername,
@@ -147,6 +147,8 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
         ]
       );
     }
+
+    /*
     const message = {
       content: reportMessage,
       channelId,
@@ -166,6 +168,7 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
     if (!messageId) {
       return Promise.resolve();
     }
+  
     const { data: zero } = await request.get(`${URL}/user/session`, auth);
     const { data: { channel } = {} } = await request.get(
       `${URL}/chat/channel?channelId=${channelId}`,
@@ -182,6 +185,7 @@ async function checkAndRespondToProfileMessages(appliedTokens) {
       message: messageToSend,
       channel,
     });
+    */
   } catch (error) {
     console.error(error);
     return Promise.reject({ error, commentId: latestCommentId });
