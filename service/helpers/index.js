@@ -147,10 +147,10 @@ async function checkIsPromptMatchConditionUsingGPTJSON({ conditions, prompt }) {
       .map(({ message: { content = "" } }) => content.trim())
       .join(" ");
   } catch (error) {
-    console.error("Error with GPT-4, falling back to GPT-3.5-turbo:", error);
+    console.error("Error with GPT-4, falling back to gpt-4o-mini:", error);
     try {
       const response = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
+        model: "gpt-4o-mini",
         messages,
         max_tokens: Math.floor(appliedTokens / 2),
         top_p: 0.1,
@@ -159,7 +159,7 @@ async function checkIsPromptMatchConditionUsingGPTJSON({ conditions, prompt }) {
         .map(({ message: { content = "" } }) => content.trim())
         .join(" ");
     } catch (error) {
-      console.error("Error with GPT-3.5-turbo:", error);
+      console.error("Error with gpt-4o-mini:", error);
       throw error;
     }
   }
