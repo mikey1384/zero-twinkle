@@ -1,30 +1,23 @@
+const epochMs = Date.UTC(2022, 0, 1, 0, 0, 0);
+const msInDay = 86400000;
+
 function getDayIndexAndNextDay() {
-  const epochMs = new Date(2022, 0).valueOf();
   const now = Date.now();
-  const msInDay = 86400000;
   const dayIndex = Math.floor((now - epochMs) / msInDay);
   const nextDay = (dayIndex + 1) * msInDay + epochMs;
   return { dayIndex, nextDay };
 }
 
 function getMonthIndexFromDayIndex(dayIndex) {
-  const epochMs = new Date(2022, 0).valueOf();
-  const msInDay = 86400000;
-
-  const dateMs = dayIndex * msInDay + epochMs;
-
-  const month = new Date(dateMs).getMonth() + 1;
-  return month;
+  const dateMs = epochMs + dayIndex * msInDay;
+  const date = new Date(dateMs);
+  return date.getUTCMonth() + 1;
 }
 
 function getYearFromDayIndex(dayIndex) {
-  const epochMs = new Date(2022, 0).valueOf();
-  const msInDay = 86400000;
-
-  const dateMs = dayIndex * msInDay + epochMs;
-
-  const year = new Date(dateMs).getFullYear();
-  return year;
+  const dateMs = epochMs + dayIndex * msInDay;
+  const date = new Date(dateMs);
+  return date.getUTCFullYear();
 }
 
 module.exports = {
