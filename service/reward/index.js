@@ -1,5 +1,5 @@
 const axios = require("axios");
-const { getDayIndexAndNextDay } = require("../../helpers/time");
+const { getDayIndexAndNextDay } = require("../helpers/time");
 
 async function checkAndTriggerRewardCard() {
   const { dayIndex } = getDayIndexAndNextDay();
