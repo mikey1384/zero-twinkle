@@ -1,4 +1,4 @@
-const GPT4 = "chatgpt-4o-latest";
+const GPT4 = "gpt-4.1-2025-04-14";
 
 module.exports = {
   auth: {
