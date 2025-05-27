@@ -3,7 +3,7 @@ const { pipeline } = require("stream/promises");
 const { createInterface } = require("readline");
 const fetch = require("node-fetch");
 
-const { writePool } = require("../pool");
+const { poolQuery } = require("../helpers");
 const { promisify } = require("util");
 
 const LICHESS_DUMP_URL =
@@ -14,6 +14,12 @@ const BATCH_SIZE = 1000;
 
 /**
  * Downloads and imports the latest Lichess puzzle database
+ *
+ * IMPORTANT: After first import, run this SQL to prevent AUTO_INCREMENT collisions:
+ * ALTER TABLE game_chess_puzzles AUTO_INCREMENT = <highest_id + 1>;
+ *
+ * Also ensure MySQL max_allowed_packet >= 16MB for large batch inserts:
+ * SET GLOBAL max_allowed_packet = 16777216;
  */
 async function syncChessPuzzles({
   maxPuzzles = null,
@@ -133,7 +139,6 @@ g0YYYYY,"rnbqkb1r/pppp1ppp/5n2/4p3/2B1P3/8/PPPP1PPP/RNBQK1NR w KQkq - 2 3","d1h5
  * Imports puzzles from CSV to database
  */
 async function importPuzzlesToDatabase({ maxPuzzles, ratingMin, ratingMax }) {
-  const connection = writePool;
   const now = Math.floor(Date.now() / 1000);
 
   let imported = 0;
@@ -196,7 +201,7 @@ async function importPuzzlesToDatabase({ maxPuzzles, ratingMin, ratingMax }) {
 
       // Insert batch when it reaches BATCH_SIZE
       if (batch.length >= BATCH_SIZE) {
-        const batchImported = await insertBatch(connection, batch);
+        const batchImported = await insertBatch(batch);
         imported += batchImported;
         batch = []; // Clear batch
 
@@ -214,7 +219,7 @@ async function importPuzzlesToDatabase({ maxPuzzles, ratingMin, ratingMax }) {
 
   // Insert remaining batch
   if (batch.length > 0) {
-    const batchImported = await insertBatch(connection, batch);
+    const batchImported = await insertBatch(batch);
     imported += batchImported;
   }
 
@@ -224,16 +229,15 @@ async function importPuzzlesToDatabase({ maxPuzzles, ratingMin, ratingMax }) {
 /**
  * Inserts a batch of puzzles into the database
  */
-async function insertBatch(connection, batch) {
+async function insertBatch(batch) {
   try {
-    const [result] = await connection.promise().query(
-      `INSERT IGNORE INTO game_chess_puzzles 
+    const result = await poolQuery(
+      `INSERT IGNORE INTO game_chess_puzzles
        (id, fen, moves, rating, popularity, nbPlays, themes, createdAt)
        VALUES ?`,
       [batch]
     );
-
-    return result.affectedRows;
+    return result.affectedRows ?? 0;
   } catch (error) {
     console.error("❌ Batch insert error:", error.message);
     return 0;
@@ -287,29 +291,30 @@ function cleanup() {
  */
 async function getPuzzleStats() {
   try {
-    const connection = writePool;
+    const [countResult] = await poolQuery(
+      "SELECT COUNT(*) AS total FROM game_chess_puzzles"
+    );
 
-    const [countResult] = await connection
-      .promise()
-      .query("SELECT COUNT(*) as total FROM game_chess_puzzles");
+    const [ratingResult] = await poolQuery(
+      `SELECT MIN(rating) AS minRating,
+              MAX(rating) AS maxRating,
+              AVG(rating) AS avgRating
+         FROM game_chess_puzzles`
+    );
 
-    const [ratingResult] = await connection
-      .promise()
-      .query(
-        "SELECT MIN(rating) as minRating, MAX(rating) as maxRating, AVG(rating) as avgRating FROM game_chess_puzzles"
-      );
-
-    const [recentResult] = await connection.promise().query(
-      "SELECT COUNT(*) as recent FROM game_chess_puzzles WHERE createdAt > ?",
-      [Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60] // Last 7 days
+    const [recentResult] = await poolQuery(
+      `SELECT COUNT(*) AS recent
+         FROM game_chess_puzzles
+        WHERE createdAt > ?`,
+      [Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60]
     );
 
     return {
-      total: countResult[0]?.total || 0,
-      minRating: ratingResult[0]?.minRating || 0,
-      maxRating: ratingResult[0]?.maxRating || 0,
-      avgRating: Math.round(ratingResult[0]?.avgRating || 0),
-      recentlyAdded: recentResult[0]?.recent || 0,
+      total: countResult?.total ?? 0,
+      minRating: ratingResult?.minRating ?? 0,
+      maxRating: ratingResult?.maxRating ?? 0,
+      avgRating: Math.round(ratingResult?.avgRating ?? 0),
+      recentlyAdded: recentResult?.recent ?? 0,
     };
   } catch (error) {
     console.error("❌ Error getting puzzle stats:", error);
@@ -322,11 +327,9 @@ async function getPuzzleStats() {
  */
 async function cleanupOldPuzzles({ keepCount = 200000 } = {}) {
   try {
-    const connection = writePool;
-
     console.log(`🧹 Cleaning up old puzzles, keeping latest ${keepCount}...`);
 
-    const [result] = await connection.promise().query(
+    const result = await poolQuery(
       `DELETE FROM game_chess_puzzles 
        WHERE id NOT IN (
          SELECT id FROM (
