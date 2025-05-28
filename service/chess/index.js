@@ -174,17 +174,21 @@ async function importPuzzlesToDatabase({ maxPuzzles, ratingMin, ratingMax }) {
       const puzzleId = parseInt(id.replace(/^g/, ""));
       const puzzleRating = parseInt(rating);
 
+      // Clean and prepare data
+      const cleanFen = fen.replace(/"/g, "");
+      const cleanMoves = moves.replace(/"/g, "");
+      const cleanThemes = themes ? themes.replace(/"/g, "") : null;
+
+      // How many plies (half-moves) are in the line?
+      // Note: Mate-in-1 = 1 ply, "one full move" = 2 plies max
+      const movesCount = cleanMoves ? cleanMoves.split(/\s+/).length : 0;
+
       // Filter by rating range
       if (puzzleRating < ratingMin || puzzleRating > ratingMax) {
         skipped++;
         processed++;
         continue;
       }
-
-      // Clean and prepare data
-      const cleanFen = fen.replace(/"/g, "");
-      const cleanMoves = moves.replace(/"/g, "");
-      const cleanThemes = themes ? themes.replace(/"/g, "") : null;
 
       batch.push([
         puzzleId,
@@ -195,6 +199,7 @@ async function importPuzzlesToDatabase({ maxPuzzles, ratingMin, ratingMax }) {
         parseInt(nbPlays) || 0,
         cleanThemes,
         now,
+        movesCount,
       ]);
 
       processed++;
@@ -233,7 +238,7 @@ async function insertBatch(batch) {
   try {
     const result = await poolQuery(
       `INSERT IGNORE INTO game_chess_puzzles
-       (id, fen, moves, rating, popularity, nbPlays, themes, createdAt)
+       (id, fen, moves, rating, popularity, nbPlays, themes, createdAt, movesCount)
        VALUES ?`,
       [batch]
     );
