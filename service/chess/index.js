@@ -12,15 +12,6 @@ const TEMP_FILE_COMPRESSED = "/tmp/lichess_puzzles.csv.zst";
 const TEMP_FILE_DECOMPRESSED = "/tmp/lichess_puzzles.csv";
 const BATCH_SIZE = 1000;
 
-/**
- * Downloads and imports the latest Lichess puzzle database
- *
- * IMPORTANT: After first import, run this SQL to prevent AUTO_INCREMENT collisions:
- * ALTER TABLE game_chess_puzzles AUTO_INCREMENT = <highest_id + 1>;
- *
- * Also ensure MySQL max_allowed_packet >= 16MB for large batch inserts:
- * SET GLOBAL max_allowed_packet = 16777216;
- */
 async function syncChessPuzzles({
   maxPuzzles = null,
   ratingMin = 300,
@@ -31,19 +22,16 @@ async function syncChessPuzzles({
   const startTime = Date.now();
 
   try {
-    // Step 1: Download the compressed dump
     if (!testMode) {
       console.log("📥 Downloading Lichess puzzle dump...");
       await downloadPuzzleDump();
     }
 
-    // Step 2: Decompress the file
     console.log("📦 Decompressing puzzle data...");
     if (!testMode) {
       await decompressPuzzleDump();
     }
 
-    // Step 3: Import puzzles to database
     console.log("💾 Importing puzzles to database...");
     const stats = await importPuzzlesToDatabase({
       maxPuzzles,
@@ -71,7 +59,7 @@ async function syncChessPuzzles({
     };
   } catch (error) {
     console.error("❌ Chess puzzle sync failed:", error);
-    cleanup(); // Cleanup on error
+    cleanup();
     return {
       success: false,
       error: error.message,
@@ -291,71 +279,6 @@ function cleanup() {
   }
 }
 
-/**
- * Gets current puzzle statistics from database
- */
-async function getPuzzleStats() {
-  try {
-    const [countResult] = await poolQuery(
-      "SELECT COUNT(*) AS total FROM game_chess_puzzles"
-    );
-
-    const [ratingResult] = await poolQuery(
-      `SELECT MIN(rating) AS minRating,
-              MAX(rating) AS maxRating,
-              AVG(rating) AS avgRating
-         FROM game_chess_puzzles`
-    );
-
-    const [recentResult] = await poolQuery(
-      `SELECT COUNT(*) AS recent
-         FROM game_chess_puzzles
-        WHERE createdAt > ?`,
-      [Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60]
-    );
-
-    return {
-      total: countResult?.total ?? 0,
-      minRating: ratingResult?.minRating ?? 0,
-      maxRating: ratingResult?.maxRating ?? 0,
-      avgRating: Math.round(ratingResult?.avgRating ?? 0),
-      recentlyAdded: recentResult?.recent ?? 0,
-    };
-  } catch (error) {
-    console.error("❌ Error getting puzzle stats:", error);
-    return null;
-  }
-}
-
-/**
- * Removes old puzzles to keep database size manageable
- */
-async function cleanupOldPuzzles({ keepCount = 200000 } = {}) {
-  try {
-    console.log(`🧹 Cleaning up old puzzles, keeping latest ${keepCount}...`);
-
-    const result = await poolQuery(
-      `DELETE FROM game_chess_puzzles 
-       WHERE id NOT IN (
-         SELECT id FROM (
-           SELECT id FROM game_chess_puzzles 
-           ORDER BY createdAt DESC 
-           LIMIT ?
-         ) AS latest
-       )`,
-      [keepCount]
-    );
-
-    console.log(`🗑️  Removed ${result.affectedRows} old puzzles`);
-    return result.affectedRows;
-  } catch (error) {
-    console.error("❌ Error cleaning up old puzzles:", error);
-    return 0;
-  }
-}
-
 module.exports = {
   syncChessPuzzles,
-  getPuzzleStats,
-  cleanupOldPuzzles,
 };
