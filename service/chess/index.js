@@ -2,15 +2,22 @@ const { createWriteStream, unlinkSync, existsSync } = require("fs");
 const { pipeline } = require("stream/promises");
 const { createInterface } = require("readline");
 const fetch = require("node-fetch");
+const { promises: fs } = require("fs");
+const path = require("path");
 
 const { poolQuery } = require("../helpers");
-const { promisify } = require("util");
 
 const LICHESS_DUMP_URL =
   "https://database.lichess.org/lichess_db_puzzle.csv.zst";
-const TEMP_FILE_COMPRESSED = "/tmp/lichess_puzzles.csv.zst";
-const TEMP_FILE_DECOMPRESSED = "/tmp/lichess_puzzles.csv";
+// Use unique temp directories to prevent path collisions
+let TEMP_DIR = null;
+let TEMP_FILE_COMPRESSED = null;
+let TEMP_FILE_DECOMPRESSED = null;
 const BATCH_SIZE = 1000;
+
+// Pre-compile regex patterns to reduce string allocations in hot loop
+const QUOTE_REGEX = /"/g;
+const G_PREFIX_REGEX = /^g/;
 
 async function syncChessPuzzles({
   maxPuzzles = null,
@@ -20,6 +27,11 @@ async function syncChessPuzzles({
 } = {}) {
   console.log("🏁 Starting chess puzzle sync...");
   const startTime = Date.now();
+
+  // Create unique temp directory to prevent path collisions
+  TEMP_DIR = await fs.mkdtemp("/tmp/lichess-");
+  TEMP_FILE_COMPRESSED = path.join(TEMP_DIR, "lichess_puzzles.csv.zst");
+  TEMP_FILE_DECOMPRESSED = path.join(TEMP_DIR, "lichess_puzzles.csv");
 
   try {
     if (!testMode) {
@@ -64,6 +76,9 @@ async function syncChessPuzzles({
       success: false,
       error: error.message,
     };
+  } finally {
+    // Always cleanup temp directory
+    cleanup();
   }
 }
 
@@ -89,31 +104,41 @@ async function downloadPuzzleDump() {
 }
 
 /**
- * Decompresses the .zst file to CSV
- * Note: This is a simplified version - for production you might want to use node-zstd
- * For now, we'll assume the file comes as .gz or use shell command
+ * Decompresses the .zst file to CSV using spawn to prevent stdout buffering
  */
 async function decompressPuzzleDump() {
-  // Since node-zstd can be tricky to install, we'll use a shell command fallback
-  const { exec } = require("child_process");
-  const execAsync = promisify(exec);
+  const { spawn } = require("child_process");
 
   try {
-    // Try using system zstd command
-    await execAsync(
-      `zstd -d "${TEMP_FILE_COMPRESSED}" -o "${TEMP_FILE_DECOMPRESSED}"`
+    // Use spawn with stdio: 'inherit' to prevent stdout buffering issues
+    const zstdProcess = spawn(
+      "zstd",
+      ["-d", TEMP_FILE_COMPRESSED, "-o", TEMP_FILE_DECOMPRESSED],
+      {
+        stdio: "inherit", // Prevent stdout buffering in Node's heap
+      }
     );
-    console.log("📦 Decompressed using system zstd");
+
+    await new Promise((resolve, reject) => {
+      zstdProcess.on("close", (code) => {
+        if (code === 0) {
+          console.log("📦 Decompressed using system zstd");
+          resolve();
+        } else {
+          reject(new Error(`zstd process exited with code ${code}`));
+        }
+      });
+      zstdProcess.on("error", reject);
+    });
   } catch (error) {
     console.log("⚠️  System zstd not available, trying alternative...");
 
     // Fallback: assume it might be gzipped or use different approach
     // For now, we'll create a mock CSV for testing
     if (process.env.NODE_ENV === "development") {
-      const fs = require("fs");
       const mockData = `g0XXXXX,"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1","e2e4 e7e5",1422,54,999,"endgame fork",https://lichess.org/XXXXX#0
 g0YYYYY,"rnbqkb1r/pppp1ppp/5n2/4p3/2B1P3/8/PPPP1PPP/RNBQK1NR w KQkq - 2 3","d1h5 g6 h5c5",1654,72,1205,"mateIn2 sacrifice",https://lichess.org/YYYYY#0`;
-      fs.writeFileSync(TEMP_FILE_DECOMPRESSED, mockData);
+      await fs.writeFile(TEMP_FILE_DECOMPRESSED, mockData);
       console.log("📦 Created mock data for testing");
     } else {
       throw new Error(
@@ -124,7 +149,30 @@ g0YYYYY,"rnbqkb1r/pppp1ppp/5n2/4p3/2B1P3/8/PPPP1PPP/RNBQK1NR w KQkq - 2 3","d1h5
 }
 
 /**
- * Imports puzzles from CSV to database
+ * Safe batch insertion that always resets batch array to prevent memory leaks
+ */
+async function insertBatchSafe(batch) {
+  if (!batch.length) return 0;
+
+  try {
+    const result = await poolQuery(
+      `INSERT IGNORE INTO game_chess_puzzles
+       (id, fen, moves, rating, popularity, nbPlays, themes, createdAt, movesCount)
+       VALUES ?`,
+      [batch]
+    );
+    return result.affectedRows ?? 0;
+  } catch (error) {
+    console.error("❌ Batch insert error:", error.message);
+    return 0;
+  } finally {
+    // Always reset batch array to prevent memory retention on failure
+    batch.length = 0;
+  }
+}
+
+/**
+ * Imports puzzles from CSV to database with back-pressure control
  */
 async function importPuzzlesToDatabase({ maxPuzzles, ratingMin, ratingMax }) {
   const now = Math.floor(Date.now() / 1000);
@@ -133,9 +181,12 @@ async function importPuzzlesToDatabase({ maxPuzzles, ratingMin, ratingMax }) {
   let skipped = 0;
   let errors = 0;
   let processed = 0;
+  let consecutiveFailures = 0;
+  const MAX_CONSECUTIVE_FAILURES = 10; // Circuit breaker
 
+  const fileStream = require("fs").createReadStream(TEMP_FILE_DECOMPRESSED);
   const rl = createInterface({
-    input: require("fs").createReadStream(TEMP_FILE_DECOMPRESSED),
+    input: fileStream,
     crlfDelay: Infinity,
   });
 
@@ -147,34 +198,50 @@ async function importPuzzlesToDatabase({ maxPuzzles, ratingMin, ratingMax }) {
       break;
     }
 
+    // Circuit breaker: stop processing after too many consecutive failures
+    if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+      console.error(
+        `❌ Too many consecutive failures (${consecutiveFailures}), stopping import`
+      );
+      break;
+    }
+
     try {
       // Parse CSV line: id,fen,moves,rating,popularity,nbPlays,themes,gameUrl
       const columns = parseCSVLine(line);
 
       if (columns.length < 7) {
         errors++;
+        consecutiveFailures++;
         continue;
       }
 
       const [id, fen, moves, rating, popularity, nbPlays, themes] = columns;
 
-      // Extract numeric ID (remove 'g' prefix)
-      const puzzleId = parseInt(id.replace(/^g/, ""));
+      // Extract numeric ID (remove 'g' prefix) - use pre-compiled regex
+      const puzzleId = parseInt(id.replace(G_PREFIX_REGEX, ""));
       const puzzleRating = parseInt(rating);
 
-      // Clean and prepare data
-      const cleanFen = fen.replace(/"/g, "");
-      const cleanMoves = moves.replace(/"/g, "");
-      const cleanThemes = themes ? themes.replace(/"/g, "") : null;
+      // Clean and prepare data - use pre-compiled regex to reduce allocations
+      const cleanFen = fen.replace(QUOTE_REGEX, "");
+      const cleanMoves = moves.replace(QUOTE_REGEX, "");
+      const cleanThemes = themes ? themes.replace(QUOTE_REGEX, "") : null;
 
-      // How many plies (half-moves) are in the line?
-      // Note: Mate-in-1 = 1 ply, "one full move" = 2 plies max
-      const movesCount = cleanMoves ? cleanMoves.split(/\s+/).length : 0;
+      // Count plies more efficiently to avoid split allocation
+      let movesCount = 0;
+      if (cleanMoves) {
+        // Count spaces + 1 instead of splitting into array
+        for (let i = 0; i < cleanMoves.length; i++) {
+          if (cleanMoves[i] === " ") movesCount++;
+        }
+        movesCount++; // Add 1 for the last move
+      }
 
       // Filter by rating range
       if (puzzleRating < ratingMin || puzzleRating > ratingMax) {
         skipped++;
         processed++;
+        consecutiveFailures = 0; // Reset on successful processing
         continue;
       }
 
@@ -191,12 +258,18 @@ async function importPuzzlesToDatabase({ maxPuzzles, ratingMin, ratingMax }) {
       ]);
 
       processed++;
+      consecutiveFailures = 0; // Reset on successful processing
 
-      // Insert batch when it reaches BATCH_SIZE
+      // Insert batch when it reaches BATCH_SIZE with back-pressure control
       if (batch.length >= BATCH_SIZE) {
-        const batchImported = await insertBatch(batch);
+        // Pause stream to provide back-pressure while MySQL processes batch
+        fileStream.pause();
+
+        const batchImported = await insertBatchSafe(batch);
         imported += batchImported;
-        batch = []; // Clear batch
+
+        // Resume stream after batch is processed
+        fileStream.resume();
 
         if (processed % 10000 === 0) {
           console.log(
@@ -207,12 +280,13 @@ async function importPuzzlesToDatabase({ maxPuzzles, ratingMin, ratingMax }) {
     } catch (error) {
       console.error("❌ Error processing line:", error.message);
       errors++;
+      consecutiveFailures++;
     }
   }
 
   // Insert remaining batch
   if (batch.length > 0) {
-    const batchImported = await insertBatch(batch);
+    const batchImported = await insertBatchSafe(batch);
     imported += batchImported;
   }
 
@@ -220,25 +294,9 @@ async function importPuzzlesToDatabase({ maxPuzzles, ratingMin, ratingMax }) {
 }
 
 /**
- * Inserts a batch of puzzles into the database
- */
-async function insertBatch(batch) {
-  try {
-    const result = await poolQuery(
-      `INSERT IGNORE INTO game_chess_puzzles
-       (id, fen, moves, rating, popularity, nbPlays, themes, createdAt, movesCount)
-       VALUES ?`,
-      [batch]
-    );
-    return result.affectedRows ?? 0;
-  } catch (error) {
-    console.error("❌ Batch insert error:", error.message);
-    return 0;
-  }
-}
-
-/**
  * Simple CSV line parser that handles quoted fields
+ * Note: This is a character-by-character parser which can be memory intensive
+ * For production, consider using a streaming CSV library like csv-parse
  */
 function parseCSVLine(line) {
   const result = [];
@@ -263,22 +321,62 @@ function parseCSVLine(line) {
 }
 
 /**
- * Cleans up temporary files
+ * Cleans up temporary files and directory
  */
 function cleanup() {
   try {
-    if (existsSync(TEMP_FILE_COMPRESSED)) {
-      unlinkSync(TEMP_FILE_COMPRESSED);
+    if (TEMP_DIR && existsSync(TEMP_DIR)) {
+      // Remove all files in temp directory
+      if (existsSync(TEMP_FILE_COMPRESSED)) {
+        unlinkSync(TEMP_FILE_COMPRESSED);
+      }
+      if (existsSync(TEMP_FILE_DECOMPRESSED)) {
+        unlinkSync(TEMP_FILE_DECOMPRESSED);
+      }
+      // Remove the temp directory itself
+      require("fs").rmSync(TEMP_DIR, { recursive: true, force: true });
+      console.log("🧹 Temporary directory cleaned up");
     }
-    if (existsSync(TEMP_FILE_DECOMPRESSED)) {
-      unlinkSync(TEMP_FILE_DECOMPRESSED);
-    }
-    console.log("🧹 Temporary files cleaned up");
   } catch (error) {
     console.error("⚠️  Cleanup warning:", error.message);
   }
 }
 
+/**
+ * Cleans up old puzzles to keep database size manageable
+ */
+async function cleanupOldPuzzles({ keepCount = 200000 } = {}) {
+  try {
+    console.log(
+      `🧹 Starting puzzle cleanup, keeping ${keepCount} newest puzzles...`
+    );
+
+    // Delete older puzzles, keeping only the newest ones by creation date
+    const result = await poolQuery(
+      `DELETE FROM game_chess_puzzles 
+       WHERE id NOT IN (
+         SELECT id FROM (
+           SELECT id FROM game_chess_puzzles 
+           ORDER BY createdAt DESC 
+           LIMIT ?
+         ) AS newest_puzzles
+       )`,
+      [keepCount]
+    );
+
+    const deletedCount = result.affectedRows ?? 0;
+    console.log(
+      `🧹 Puzzle cleanup completed: ${deletedCount} old puzzles removed`
+    );
+
+    return { deletedCount };
+  } catch (error) {
+    console.error("❌ Puzzle cleanup error:", error.message);
+    return { deletedCount: 0, error: error.message };
+  }
+}
+
 module.exports = {
   syncChessPuzzles,
+  cleanupOldPuzzles,
 };

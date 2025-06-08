@@ -15,6 +15,13 @@ const chessPuzzleSyncInterval = 86400; // 24 hours
 
 let syncing = false;
 
+// Prevent interval stacking on PM2 hot-reloads
+if (global.twinkleIntervals) {
+  console.log("🔄 Clearing existing intervals to prevent stacking...");
+  global.twinkleIntervals.forEach(clearInterval);
+}
+global.twinkleIntervals = [];
+
 async function runChessSync() {
   if (syncing) {
     console.log("⏭️  Chess puzzle sync already running, skipping...");
@@ -46,10 +53,28 @@ async function runChessSync() {
   }
 }
 
-setInterval(tagVideosToPlaylist, tagVideosToPlaylistInterval * 1000);
-setInterval(setPlaylistRewardLevel, setPlaylistRewardLevelInterval * 1000);
-setInterval(checkAndTriggerRewardCard, checkRewardCardInterval * 1000);
-setInterval(runChessSync, chessPuzzleSyncInterval * 1000);
+// Setup intervals and track them to prevent stacking
+global.twinkleIntervals.push(
+  setInterval(tagVideosToPlaylist, tagVideosToPlaylistInterval * 1000),
+  setInterval(setPlaylistRewardLevel, setPlaylistRewardLevelInterval * 1000),
+  setInterval(checkAndTriggerRewardCard, checkRewardCardInterval * 1000),
+  setInterval(runChessSync, chessPuzzleSyncInterval * 1000)
+);
+
+console.log(`🚀 Started ${global.twinkleIntervals.length} intervals`);
+
+// Graceful shutdown handler
+process.on("SIGINT", () => {
+  console.log("🛑 Received SIGINT, cleaning up intervals...");
+  global.twinkleIntervals.forEach(clearInterval);
+  process.exit(0);
+});
+
+process.on("SIGTERM", () => {
+  console.log("🛑 Received SIGTERM, cleaning up intervals...");
+  global.twinkleIntervals.forEach(clearInterval);
+  process.exit(0);
+});
 
 // Optional: run chess sync immediately on startup
 runChessSync();
