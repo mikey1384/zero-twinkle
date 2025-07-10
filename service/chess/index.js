@@ -342,41 +342,6 @@ function cleanup() {
   }
 }
 
-/**
- * Cleans up old puzzles to keep database size manageable
- */
-async function cleanupOldPuzzles({ keepCount = 200000 } = {}) {
-  try {
-    console.log(
-      `🧹 Starting puzzle cleanup, keeping ${keepCount} newest puzzles...`
-    );
-
-    // Delete older puzzles, keeping only the newest ones by creation date
-    const result = await poolQuery(
-      `DELETE FROM game_chess_puzzles 
-       WHERE id NOT IN (
-         SELECT id FROM (
-           SELECT id FROM game_chess_puzzles 
-           ORDER BY createdAt DESC 
-           LIMIT ?
-         ) AS newest_puzzles
-       )`,
-      [keepCount]
-    );
-
-    const deletedCount = result.affectedRows ?? 0;
-    console.log(
-      `🧹 Puzzle cleanup completed: ${deletedCount} old puzzles removed`
-    );
-
-    return { deletedCount };
-  } catch (error) {
-    console.error("❌ Puzzle cleanup error:", error.message);
-    return { deletedCount: 0, error: error.message };
-  }
-}
-
 module.exports = {
   syncChessPuzzles,
-  cleanupOldPuzzles,
 };

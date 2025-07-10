@@ -5,7 +5,6 @@ const {
   setPlaylistRewardLevel,
   checkAndTriggerRewardCard,
   syncChessPuzzles,
-  cleanupOldPuzzles,
 } = require("./service");
 
 const tagVideosToPlaylistInterval = 60;
@@ -40,9 +39,6 @@ async function runChessSync() {
 
     if (success) {
       console.log("✅ Chess puzzle sync completed successfully", stats);
-      // Optional cleanup: keep DB size manageable
-      console.log("🧹 Running puzzle cleanup...");
-      await cleanupOldPuzzles({ keepCount: 200000 });
     } else {
       console.log("❌ Chess puzzle sync failed");
     }
