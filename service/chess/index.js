@@ -222,6 +222,15 @@ async function importPuzzlesToDatabase({ maxPuzzles, ratingMin, ratingMax }) {
       const puzzleId = parseInt(id.replace(G_PREFIX_REGEX, ""));
       const puzzleRating = parseInt(rating);
 
+      // Skip if puzzleId is invalid (NaN)
+      if (isNaN(puzzleId)) {
+        console.warn(`⚠️ Invalid puzzle ID: ${id}, skipping...`);
+        skipped++;
+        processed++;
+        consecutiveFailures = 0;
+        continue;
+      }
+
       // Clean and prepare data - use pre-compiled regex to reduce allocations
       const cleanFen = fen.replace(QUOTE_REGEX, "");
       const cleanMoves = moves.replace(QUOTE_REGEX, "");
