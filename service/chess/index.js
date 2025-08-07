@@ -17,7 +17,6 @@ const BATCH_SIZE = 1000;
 
 // Pre-compile regex patterns to reduce string allocations in hot loop
 const QUOTE_REGEX = /"/g;
-const G_PREFIX_REGEX = /^g/;
 
 async function syncChessPuzzles({
   maxPuzzles = null,
@@ -218,13 +217,13 @@ async function importPuzzlesToDatabase({ maxPuzzles, ratingMin, ratingMax }) {
 
       const [id, fen, moves, rating, popularity, nbPlays, themes] = columns;
 
-      // Extract numeric ID (remove 'g' prefix) - use pre-compiled regex
-      const puzzleId = parseInt(id.replace(G_PREFIX_REGEX, ""));
+      // Use puzzle ID as-is (string) - just clean quotes
+      const puzzleId = id.replace(QUOTE_REGEX, "");
       const puzzleRating = parseInt(rating);
 
-      // Skip if puzzleId is invalid (NaN)
-      if (isNaN(puzzleId)) {
-        console.warn(`⚠️ Invalid puzzle ID: ${id}, skipping...`);
+      // Skip if puzzleId is empty
+      if (!puzzleId) {
+        console.warn(`⚠️ Empty puzzle ID, skipping...`);
         skipped++;
         processed++;
         consecutiveFailures = 0;
