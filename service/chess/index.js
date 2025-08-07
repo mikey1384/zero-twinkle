@@ -217,6 +217,14 @@ async function importPuzzlesToDatabase({ maxPuzzles, ratingMin, ratingMax }) {
 
       const [id, fen, moves, rating, popularity, nbPlays, themes] = columns;
 
+      // Skip header row (CSV headers)
+      if (id === "PuzzleId" || id === '"PuzzleId"') {
+        console.log(`📋 Skipping CSV header row`);
+        processed++;
+        consecutiveFailures = 0;
+        continue;
+      }
+
       // Use puzzle ID as-is (string) - just clean quotes
       const puzzleId = id.replace(QUOTE_REGEX, "");
       const puzzleRating = parseInt(rating);
