@@ -4,15 +4,15 @@ const {
   tagVideosToPlaylist,
   setPlaylistRewardLevel,
   checkAndTriggerRewardCard,
-  syncChessPuzzles,
+  // syncChessPuzzles,
 } = require("./service");
 
 const tagVideosToPlaylistInterval = 60;
 const setPlaylistRewardLevelInterval = 60;
 const checkRewardCardInterval = 30;
-const chessPuzzleSyncInterval = 86400; // 24 hours
+// const chessPuzzleSyncInterval = 86400; // 24 hours
 
-let syncing = false;
+//let syncing = false;
 
 // Prevent interval stacking on PM2 hot-reloads
 if (global.twinkleIntervals) {
@@ -21,6 +21,7 @@ if (global.twinkleIntervals) {
 }
 global.twinkleIntervals = [];
 
+/*
 async function runChessSync() {
   if (syncing) {
     console.log("⏭️  Chess puzzle sync already running, skipping...");
@@ -49,12 +50,14 @@ async function runChessSync() {
   }
 }
 
+*/
+
 // Setup intervals and track them to prevent stacking
 global.twinkleIntervals.push(
   setInterval(tagVideosToPlaylist, tagVideosToPlaylistInterval * 1000),
   setInterval(setPlaylistRewardLevel, setPlaylistRewardLevelInterval * 1000),
-  setInterval(checkAndTriggerRewardCard, checkRewardCardInterval * 1000),
-  setInterval(runChessSync, chessPuzzleSyncInterval * 1000)
+  setInterval(checkAndTriggerRewardCard, checkRewardCardInterval * 1000)
+  // setInterval(runChessSync, chessPuzzleSyncInterval * 1000)
 );
 
 console.log(`🚀 Started ${global.twinkleIntervals.length} intervals`);
@@ -72,5 +75,4 @@ process.on("SIGTERM", () => {
   process.exit(0);
 });
 
-// Optional: run chess sync immediately on startup
-runChessSync();
+// runChessSync();
