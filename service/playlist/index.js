@@ -91,7 +91,7 @@ async function tagVideosToPlaylist() {
         ytChannelName,
       } = {},
     ] = await poolQuery(
-      `SELECT v.id AS videoId, v.ytTags, v.ytChannelName, v.rewardLevel, v.title AS videoTitle, v.content FROM vq_videos v LEFT JOIN vq_playlistvideos pv ON v.id = pv.videoId WHERE v.isDeleted != '1' AND pv.videoId IS NULL ORDER BY v.id DESC LIMIT 1`
+      `SELECT v.id AS videoId, v.ytTags, v.ytChannelName, v.rewardLevel, v.title AS videoTitle, v.content FROM vq_videos v LEFT JOIN vq_playlistvideos pv ON v.id = pv.videoId WHERE v.isDeleted = 0 AND pv.videoId IS NULL ORDER BY v.id DESC LIMIT 1`
     );
     if (!ytTags || !videoId || videoId === lastVideoId) {
       return;
