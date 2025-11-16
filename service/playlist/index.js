@@ -1,7 +1,7 @@
 const { poolQuery } = require("../helpers");
 const { sendEmailReport, sendEmailReportForPLRewardLevel } = require("./model");
 const config = require("../../config");
-const { GPT4 } = config;
+const { GPT } = config;
 const OpenAI = require("openai");
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -40,7 +40,7 @@ async function setPlaylistRewardLevel() {
       "Video Channel Names": videoChannelNames,
     });
     const response = await openai.chat.completions.create({
-      model: GPT4,
+      model: GPT,
       messages: [
         {
           role: "system",
@@ -52,8 +52,6 @@ async function setPlaylistRewardLevel() {
           content: `Evaluate the educational value of the given playlist metadata on a scale from 0 (not educational at all) to 5 (extremely educational). Assess the educational values of the included videos based on their titles and associated YouTube channel names. Return a single JSON object with a key "digit" representing the educational value and "explanation" detailing the reasoning behind the value. Playlist Metadata: ${playlistData}\n\nJSON: `,
         },
       ],
-      max_tokens: 2500,
-      top_p: 0.1,
     });
     const ResultingJSON = response.choices
       .map(({ message: { content = "" } }) => content.trim())

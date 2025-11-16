@@ -1,4 +1,4 @@
-const GPT4 = "gpt-4.1-2025-04-14";
+const GPT = "gpt-5.1-2025-11-13";
 
 module.exports = {
   auth: {
@@ -14,5 +14,5 @@ module.exports = {
     privateKey: process.env.MAIL_PRIVATE_KEY.replace(/\\n/gm, "\n"),
   },
   yesNoMaxTokens: 1000,
-  GPT4,
+  GPT,
 };
