@@ -273,7 +273,6 @@ async function suggestTag(videoData) {
           content: `Prompt: Based on the given video metadata, suggest a concise category label using ideally a single word and no more than two words: ${videoData}\n\nLabel: `,
         },
       ],
-      max_tokens: 50,
     });
     const tag = response.choices
       .map(({ message: { content = "" } }) => content.trim())
