@@ -5,6 +5,7 @@ const {
   setPlaylistRewardLevel,
   checkAndTriggerRewardCard,
   updateWordMasterRankings,
+  runEchoNotifications,
   // syncChessPuzzles,
 } = require("./service");
 
@@ -12,6 +13,7 @@ const tagVideosToPlaylistInterval = 60;
 const setPlaylistRewardLevelInterval = 60;
 const checkRewardCardInterval = 30;
 const updateWordMasterRankingsInterval = 900;
+const echoNotificationsInterval = 3600; // 1 hour
 // const chessPuzzleSyncInterval = 86400; // 24 hours
 
 //let syncing = false;
@@ -59,8 +61,12 @@ global.twinkleIntervals.push(
   setInterval(tagVideosToPlaylist, tagVideosToPlaylistInterval * 1000),
   setInterval(setPlaylistRewardLevel, setPlaylistRewardLevelInterval * 1000),
   setInterval(checkAndTriggerRewardCard, checkRewardCardInterval * 1000),
-  setInterval(updateWordMasterRankings, updateWordMasterRankingsInterval * 1000)
+  setInterval(updateWordMasterRankings, updateWordMasterRankingsInterval * 1000),
+  setInterval(runEchoNotifications, echoNotificationsInterval * 1000)
 );
+
+// Run Echo notifications immediately on startup (after 10 second delay)
+setTimeout(runEchoNotifications, 10000);
 
 console.log(`🚀 Started ${global.twinkleIntervals.length} intervals`);
 

@@ -16,6 +16,7 @@
     "dotenv": "^16.0.3",
     "eslint": "^8.35.0",
     "gpt-3-encoder": "^1.1.4",
+    "luxon": "^3.7.2",
     "moment": "^2.29.4",
     "mysql2": "^3.1.2",
     "node-fetch": "^2.7.0",
