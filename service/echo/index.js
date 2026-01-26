@@ -7,6 +7,7 @@
 
 const { poolQuery } = require("../helpers");
 const { DateTime } = require("luxon");
+const fetch = require("node-fetch");
 
 // Expo Push Notification endpoint
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
