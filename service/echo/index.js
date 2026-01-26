@@ -101,7 +101,7 @@ async function sendExpoPushNotifications(messages) {
       console.error("[Echo] Expo push error:", error);
       // Add error tickets for this batch
       tickets.push(
-        ...batch.map(() => ({ status: "error", message: "Network error" }))
+        ...batch.map(() => ({ status: "error", message: "Network error" })),
       );
     }
   }
@@ -158,7 +158,7 @@ async function getUsersForDailyReminder() {
       `SELECT r.id FROM echo_questions q
        JOIN echo_responses r ON r.questionId = q.id AND r.grade != 'Fail'
        WHERE q.userId = ? AND q.localDate = ?`,
-      [user.userId, localDate]
+      [user.userId, localDate],
     );
 
     if (todayResponse) {
@@ -168,7 +168,7 @@ async function getUsersForDailyReminder() {
 
     const tokens = await poolQuery(
       `SELECT token FROM echo_push_tokens WHERE userId = ?`,
-      [user.userId]
+      [user.userId],
     );
 
     if (tokens.length > 0) {
@@ -239,7 +239,7 @@ async function getUsersWithStreakAtRisk() {
       `SELECT r.id FROM echo_questions q
        JOIN echo_responses r ON r.questionId = q.id AND r.grade != 'Fail'
        WHERE q.userId = ? AND q.localDate = ?`,
-      [user.userId, localDate]
+      [user.userId, localDate],
     );
 
     if (todayResponse) {
@@ -249,7 +249,7 @@ async function getUsersWithStreakAtRisk() {
 
     const tokens = await poolQuery(
       `SELECT token FROM echo_push_tokens WHERE userId = ?`,
-      [user.userId]
+      [user.userId],
     );
 
     if (tokens.length > 0) {
@@ -298,7 +298,7 @@ async function sendDailyReminders() {
     for (const token of user.tokens) {
       messages.push({
         to: token,
-        title: "Your daily reflection awaits",
+        title: "Your daily Echo awaits",
         body,
         sound: "default",
         data: { type: "daily_reminder" },
@@ -319,7 +319,11 @@ async function sendDailyReminders() {
 
     // Check if at least one message was sent successfully
     let anySuccess = false;
-    for (let i = mapping.startIndex; i < mapping.startIndex + mapping.count; i++) {
+    for (
+      let i = mapping.startIndex;
+      i < mapping.startIndex + mapping.count;
+      i++
+    ) {
       if (tickets[i]?.status === "ok") {
         anySuccess = true;
         break;
@@ -330,7 +334,7 @@ async function sendDailyReminders() {
       // Record that we sent a reminder for this date (prevents duplicate sends)
       await poolQuery(
         `UPDATE echo_users SET lastDailyReminderDate = ? WHERE id = ?`,
-        [mapping.localDate, user.userId]
+        [mapping.localDate, user.userId],
       );
     }
   }
@@ -373,7 +377,7 @@ async function sendStreakReminders() {
       messages.push({
         to: token,
         title: `Don't lose your ${user.currentStreak}-day streak!`,
-        body: `You haven't reflected yet today. Just a few minutes to keep it going.`,
+        body: `You haven't written yet today. Just a few minutes to keep it going.`,
         sound: "default",
         data: { type: "streak_reminder" },
       });
@@ -393,7 +397,11 @@ async function sendStreakReminders() {
 
     // Check if at least one message was sent successfully
     let anySuccess = false;
-    for (let i = mapping.startIndex; i < mapping.startIndex + mapping.count; i++) {
+    for (
+      let i = mapping.startIndex;
+      i < mapping.startIndex + mapping.count;
+      i++
+    ) {
       if (tickets[i]?.status === "ok") {
         anySuccess = true;
         break;
@@ -404,7 +412,7 @@ async function sendStreakReminders() {
       // Record that we sent a streak reminder for this date (prevents duplicate sends)
       await poolQuery(
         `UPDATE echo_users SET lastStreakReminderDate = ? WHERE id = ?`,
-        [mapping.localDate, user.userId]
+        [mapping.localDate, user.userId],
       );
     }
   }
@@ -431,17 +439,17 @@ async function sendStreakReminders() {
 
 async function runEchoNotifications() {
   console.log(
-    `[Echo] Running notification scheduler at ${new Date().toISOString()}`
+    `[Echo] Running notification scheduler at ${new Date().toISOString()}`,
   );
   try {
     const dailyResult = await sendDailyReminders();
     console.log(
-      `[Echo] Daily reminders: sent ${dailyResult.sent}, errors ${dailyResult.errors}`
+      `[Echo] Daily reminders: sent ${dailyResult.sent}, errors ${dailyResult.errors}`,
     );
 
     const streakResult = await sendStreakReminders();
     console.log(
-      `[Echo] Streak reminders: sent ${streakResult.sent}, errors ${streakResult.errors}`
+      `[Echo] Streak reminders: sent ${streakResult.sent}, errors ${streakResult.errors}`,
     );
   } catch (error) {
     console.error("[Echo] Notification scheduler error:", error);
