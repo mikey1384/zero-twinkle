@@ -6,6 +6,7 @@ const {
   checkAndTriggerRewardCard,
   updateWordMasterRankings,
   runEchoNotifications,
+  processInsightsQueue,
   // syncChessPuzzles,
 } = require("./service");
 
@@ -14,6 +15,7 @@ const setPlaylistRewardLevelInterval = 60;
 const checkRewardCardInterval = 30;
 const updateWordMasterRankingsInterval = 900;
 const echoNotificationsInterval = 3600; // 1 hour
+const insightsQueueInterval = 21600; // 6 hours (uses batch API for 50% savings)
 // const chessPuzzleSyncInterval = 86400; // 24 hours
 
 //let syncing = false;
@@ -62,11 +64,15 @@ global.twinkleIntervals.push(
   setInterval(setPlaylistRewardLevel, setPlaylistRewardLevelInterval * 1000),
   setInterval(checkAndTriggerRewardCard, checkRewardCardInterval * 1000),
   setInterval(updateWordMasterRankings, updateWordMasterRankingsInterval * 1000),
-  setInterval(runEchoNotifications, echoNotificationsInterval * 1000)
+  setInterval(runEchoNotifications, echoNotificationsInterval * 1000),
+  setInterval(processInsightsQueue, insightsQueueInterval * 1000)
 );
 
 // Run Echo notifications immediately on startup (after 10 second delay)
 setTimeout(runEchoNotifications, 10000);
+
+// Run insights queue processing on startup (after 30 second delay)
+setTimeout(processInsightsQueue, 30000);
 
 console.log(`🚀 Started ${global.twinkleIntervals.length} intervals`);
 

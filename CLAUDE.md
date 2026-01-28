@@ -35,6 +35,18 @@ zero-twinkle/
 | `checkAndTriggerRewardCard` | 30s | Checks and triggers vocabulary reward cards |
 | `updateWordMasterRankings` | 900s (15min) | Updates Word Master leaderboard rankings |
 | `runEchoNotifications` | 3600s (1hr) | Sends Echo app push notifications |
+| `processInsightsQueue` | 21600s (6hr) | Batch processes personality insights (50% cost savings) |
+
+### Echo Insights Batch Processing
+
+The Echo insights service (`service/echo/insights.js`) handles:
+
+1. **Queue Processing** - Checks `echo_insights_queue` for users needing personality analysis
+2. **Batch Submission** - Submits requests to Anthropic's Message Batches API (50% cost savings)
+3. **Result Polling** - Checks active batches for completion (up to 24 hours)
+4. **Result Storage** - Parses JSONL results and stores in `echo_insights` table
+
+**Requires:** `ANTHROPIC_API_KEY` environment variable
 
 ### Echo Notifications
 
