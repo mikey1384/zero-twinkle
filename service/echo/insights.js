@@ -139,8 +139,6 @@ async function getBatchResults(resultsUrl) {
 // ===================================
 
 async function processInsightsQueue() {
-  console.log(`[Insights] Checking queue at ${new Date().toISOString()}`);
-
   try {
     // First, check for any completed batches that need result processing
     await processCompletedBatches();
@@ -164,8 +162,6 @@ async function processCompletedBatches() {
       const status = await getBatchStatus(batch.batchId);
 
       if (status.processing_status === "ended") {
-        console.log(`[Insights] Batch ${batch.batchId} completed`);
-
         // Download and process results
         if (status.results_url) {
           const results = await getBatchResults(status.results_url);
@@ -176,6 +172,12 @@ async function processCompletedBatches() {
         await poolQuery(
           `UPDATE echo_insights_batches SET status = 'completed', completedAt = ? WHERE id = ?`,
           [Math.floor(Date.now() / 1000), batch.id]
+        );
+
+        // Clean up batch items now that batch is complete
+        await poolQuery(
+          `DELETE FROM echo_insights_batch_items WHERE batchId = ?`,
+          [batch.id]
         );
       } else if (status.processing_status === "failed") {
         console.error(`[Insights] Batch ${batch.batchId} failed`);
@@ -189,6 +191,11 @@ async function processCompletedBatches() {
            SELECT userId, ? FROM echo_insights_batch_items WHERE batchId = ?
            ON DUPLICATE KEY UPDATE createdAt = VALUES(createdAt)`,
           [Math.floor(Date.now() / 1000), batch.id]
+        );
+        // Clean up batch items after re-queuing
+        await poolQuery(
+          `DELETE FROM echo_insights_batch_items WHERE batchId = ?`,
+          [batch.id]
         );
       }
       // If still processing, do nothing - will check again next run
@@ -205,11 +212,8 @@ async function submitNewBatch() {
   );
 
   if (queuedUsers.length === 0) {
-    console.log("[Insights] No users in queue");
     return;
   }
-
-  console.log(`[Insights] Processing ${queuedUsers.length} queued users`);
 
   // Build batch requests
   const requests = [];
@@ -251,14 +255,12 @@ async function submitNewBatch() {
   }
 
   if (requests.length === 0) {
-    console.log("[Insights] No valid users to process after filtering");
     return;
   }
 
   try {
     // Submit batch
     const batch = await submitBatch(requests);
-    console.log(`[Insights] Submitted batch ${batch.id} with ${requests.length} requests`);
 
     const now = Math.floor(Date.now() / 1000);
 
@@ -330,22 +332,17 @@ async function storeResults(results, batchDbId) {
                ON DUPLICATE KEY UPDATE insights = VALUES(insights), generatedAt = VALUES(generatedAt)`,
               [userId, JSON.stringify(insights), now]
             );
-
-            console.log(`[Insights] Stored insights for user ${userId}`);
           } else {
-            console.error(`[Insights] Invalid response structure for user ${userId}, requeuing`);
             await requeueUser(userId, now);
           }
         } else {
-          console.error(`[Insights] No text block in response for user ${userId}, requeuing`);
           await requeueUser(userId, now);
         }
       } else {
-        console.error(`[Insights] Request failed for user ${userId}:`, result.result?.error);
         await requeueUser(userId, now);
       }
     } catch (error) {
-      console.error(`[Insights] Error processing result:`, error.message);
+      console.error(`[Insights] Error processing result for user ${userId}:`, error.message);
       if (userId) {
         await requeueUser(userId, Math.floor(Date.now() / 1000));
       }
@@ -361,7 +358,6 @@ async function requeueUser(userId, now) {
        ON DUPLICATE KEY UPDATE createdAt = VALUES(createdAt)`,
       [userId, now]
     );
-    console.log(`[Insights] Requeued user ${userId} for retry`);
   } catch (err) {
     console.error(`[Insights] Failed to requeue user ${userId}:`, err.message);
   }

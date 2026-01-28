@@ -438,19 +438,21 @@ async function sendStreakReminders() {
 // ===================================
 
 async function runEchoNotifications() {
-  console.log(
-    `[Echo] Running notification scheduler at ${new Date().toISOString()}`,
-  );
   try {
     const dailyResult = await sendDailyReminders();
-    console.log(
-      `[Echo] Daily reminders: sent ${dailyResult.sent}, errors ${dailyResult.errors}`,
-    );
-
     const streakResult = await sendStreakReminders();
-    console.log(
-      `[Echo] Streak reminders: sent ${streakResult.sent}, errors ${streakResult.errors}`,
-    );
+
+    // Only log if we actually sent something
+    if (dailyResult.sent > 0 || streakResult.sent > 0) {
+      console.log(
+        `[Echo] Notifications: daily=${dailyResult.sent}, streak=${streakResult.sent}`,
+      );
+    }
+    if (dailyResult.errors > 0 || streakResult.errors > 0) {
+      console.error(
+        `[Echo] Notification errors: daily=${dailyResult.errors}, streak=${streakResult.errors}`,
+      );
+    }
   } catch (error) {
     console.error("[Echo] Notification scheduler error:", error);
   }
