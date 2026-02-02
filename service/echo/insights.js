@@ -28,7 +28,13 @@ function buildPersonalityPrompt(reflections) {
     .map((r) => `Q: ${r.question}\nA: ${r.response}`)
     .join("\n\n---\n\n");
 
-  return `Analyze this person's personality based on their written reflections. You are a psychologist examining their authentic self-expression.
+  return `Analyze this person's personality based on their written reflections. You are an insightful, careful reader.
+
+Important:
+- This is for self-reflection, not clinical diagnosis.
+- Write ALL outputs in English.
+- Be grounded in evidence from the reflections. If something is uncertain, reflect that uncertainty.
+- Avoid therapy/jargon terms (e.g., "trauma", "wound", "trigger", "attachment") unless the user explicitly uses that language.
 
 REFLECTIONS (${reflections.length} total):
 ${reflectionsText}
@@ -38,7 +44,10 @@ Based on their writing patterns, thought processes, emotional expressions, and h
 1. INTRODUCTION:
 - A warm 2-3 sentence paragraph capturing who they are at their core
 - 3-4 key strengths (short phrases like "Deep thinker", "Naturally empathetic")
-- 2-3 things to watch out for (growth areas, not criticisms - e.g., "May overthink decisions", "Needs alone time to recharge")
+- 2-3 things to watch out for (growth areas, not criticisms). Each item must be concrete and include a tangible downside in real life.
+  - Good: "May overthink choices, which can delay decisions or create second-guessing."
+  - Good: "Can move fast mentally, which can cause miscommunication when others need more context."
+  - Avoid vague advice like "Could benefit from..." without a clear consequence.
 
 2. MBTI ESTIMATE:
 - Determine their likely type (e.g., INFJ, ENTP)
@@ -56,6 +65,7 @@ Based on their writing patterns, thought processes, emotional expressions, and h
 - Extraversion (sociability, assertiveness, positive emotions)
 - Agreeableness (cooperation, trust, empathy)
 - Neuroticism (emotional instability, anxiety, moodiness)
+- Also include a short combined interpretation that connects the pattern across O/C/E/A/N (2-3 sentences).
 
 4. SUMMARY: A warm, insightful 2-3 sentence summary (can be same as introduction paragraph).
 
@@ -64,7 +74,7 @@ Respond with ONLY valid JSON:
   "introduction": {
     "paragraph": "You're a thoughtful person who...",
     "strengths": ["Deep thinker", "Naturally empathetic", "Creative problem-solver"],
-    "watchOutFor": ["May overthink decisions", "Needs alone time to recharge"]
+    "watchOutFor": ["May overthink choices, which can delay decisions or create second-guessing.", "Needs alone time to recharge, which can look like withdrawal if it's not communicated."]
   },
   "mbti": {
     "type": "XXXX",
@@ -75,9 +85,10 @@ Respond with ONLY valid JSON:
       "TF": { "label": "Feeling", "score": 80, "explanation": "..." },
       "JP": { "label": "Judging", "score": 55, "explanation": "..." }
     },
-    "description": "Brief description of this MBTI type"
+    "description": "A brief, personalized description of this MBTI type as it shows up in this person (2-4 sentences)."
   },
   "bigFive": {
+    "summary": "A short integrated interpretation of their O/C/E/A/N pattern (2-3 sentences).",
     "openness": { "score": 75, "description": "..." },
     "conscientiousness": { "score": 60, "description": "..." },
     "extraversion": { "score": 35, "description": "..." },
@@ -220,6 +231,30 @@ async function submitNewBatch() {
   const userReflectionsMap = new Map();
 
   for (const { userId } of queuedUsers) {
+    // Pro-only: never generate insights for free users (no silent caching behind a lock screen).
+    const [user] = await poolQuery(
+      `SELECT subscriptionTier, subscriptionExpiresAt, proExpiresAt
+       FROM echo_users
+       WHERE id = ?`,
+      [userId]
+    );
+    if (!user) {
+      await poolQuery(`DELETE FROM echo_insights_queue WHERE userId = ?`, [userId]);
+      continue;
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    const isPromoPro =
+      user.proExpiresAt && Number(user.proExpiresAt) > now;
+    const isSubscribedPro =
+      user.subscriptionTier === "pro" &&
+      (!user.subscriptionExpiresAt || Number(user.subscriptionExpiresAt) > now);
+
+    if (!isPromoPro && !isSubscribedPro) {
+      await poolQuery(`DELETE FROM echo_insights_queue WHERE userId = ?`, [userId]);
+      continue;
+    }
+
     // Get user's reflections (capped at 30)
     const reflections = await poolQuery(
       `SELECT q.question, r.response
