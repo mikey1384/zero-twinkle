@@ -17,7 +17,7 @@ const axios = require("axios");
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const ANTHROPIC_BASE_URL = "https://api.anthropic.com/v1";
-const MODEL = "claude-opus-4-5-20251101";
+const MODEL = "claude-opus-4-5";
 
 // ===================================
 // BUILD PERSONALITY PROMPT
@@ -113,7 +113,7 @@ async function submitBatch(requests) {
         "anthropic-version": "2023-06-01",
         "content-type": "application/json",
       },
-    }
+    },
   );
   return response.data;
 }
@@ -126,7 +126,7 @@ async function getBatchStatus(batchId) {
         "x-api-key": ANTHROPIC_API_KEY,
         "anthropic-version": "2023-06-01",
       },
-    }
+    },
   );
   return response.data;
 }
@@ -165,7 +165,7 @@ async function processInsightsQueue() {
 async function processCompletedBatches() {
   // Find batches that are still processing
   const activeBatches = await poolQuery(
-    `SELECT id, batchId FROM echo_insights_batches WHERE status = 'processing'`
+    `SELECT id, batchId FROM echo_insights_batches WHERE status = 'processing'`,
   );
 
   for (const batch of activeBatches) {
@@ -182,36 +182,39 @@ async function processCompletedBatches() {
         // Mark batch as completed
         await poolQuery(
           `UPDATE echo_insights_batches SET status = 'completed', completedAt = ? WHERE id = ?`,
-          [Math.floor(Date.now() / 1000), batch.id]
+          [Math.floor(Date.now() / 1000), batch.id],
         );
 
         // Clean up batch items now that batch is complete
         await poolQuery(
           `DELETE FROM echo_insights_batch_items WHERE batchId = ?`,
-          [batch.id]
+          [batch.id],
         );
       } else if (status.processing_status === "failed") {
         console.error(`[Insights] Batch ${batch.batchId} failed`);
         await poolQuery(
           `UPDATE echo_insights_batches SET status = 'failed' WHERE id = ?`,
-          [batch.id]
+          [batch.id],
         );
         // Re-queue the users for next batch
         await poolQuery(
           `INSERT INTO echo_insights_queue (userId, createdAt)
            SELECT userId, ? FROM echo_insights_batch_items WHERE batchId = ?
            ON DUPLICATE KEY UPDATE createdAt = VALUES(createdAt)`,
-          [Math.floor(Date.now() / 1000), batch.id]
+          [Math.floor(Date.now() / 1000), batch.id],
         );
         // Clean up batch items after re-queuing
         await poolQuery(
           `DELETE FROM echo_insights_batch_items WHERE batchId = ?`,
-          [batch.id]
+          [batch.id],
         );
       }
       // If still processing, do nothing - will check again next run
     } catch (error) {
-      console.error(`[Insights] Error checking batch ${batch.batchId}:`, error.message);
+      console.error(
+        `[Insights] Error checking batch ${batch.batchId}:`,
+        error.message,
+      );
     }
   }
 }
@@ -219,7 +222,7 @@ async function processCompletedBatches() {
 async function submitNewBatch() {
   // Get queued users (limit to 100 per batch for manageability)
   const queuedUsers = await poolQuery(
-    `SELECT userId FROM echo_insights_queue ORDER BY createdAt ASC LIMIT 100`
+    `SELECT userId FROM echo_insights_queue ORDER BY createdAt ASC LIMIT 100`,
   );
 
   if (queuedUsers.length === 0) {
@@ -236,22 +239,25 @@ async function submitNewBatch() {
       `SELECT subscriptionTier, subscriptionExpiresAt, proExpiresAt
        FROM echo_users
        WHERE id = ?`,
-      [userId]
+      [userId],
     );
     if (!user) {
-      await poolQuery(`DELETE FROM echo_insights_queue WHERE userId = ?`, [userId]);
+      await poolQuery(`DELETE FROM echo_insights_queue WHERE userId = ?`, [
+        userId,
+      ]);
       continue;
     }
 
     const now = Math.floor(Date.now() / 1000);
-    const isPromoPro =
-      user.proExpiresAt && Number(user.proExpiresAt) > now;
+    const isPromoPro = user.proExpiresAt && Number(user.proExpiresAt) > now;
     const isSubscribedPro =
       user.subscriptionTier === "pro" &&
       (!user.subscriptionExpiresAt || Number(user.subscriptionExpiresAt) > now);
 
     if (!isPromoPro && !isSubscribedPro) {
-      await poolQuery(`DELETE FROM echo_insights_queue WHERE userId = ?`, [userId]);
+      await poolQuery(`DELETE FROM echo_insights_queue WHERE userId = ?`, [
+        userId,
+      ]);
       continue;
     }
 
@@ -263,12 +269,14 @@ async function submitNewBatch() {
        WHERE r.userId = ? AND r.isThoughtful = 1
        ORDER BY r.submittedAt DESC
        LIMIT 30`,
-      [userId]
+      [userId],
     );
 
     if (reflections.length < 5) {
       // Not enough reflections, remove from queue
-      await poolQuery(`DELETE FROM echo_insights_queue WHERE userId = ?`, [userId]);
+      await poolQuery(`DELETE FROM echo_insights_queue WHERE userId = ?`, [
+        userId,
+      ]);
       continue;
     }
 
@@ -303,7 +311,7 @@ async function submitNewBatch() {
     const batchRecord = await poolQuery(
       `INSERT INTO echo_insights_batches (batchId, status, createdAt)
        VALUES (?, 'processing', ?)`,
-      [batch.id, now]
+      [batch.id, now],
     );
 
     // Store batch items with reflection count (for re-queuing on failure + accurate metadata)
@@ -311,7 +319,7 @@ async function submitNewBatch() {
       if (userReflectionsMap.has(userId)) {
         await poolQuery(
           `INSERT INTO echo_insights_batch_items (batchId, userId, reflectionCount) VALUES (?, ?, ?)`,
-          [batchRecord.insertId, userId, userReflectionsMap.get(userId)]
+          [batchRecord.insertId, userId, userReflectionsMap.get(userId)],
         );
       }
     }
@@ -319,10 +327,9 @@ async function submitNewBatch() {
     // Remove processed users from queue
     const processedUserIds = Array.from(userReflectionsMap.keys());
     if (processedUserIds.length > 0) {
-      await poolQuery(
-        `DELETE FROM echo_insights_queue WHERE userId IN (?)`,
-        [processedUserIds]
-      );
+      await poolQuery(`DELETE FROM echo_insights_queue WHERE userId IN (?)`, [
+        processedUserIds,
+      ]);
     }
   } catch (error) {
     console.error("[Insights] Error submitting batch:", error.message);
@@ -353,7 +360,7 @@ async function storeResults(results, batchDbId) {
             // Get reflection count from batch item (what the model actually saw)
             const [batchItem] = await poolQuery(
               `SELECT reflectionCount FROM echo_insights_batch_items WHERE batchId = ? AND userId = ?`,
-              [batchDbId, userId]
+              [batchDbId, userId],
             );
 
             // Add metadata (use stored count, fallback to 30 if missing)
@@ -365,7 +372,7 @@ async function storeResults(results, batchDbId) {
               `INSERT INTO echo_insights (userId, insights, generatedAt)
                VALUES (?, ?, ?)
                ON DUPLICATE KEY UPDATE insights = VALUES(insights), generatedAt = VALUES(generatedAt)`,
-              [userId, JSON.stringify(insights), now]
+              [userId, JSON.stringify(insights), now],
             );
           } else {
             await requeueUser(userId, now);
@@ -377,7 +384,10 @@ async function storeResults(results, batchDbId) {
         await requeueUser(userId, now);
       }
     } catch (error) {
-      console.error(`[Insights] Error processing result for user ${userId}:`, error.message);
+      console.error(
+        `[Insights] Error processing result for user ${userId}:`,
+        error.message,
+      );
       if (userId) {
         await requeueUser(userId, Math.floor(Date.now() / 1000));
       }
@@ -391,7 +401,7 @@ async function requeueUser(userId, now) {
       `INSERT INTO echo_insights_queue (userId, createdAt)
        VALUES (?, ?)
        ON DUPLICATE KEY UPDATE createdAt = VALUES(createdAt)`,
-      [userId, now]
+      [userId, now],
     );
   } catch (err) {
     console.error(`[Insights] Failed to requeue user ${userId}:`, err.message);
