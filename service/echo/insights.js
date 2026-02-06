@@ -17,7 +17,7 @@ const axios = require("axios");
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const ANTHROPIC_BASE_URL = "https://api.anthropic.com/v1";
-const MODEL = "claude-opus-4-5";
+const MODEL = "claude-opus-4-6";
 
 // ===================================
 // BUILD PERSONALITY PROMPT
