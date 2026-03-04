@@ -5,9 +5,10 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "pm2 -o zero_out.log -e zero_err.log start index.js --name aizero",
-    "stop": "pm2 stop aizero",
-    "restart": "pm2 restart aizero"
+    "start": "bash ./scripts/pm2-aizero.sh start",
+    "stop": "bash ./scripts/pm2-aizero.sh stop",
+    "restart": "bash ./scripts/pm2-aizero.sh restart",
+    "status": "bash ./scripts/pm2-aizero.sh status"
   },
   "author": "",
   "license": "ISC",
