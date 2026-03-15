@@ -1,0 +1,11 @@
+[Unit]
+Description=Run AIZero watchdog every minute
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+Persistent=true
+Unit=aizero-watchdog.service
+
+[Install]
+WantedBy=timers.target

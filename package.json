@@ -5,10 +5,12 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "start:node": "node index.js",
     "start": "bash ./scripts/pm2-aizero.sh start",
     "stop": "bash ./scripts/pm2-aizero.sh stop",
     "restart": "bash ./scripts/pm2-aizero.sh restart",
-    "status": "bash ./scripts/pm2-aizero.sh status"
+    "status": "bash ./scripts/pm2-aizero.sh status",
+    "watchdog:check": "bash ./scripts/watchdog-aizero.sh"
   },
   "author": "",
   "license": "ISC",

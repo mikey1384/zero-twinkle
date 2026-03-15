@@ -1,0 +1,21 @@
+[Unit]
+Description=AIZero Scheduler Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ec2-user
+Group=ec2-user
+WorkingDirectory=/home/ec2-user/zero
+Environment=HOME=/home/ec2-user
+Environment=AIZERO_HEARTBEAT_FILE=/tmp/aizero-heartbeat.json
+Environment=AIZERO_HEARTBEAT_INTERVAL_SECONDS=15
+ExecStart=/usr/bin/env node /home/ec2-user/zero/index.js
+Restart=always
+RestartSec=5
+KillMode=process
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,15 @@
+[Unit]
+Description=AIZero Watchdog
+After=aizero.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/ec2-user/zero
+Environment=HOME=/home/ec2-user
+Environment=AIZERO_HEARTBEAT_FILE=/tmp/aizero-heartbeat.json
+Environment=MAX_HEARTBEAT_AGE_SECONDS=180
+Environment=RECOVERY_WAIT_SECONDS=20
+Environment=ALERT_COMPONENT=AIZero/Watchdog
+Environment="RECOVERY_CMD=systemctl restart aizero.service"
+ExecStart=/bin/bash -lc 'cd /home/ec2-user/zero && bash ./scripts/watchdog-aizero.sh'
+KillMode=process

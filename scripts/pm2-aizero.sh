@@ -11,6 +11,8 @@ APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$APP_DIR"
 
 APP_NAME="aizero"
+DEFAULT_PM2_HOME="${HOME}/.pm2"
+export PM2_HOME="${PM2_HOME:-$DEFAULT_PM2_HOME}"
 PM2_BIN="./node_modules/.bin/pm2"
 if [[ ! -x "$PM2_BIN" ]]; then
   PM2_BIN="$(command -v pm2 || true)"
@@ -25,6 +27,14 @@ app_exists() {
   "$PM2_BIN" describe "$APP_NAME" >/dev/null 2>&1
 }
 
+persist_pm2_state() {
+  if "$PM2_BIN" save --force >/dev/null 2>&1; then
+    echo "[pm2] saved process list to $PM2_HOME/dump.pm2"
+  else
+    echo "[pm2] warning: failed to save PM2 process list" >&2
+  fi
+}
+
 start_app() {
   if app_exists; then
     echo "[pm2] $APP_NAME already exists; restarting instead of start"
@@ -32,6 +42,7 @@ start_app() {
   else
     "$PM2_BIN" -o zero_out.log -e zero_err.log start index.js --name "$APP_NAME"
   fi
+  persist_pm2_state
 }
 
 restart_app() {
@@ -41,11 +52,13 @@ restart_app() {
     echo "[pm2] $APP_NAME not found; starting instead of restart"
     "$PM2_BIN" -o zero_out.log -e zero_err.log start index.js --name "$APP_NAME"
   fi
+  persist_pm2_state
 }
 
 stop_app() {
   if app_exists; then
     "$PM2_BIN" stop "$APP_NAME"
+    persist_pm2_state
   else
     echo "[pm2] $APP_NAME not found; nothing to stop"
   fi
