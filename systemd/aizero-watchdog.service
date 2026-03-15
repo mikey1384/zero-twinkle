@@ -4,12 +4,18 @@ After=aizero.service
 
 [Service]
 Type=oneshot
-WorkingDirectory=/home/ec2-user/zero
-Environment=HOME=/home/ec2-user
+Environment=HOME=/root
+Environment=AIZERO_APP_DIR=/home/ec2-user/zero
 Environment=AIZERO_HEARTBEAT_FILE=/tmp/aizero-heartbeat.json
 Environment=MAX_HEARTBEAT_AGE_SECONDS=180
 Environment=RECOVERY_WAIT_SECONDS=20
 Environment=ALERT_COMPONENT=AIZero/Watchdog
+Environment=ALERT_RUN_AS_USER=ec2-user
+Environment=WATCHDOG_LOCK_GROUP=ec2-user
+Environment=LOCK_FILE=/var/lib/aizero-watchdog/watchdog.lock
+Environment=ALERT_STATE_FILE=/var/lib/aizero-watchdog/alert.state
 Environment="RECOVERY_CMD=systemctl restart aizero.service"
-ExecStart=/bin/bash -lc 'cd /home/ec2-user/zero && bash ./scripts/watchdog-aizero.sh'
+StateDirectory=aizero-watchdog
+StateDirectoryMode=0755
+ExecStart=/usr/local/lib/zero-twinkle/watchdog-aizero.sh
 KillMode=process

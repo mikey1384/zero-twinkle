@@ -8,6 +8,7 @@ The robust setup is `systemd` + watchdog timer:
 - `systemd/aizero.service`: runs `node index.js` with `Restart=always`
 - `systemd/aizero-watchdog.service`: checks process + heartbeat freshness
 - `systemd/aizero-watchdog.timer`: runs watchdog every minute
+- `scripts/install-aizero-systemd.sh`: installs the units and a root-owned watchdog script at `/usr/local/lib/zero-twinkle/watchdog-aizero.sh`
 
 Install with root:
 
@@ -26,13 +27,18 @@ sudo systemctl status aizero-watchdog.timer --no-pager
 ## Heartbeat And Recovery
 
 - Heartbeat file: `/tmp/aizero-heartbeat.json`
-- Watchdog script: `scripts/watchdog-aizero.sh`
+- Repo watchdog script: `scripts/watchdog-aizero.sh`
+- Installed watchdog script used by `systemd`: `/usr/local/lib/zero-twinkle/watchdog-aizero.sh`
+- Shared watchdog lock + state: `/var/lib/aizero-watchdog/watchdog.lock`, `/var/lib/aizero-watchdog/alert.state`
 - Email alert script: `scripts/send-error-report.mjs`
 - Default stale threshold: `180` seconds
 - Default recovery command: `bash ./scripts/pm2-aizero.sh start` (override with `RECOVERY_CMD`)
 - Watchdog alert env vars:
   `MAIL_USER`, `MAIL_CLIENT_ID`, `MAIL_PRIVATE_KEY`
   Optional overrides: `ERROR_REPORT_TO`, `ERROR_REPORT_FROM`, `ERROR_REPORT_SUBJECT`
+
+Re-run `sudo bash ./scripts/install-aizero-systemd.sh` after changing the watchdog script or systemd units so the installed root-owned script stays in sync.
+The installer provisions the shared lock as `root:<app-group> 0660`, so manual checks contend with the timer-driven watchdog.
 
 Manual watchdog check:
 

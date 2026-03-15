@@ -1,15 +1,65 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 077
 
-LOCK_FILE="/tmp/aizero-watchdog.lock"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_DIR_DEFAULT="$(cd "$SCRIPT_DIR/.." && pwd)"
+APP_DIR="${AIZERO_APP_DIR:-$APP_DIR_DEFAULT}"
+
+ROOT_STATE_DIR="/var/lib/aizero-watchdog"
+ROOT_LOCK_FILE="$ROOT_STATE_DIR/watchdog.lock"
+ROOT_ALERT_STATE_FILE="$ROOT_STATE_DIR/alert.state"
+
+if [[ -n "${LOCK_FILE:-}" ]]; then
+  lock_dir_private=0
+else
+  if [[ -f "$ROOT_LOCK_FILE" ]] && [[ -w "$ROOT_LOCK_FILE" ]]; then
+    LOCK_FILE="$ROOT_LOCK_FILE"
+    lock_dir_private=0
+  elif [[ "${EUID}" -eq 0 ]]; then
+    LOCK_FILE="$ROOT_LOCK_FILE"
+    lock_dir_private=0
+  else
+    LOCK_FILE="${TMPDIR:-/tmp}/aizero-watchdog-${EUID}/watchdog.lock"
+    lock_dir_private=1
+  fi
+fi
+
+if [[ -n "${ALERT_STATE_FILE:-}" ]]; then
+  alert_state_dir_private=0
+else
+  if [[ "${EUID}" -eq 0 ]]; then
+    ALERT_STATE_FILE="$ROOT_ALERT_STATE_FILE"
+    alert_state_dir_private=0
+  else
+    ALERT_STATE_FILE="${TMPDIR:-/tmp}/aizero-watchdog-${EUID}/alert.state"
+    alert_state_dir_private=1
+  fi
+fi
+
+mkdir -p "$(dirname "$LOCK_FILE")" "$(dirname "$ALERT_STATE_FILE")"
+if [[ "${EUID}" -eq 0 ]] && [[ "$LOCK_FILE" == "$ROOT_LOCK_FILE" ]]; then
+  WATCHDOG_LOCK_GROUP="${WATCHDOG_LOCK_GROUP:-ec2-user}"
+  chmod 0755 "$(dirname "$LOCK_FILE")"
+  touch "$LOCK_FILE"
+  if ! chgrp "$WATCHDOG_LOCK_GROUP" "$LOCK_FILE"; then
+    echo "[watchdog] unable to set lock file group to ${WATCHDOG_LOCK_GROUP}" >&2
+  fi
+  chmod 0660 "$LOCK_FILE"
+fi
+if [[ "${lock_dir_private}" -eq 1 ]]; then
+  chmod 700 "$(dirname "$LOCK_FILE")"
+fi
+if [[ "${alert_state_dir_private}" -eq 1 ]]; then
+  chmod 700 "$(dirname "$ALERT_STATE_FILE")"
+fi
+
 exec 9>"$LOCK_FILE"
 if ! flock -n 9; then
   echo "[watchdog] already running, skipping"
   exit 0
 fi
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$APP_DIR"
 
 PROCESS_MATCH="${AIZERO_PROCESS_MATCH:-/home/ec2-user/zero/index.js}"
@@ -19,29 +69,55 @@ RECOVERY_CMD="${RECOVERY_CMD:-bash ./scripts/pm2-aizero.sh start}"
 RECOVERY_WAIT_SECONDS="${RECOVERY_WAIT_SECONDS:-20}"
 ALERT_COMPONENT="${ALERT_COMPONENT:-AIZero/Watchdog}"
 ALERT_COOLDOWN_SECONDS="${ALERT_COOLDOWN_SECONDS:-900}"
-ALERT_STATE_FILE="${ALERT_STATE_FILE:-/tmp/aizero-watchdog-alert.state}"
 SEND_ERROR_REPORT_SCRIPT="${SEND_ERROR_REPORT_SCRIPT:-$APP_DIR/scripts/send-error-report.mjs}"
 FALLBACK_SEND_ERROR_REPORT_SCRIPT="/home/ec2-user/server/scripts/send-error-report.mjs"
+ALERT_RUN_AS_USER="${ALERT_RUN_AS_USER:-ec2-user}"
+
+run_external_alert() {
+  local script_path="$1"
+  local message="$2"
+  local info="$3"
+
+  if [[ ! -f "$script_path" ]]; then
+    return 1
+  fi
+
+  if [[ "${EUID}" -eq 0 ]]; then
+    if ! id "$ALERT_RUN_AS_USER" >/dev/null 2>&1; then
+      echo "[watchdog] alert user not found: ${ALERT_RUN_AS_USER}" >&2
+      return 1
+    fi
+
+    if command -v runuser >/dev/null 2>&1; then
+      runuser -u "$ALERT_RUN_AS_USER" -- /bin/bash -lc 'node "$1" "$2" "$3" "$4"' _ \
+        "$script_path" "$ALERT_COMPONENT" "$message" "$info"
+      return $?
+    fi
+
+    su - "$ALERT_RUN_AS_USER" -s /bin/bash -c 'node "$1" "$2" "$3" "$4"' _ \
+      "$script_path" "$ALERT_COMPONENT" "$message" "$info"
+    return $?
+  fi
+
+  node "$script_path" "$ALERT_COMPONENT" "$message" "$info"
+}
 
 send_alert() {
   local message="$1"
   local info="$2"
 
-  if [[ -f "$SEND_ERROR_REPORT_SCRIPT" ]]; then
-    if node "$SEND_ERROR_REPORT_SCRIPT" "$ALERT_COMPONENT" "$message" "$info"; then
-      return 0
-    fi
+  if run_external_alert "$SEND_ERROR_REPORT_SCRIPT" "$message" "$info"; then
+    return 0
   fi
 
   if [[ "$SEND_ERROR_REPORT_SCRIPT" != "$FALLBACK_SEND_ERROR_REPORT_SCRIPT" ]] &&
-    [[ -f "$FALLBACK_SEND_ERROR_REPORT_SCRIPT" ]]; then
-    if node "$FALLBACK_SEND_ERROR_REPORT_SCRIPT" "$ALERT_COMPONENT" "$message" "$info"; then
-      return 0
-    fi
+    run_external_alert "$FALLBACK_SEND_ERROR_REPORT_SCRIPT" "$message" "$info"; then
+    return 0
   fi
 
+  logger -t aizero-watchdog "external alert send failed | component=${ALERT_COMPONENT}, primary_script=${SEND_ERROR_REPORT_SCRIPT}, fallback_script=${FALLBACK_SEND_ERROR_REPORT_SCRIPT}"
   logger -t aizero-watchdog "${message} | ${info}"
-  return 0
+  return 1
 }
 
 should_send_alert() {
@@ -130,11 +206,17 @@ if should_send_alert "detected:${fingerprint}"; then
 fi
 
 echo "[watchdog] unhealthy (${details}); attempting recovery"
-bash -lc "$RECOVERY_CMD"
+recovery_exit_code=0
+if bash -lc "$RECOVERY_CMD"; then
+  :
+else
+  recovery_exit_code=$?
+  echo "[watchdog] recovery command failed (exit=${recovery_exit_code})" >&2
+fi
 sleep "$RECOVERY_WAIT_SECONDS"
 
 if healthy_now; then
-  echo "[watchdog] recovered after restart attempt"
+  echo "[watchdog] recovered after restart attempt (recovery_exit=${recovery_exit_code})"
   exit 0
 fi
 
@@ -143,7 +225,9 @@ post_process_ok=0
 if is_process_running; then
   post_process_ok=1
 fi
-post_details="reason=${reason}, post_process_ok=${post_process_ok}, post_heartbeat_age=${post_age}, heartbeat_file=${HEARTBEAT_FILE}, recovery_cmd=${RECOVERY_CMD}"
-send_alert "aizero watchdog failed recovery" "$post_details"
+post_details="reason=${reason}, post_process_ok=${post_process_ok}, post_heartbeat_age=${post_age}, heartbeat_file=${HEARTBEAT_FILE}, recovery_cmd=${RECOVERY_CMD}, recovery_exit=${recovery_exit_code}"
+if ! send_alert "aizero watchdog failed recovery" "$post_details"; then
+  logger -t aizero-watchdog "failed to deliver failed-recovery alert | ${post_details}"
+fi
 echo "[watchdog] failed recovery (${post_details})" >&2
 exit 1
