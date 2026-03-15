@@ -27,11 +27,21 @@ sudo systemctl status aizero-watchdog.timer --no-pager
 
 - Heartbeat file: `/tmp/aizero-heartbeat.json`
 - Watchdog script: `scripts/watchdog-aizero.sh`
+- Email alert script: `scripts/send-error-report.mjs`
 - Default stale threshold: `180` seconds
 - Default recovery command: `bash ./scripts/pm2-aizero.sh start` (override with `RECOVERY_CMD`)
+- Watchdog alert env vars:
+  `MAIL_USER`, `MAIL_CLIENT_ID`, `MAIL_PRIVATE_KEY`
+  Optional overrides: `ERROR_REPORT_TO`, `ERROR_REPORT_FROM`, `ERROR_REPORT_SUBJECT`
 
 Manual watchdog check:
 
 ```bash
 npm run watchdog:check
+```
+
+Manual email test:
+
+```bash
+node ./scripts/send-error-report.mjs "AIZero/Watchdog" "aizero alert test" "manual test"
 ```

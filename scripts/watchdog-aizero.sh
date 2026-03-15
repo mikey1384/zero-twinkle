@@ -20,7 +20,8 @@ RECOVERY_WAIT_SECONDS="${RECOVERY_WAIT_SECONDS:-20}"
 ALERT_COMPONENT="${ALERT_COMPONENT:-AIZero/Watchdog}"
 ALERT_COOLDOWN_SECONDS="${ALERT_COOLDOWN_SECONDS:-900}"
 ALERT_STATE_FILE="${ALERT_STATE_FILE:-/tmp/aizero-watchdog-alert.state}"
-SEND_ERROR_REPORT_SCRIPT="${SEND_ERROR_REPORT_SCRIPT:-/home/ec2-user/server/scripts/send-error-report.mjs}"
+SEND_ERROR_REPORT_SCRIPT="${SEND_ERROR_REPORT_SCRIPT:-$APP_DIR/scripts/send-error-report.mjs}"
+FALLBACK_SEND_ERROR_REPORT_SCRIPT="/home/ec2-user/server/scripts/send-error-report.mjs"
 
 send_alert() {
   local message="$1"
@@ -28,6 +29,13 @@ send_alert() {
 
   if [[ -f "$SEND_ERROR_REPORT_SCRIPT" ]]; then
     if node "$SEND_ERROR_REPORT_SCRIPT" "$ALERT_COMPONENT" "$message" "$info"; then
+      return 0
+    fi
+  fi
+
+  if [[ "$SEND_ERROR_REPORT_SCRIPT" != "$FALLBACK_SEND_ERROR_REPORT_SCRIPT" ]] &&
+    [[ -f "$FALLBACK_SEND_ERROR_REPORT_SCRIPT" ]]; then
+    if node "$FALLBACK_SEND_ERROR_REPORT_SCRIPT" "$ALERT_COMPONENT" "$message" "$info"; then
       return 0
     fi
   fi
