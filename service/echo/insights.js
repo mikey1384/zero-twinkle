@@ -263,7 +263,12 @@ async function submitNewBatch() {
 
     // Get user's reflections (capped at 30)
     const reflections = await poolQuery(
-      `SELECT q.question, r.response
+      `SELECT q.question,
+              COALESCE(
+                NULLIF(TRIM(r.finalResponse), ''),
+                NULLIF(TRIM(r.refinedResponse), ''),
+                r.response
+              ) AS response
        FROM echo_responses r
        JOIN echo_questions q ON r.questionId = q.id
        WHERE r.userId = ? AND r.isThoughtful = 1
