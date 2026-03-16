@@ -2,7 +2,7 @@
  * Echo Notification Service for zero-twinkle
  *
  * Sends daily reminders and streak notifications to Echo users.
- * Runs hourly via setInterval in zero-twinkle's index.js
+ * Runs on aligned quarter-hour checks in zero-twinkle's index.js.
  */
 
 const { poolQuery } = require("../helpers");
@@ -54,17 +54,14 @@ function getUserPreviousDate(timezone) {
   }
 }
 
-function getCurrentHourInTimezone(timezone) {
+function getCurrentTimePartsInTimezone(timezone) {
   try {
-    const formatter = new Intl.DateTimeFormat("en-US", {
-      timeZone: timezone,
-      hour: "numeric",
-      hour12: false,
-    });
-    return parseInt(formatter.format(new Date()), 10);
+    const dt = DateTime.now().setZone(timezone);
+    if (!dt.isValid) throw new Error("Invalid timezone");
+    return { hour: dt.hour, minute: dt.minute };
   } catch {
-    // Invalid timezone, default to UTC
-    return new Date().getUTCHours();
+    const utc = DateTime.utc();
+    return { hour: utc.hour, minute: utc.minute };
   }
 }
 
@@ -140,8 +137,12 @@ async function getUsersForDailyReminder() {
 
     // Check if it's the right hour in user's timezone
     // Default to DAY_RESET_HOUR (7 AM) - same time the day resets
-    const userHour = getCurrentHourInTimezone(timezone);
-    if (userHour !== (user.dailyReminderHour ?? DAY_RESET_HOUR)) {
+    const { hour: userHour, minute: userMinute } =
+      getCurrentTimePartsInTimezone(timezone);
+    if (
+      userHour !== (user.dailyReminderHour ?? DAY_RESET_HOUR) ||
+      userMinute !== 0
+    ) {
       continue;
     }
 
@@ -213,8 +214,9 @@ async function getUsersWithStreakAtRisk() {
     const timezone = user.timezone || "UTC";
 
     // Send streak warning at 8pm local time
-    const userHour = getCurrentHourInTimezone(timezone);
-    if (userHour !== 20) {
+    const { hour: userHour, minute: userMinute } =
+      getCurrentTimePartsInTimezone(timezone);
+    if (userHour !== 20 || userMinute !== 0) {
       continue;
     }
 

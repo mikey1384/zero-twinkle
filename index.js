@@ -43,7 +43,9 @@ const tasks = [
   {
     name: "runEchoNotifications",
     fn: runEchoNotifications,
-    intervalSeconds: 3600,
+    intervalSeconds: 900,
+    alignToInterval: true,
+    alignmentGraceSeconds: 60,
   },
   {
     name: "processInsightsQueue",
@@ -75,6 +77,22 @@ function safeErrorMessage(error) {
   if (!error) return "unknown";
   if (error instanceof Error && error.message) return error.message;
   return String(error);
+}
+
+function getDelayUntilNextInterval(task) {
+  const intervalMs = task.intervalSeconds * 1000;
+  const graceMs = (task.alignmentGraceSeconds || 0) * 1000;
+  const remainderMs = Date.now() % intervalMs;
+
+  if (remainderMs === 0) {
+    return 0;
+  }
+
+  if (graceMs > 0 && remainderMs < graceMs) {
+    return 0;
+  }
+
+  return intervalMs - remainderMs;
 }
 
 function writeHeartbeat(extra = {}) {
@@ -132,8 +150,39 @@ async function runTask(task) {
 }
 
 function scheduleTask(task) {
-  const interval = setInterval(() => {
+  const run = () => {
     void runTask(task);
+  };
+
+  if (task.alignToInterval) {
+    const startAlignedInterval = () => {
+      run();
+
+      const interval = setInterval(run, task.intervalSeconds * 1000);
+      global.twinkleIntervals.push(interval);
+    };
+
+    const delayMs = getDelayUntilNextInterval(task);
+    const nextDelayMs =
+      task.intervalSeconds * 1000 -
+      (Date.now() % (task.intervalSeconds * 1000));
+
+    if (delayMs === 0) {
+      run();
+
+      const timeout = setTimeout(startAlignedInterval, nextDelayMs);
+      global.twinkleIntervals.push(timeout);
+      return;
+    }
+
+    const timeout = setTimeout(startAlignedInterval, delayMs);
+
+    global.twinkleIntervals.push(timeout);
+    return;
+  }
+
+  const interval = setInterval(() => {
+    run();
   }, task.intervalSeconds * 1000);
   global.twinkleIntervals.push(interval);
 }
@@ -195,15 +244,6 @@ const heartbeatInterval = setInterval(() => {
   writeHeartbeat();
 }, HEARTBEAT_INTERVAL_SECONDS * 1000);
 global.twinkleIntervals.push(heartbeatInterval);
-
-// Run Echo notifications immediately on startup (after 10 second delay)
-const echoStartupTimeout = setTimeout(() => {
-  const task = tasks.find((entry) => entry.name === "runEchoNotifications");
-  if (task) {
-    void runTask(task);
-  }
-}, 10000);
-global.twinkleIntervals.push(echoStartupTimeout);
 
 // Run insights queue processing on startup (after 30 second delay)
 const insightsStartupTimeout = setTimeout(() => {
