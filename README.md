@@ -24,6 +24,13 @@ sudo systemctl status aizero.service --no-pager
 sudo systemctl status aizero-watchdog.timer --no-pager
 ```
 
+## Echo Notification Timing
+
+- `runEchoNotifications` is checked every `900` seconds on wall-clock quarter hours, not every hour from service start.
+- Daily reminders and streak reminders only send when the user's local minute is exactly `00`.
+- This is intentional so users in full-hour, half-hour, and quarter-hour offsets get notifications at local `x:00`, not at the server start offset like `x:26`.
+- After changing Echo scheduling logic in `index.js` or `service/echo/index.js`, restart `aizero.service`.
+
 ## Heartbeat And Recovery
 
 - Heartbeat file: `/tmp/aizero-heartbeat.json`
@@ -36,6 +43,7 @@ sudo systemctl status aizero-watchdog.timer --no-pager
 - Default stale threshold: `180` seconds
 - Default recovery command: `bash ./scripts/pm2-aizero.sh start` (override with `RECOVERY_CMD`)
 - Alert behavior: sends on outage detection, sends again if recovery fails, and sends a recovery email after a previously alerted incident becomes healthy
+- Important operational caveat: a manual `systemctl restart aizero.service` can look like `process_down` to the watchdog unless maintenance mode is enabled first
 - Watchdog alert env vars:
   `MAIL_USER`, `MAIL_CLIENT_ID`, `MAIL_PRIVATE_KEY`
   Optional overrides: `ERROR_REPORT_TO`, `ERROR_REPORT_FROM`, `ERROR_REPORT_SUBJECT`
@@ -63,8 +71,34 @@ Maintenance status:
 bash ./scripts/watchdog-maintenance-aizero.sh status
 ```
 
+If you change `scripts/watchdog-aizero.sh` or `systemd/aizero-watchdog.*`, reinstall before assuming production matches the repo:
+
+```bash
+sudo bash ./scripts/install-aizero-systemd.sh
+```
+
 Manual email test:
 
 ```bash
 node ./scripts/send-error-report.mjs "AIZero/Watchdog" "aizero alert test" "manual test"
 ```
+
+## Safe Git Sync
+
+If the checkout has local changes, do not run plain `git pull` on top of them. Preserve the real work as a commit, fetch, then rebase:
+
+```bash
+git switch -c wip/<topic>
+git add <intentional-files>
+git commit -m "<message>"
+
+git stash push -u -m "tmp-local-state" -- bun.lockb zero_err__*.log.gz zero_out__*.log.gz
+git fetch origin
+git rebase origin/main
+
+git switch main
+git merge --ff-only wip/<topic>
+git stash pop
+```
+
+This repo often has local `bun.lockb` drift and archived `zero_*.log.gz` files on the server. Keep them out of functional deploy commits unless they are intentionally part of the change.

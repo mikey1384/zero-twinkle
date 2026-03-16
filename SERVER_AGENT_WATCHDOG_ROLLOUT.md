@@ -9,20 +9,27 @@ The watchdog must run a root-owned installed script, not the checkout copy, whil
 ## Steps
 
 1. Update the checkout at `/home/ec2-user/zero` to the target revision.
-2. Reinstall the systemd units and the installed watchdog script:
+2. If you are about to reinstall the watchdog or restart `aizero.service`, enable maintenance first so the timer does not send a false outage email during the restart window:
+
+```bash
+cd /home/ec2-user/zero
+sudo bash ./scripts/watchdog-maintenance-aizero.sh on 180 "watchdog rollout"
+```
+
+3. Reinstall the systemd units and the installed watchdog script:
 
 ```bash
 cd /home/ec2-user/zero
 sudo bash ./scripts/install-aizero-systemd.sh
 ```
 
-3. Trigger one watchdog run so `systemd` creates the runtime/state directories and the new service definition is exercised:
+4. Trigger one watchdog run so `systemd` creates the runtime/state directories and the new service definition is exercised:
 
 ```bash
 sudo systemctl start aizero-watchdog.service
 ```
 
-4. Verify the service is executing the installed root-owned script:
+5. Verify the service is executing the installed root-owned script:
 
 ```bash
 sudo systemctl cat aizero-watchdog.service
@@ -37,11 +44,11 @@ Expected state:
 - `/usr/local/lib/zero-twinkle/watchdog-aizero.sh` is owned by `root:root`
 - mode is `755`
 
-5. Verify the lock and alert-state paths are root-owned:
+6. Verify the lock and state paths are root-owned:
 
 ```bash
 sudo stat -c '%U:%G %a %n' /var/lib/aizero-watchdog
-sudo stat -c '%U:%G %a %n' /var/lib/aizero-watchdog/watchdog.lock /var/lib/aizero-watchdog/alert.state
+sudo stat -c '%U:%G %a %n' /var/lib/aizero-watchdog/watchdog.lock /var/lib/aizero-watchdog/alert.state /var/lib/aizero-watchdog/outage.state /var/lib/aizero-watchdog/maintenance.state
 ```
 
 Expected state:
@@ -49,15 +56,17 @@ Expected state:
 - `/var/lib/aizero-watchdog` exists with mode `755`
 - `/var/lib/aizero-watchdog/watchdog.lock` is `root:ec2-user` with mode `660`
 - `/var/lib/aizero-watchdog/alert.state` is `root:root` with mode `600`
+- `/var/lib/aizero-watchdog/outage.state` is `root:root` with mode `600` when present
+- `/var/lib/aizero-watchdog/maintenance.state` is `root:root` with mode `644` when present
 
-6. Check the latest watchdog logs:
+7. Check the latest watchdog logs:
 
 ```bash
 sudo systemctl status aizero-watchdog.service --no-pager
 sudo journalctl -u aizero-watchdog.service -n 50 --no-pager
 ```
 
-7. Verify that a manual check contends with the same lock file:
+8. Verify that a manual check contends with the same lock file:
 
 ```bash
 cd /home/ec2-user/zero
@@ -68,7 +77,13 @@ Expected behavior:
 
 - If the timer-driven run is active, the manual run should print `already running, skipping`.
 
-8. Optional cleanup for the legacy `/tmp` files that are no longer used by the root watchdog:
+9. Clear maintenance after the rollout is complete:
+
+```bash
+sudo bash ./scripts/watchdog-maintenance-aizero.sh off
+```
+
+10. Optional cleanup for the legacy `/tmp` files that are no longer used by the root watchdog:
 
 ```bash
 sudo rm -f /tmp/aizero-watchdog.lock /tmp/aizero-watchdog-alert.state
@@ -80,4 +95,6 @@ sudo rm -f /tmp/aizero-watchdog.lock /tmp/aizero-watchdog-alert.state
 - The repo copy at `scripts/watchdog-aizero.sh` is still used for local/manual runs such as `npm run watchdog:check`.
 - The watchdog now runs the alert script as `ec2-user` from a login shell to preserve profile-managed Node setups.
 - The watchdog records cooldown state only when the external alert script succeeds.
+- A manual or deploy-driven `systemctl restart aizero.service` can trigger a false `process_down` alert if maintenance is not enabled first.
+- The watchdog now keeps open-incident state and sends a recovery email after a previously alerted incident becomes healthy again.
 - It still emits the failed-recovery alert path if the restart command exits non-zero.

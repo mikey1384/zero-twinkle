@@ -5,7 +5,8 @@
 zero-twinkle is a dedicated Node.js cron/scheduler service that runs periodic background tasks for the Twinkle Network ecosystem. It runs separately from the main API to ensure scheduled tasks aren't affected by API deployments or load.
 
 **Runtime:** Node.js (CommonJS)
-**Process Manager:** PM2
+**Production Supervisor:** systemd (`aizero.service`) plus `aizero-watchdog.timer`
+**Fallback/Recovery Wrapper:** PM2 scripts still exist and are used by some recovery paths
 **Database:** Same MySQL database as twinkle-api (via mysql2)
 
 ## Directory Structure
@@ -34,7 +35,7 @@ zero-twinkle/
 | `setPlaylistRewardLevel` | 60s | Sets reward levels for playlists |
 | `checkAndTriggerRewardCard` | 30s | Checks and triggers vocabulary reward cards |
 | `updateWordMasterRankings` | 900s (15min) | Updates Word Master leaderboard rankings |
-| `runEchoNotifications` | 3600s (1hr) | Sends Echo app push notifications |
+| `runEchoNotifications` | 900s (15min, wall-clock aligned) | Checks on quarter-hour boundaries and only sends at the user's local `:00` |
 | `processInsightsQueue` | 21600s (6hr) | Batch processes personality insights (50% cost savings) |
 
 ### Echo Insights Batch Processing
@@ -56,13 +57,17 @@ The Echo notification service (`service/echo/index.js`) handles:
    - Personalized message based on streak status
    - Only sent if user hasn't already reflected today
    - Tracks `lastDailyReminderDate` to prevent duplicate sends
+   - Scheduler checks every 15 minutes, but reminders only send when the user's local minute is `00`
 
 2. **Streak Reminders** - Sent at 8 PM local time
    - Only sent if streak is salvageable (lastLocalDate = yesterday)
    - Only sent if user hasn't reflected yet today
    - Tracks `lastStreakReminderDate` to prevent duplicates
+   - Also gated to local minute `00`
 
 **Date System:** Uses Duolingo-style per-user local dates. The "day" resets at 7 AM in each user's timezone, not midnight.
+
+**Important:** Do not assume Echo runs "an hour after startup." The service intentionally aligns checks to wall-clock quarter hours so reminders land at local `x:00` instead of drifting to the server start offset.
 
 **Push Provider:** Expo Push Notifications API (`https://exp.host/--/api/v2/push/send`)
 
@@ -79,6 +84,43 @@ node index.js
 pm2 start index.js --name zero-twinkle
 pm2 save
 ```
+
+## Operational Notes
+
+### Watchdog Deploy Safety
+
+- Production uses the installed root-owned watchdog script at `/usr/local/lib/zero-twinkle/watchdog-aizero.sh`, not just the repo copy.
+- After changing `scripts/watchdog-aizero.sh` or `systemd/aizero-watchdog.*`, run:
+  ```bash
+  sudo bash ./scripts/install-aizero-systemd.sh
+  ```
+- Before a planned restart or rollout, enable maintenance so the watchdog does not send a false outage email during the restart window:
+  ```bash
+  sudo bash ./scripts/watchdog-maintenance-aizero.sh on 180 "deploy restart"
+  sudo systemctl restart aizero.service
+  sudo bash ./scripts/watchdog-maintenance-aizero.sh off
+  ```
+- The watchdog now sends:
+  - outage detection email
+  - failed-recovery email if restart did not fix it
+  - recovery email once a previously alerted incident becomes healthy again
+
+### Git Sync On The Server
+
+- Do not run plain `git pull` on a dirty checkout.
+- Safe pattern:
+  ```bash
+  git switch -c wip/<topic>
+  git add <intentional-files>
+  git commit -m "<message>"
+  git stash push -u -m "tmp-local-state" -- bun.lockb zero_err__*.log.gz zero_out__*.log.gz
+  git fetch origin
+  git rebase origin/main
+  git switch main
+  git merge --ff-only wip/<topic>
+  git stash pop
+  ```
+- `bun.lockb` and archived `zero_*.log.gz` files often exist as unrelated local state on this host. Do not mix them into functional commits unless intentional.
 
 ## Database Access
 
