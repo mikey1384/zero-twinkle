@@ -30,9 +30,12 @@ sudo systemctl status aizero-watchdog.timer --no-pager
 - Repo watchdog script: `scripts/watchdog-aizero.sh`
 - Installed watchdog script used by `systemd`: `/usr/local/lib/zero-twinkle/watchdog-aizero.sh`
 - Shared watchdog lock + state: `/var/lib/aizero-watchdog/watchdog.lock`, `/var/lib/aizero-watchdog/alert.state`
+- Open-incident state: `/var/lib/aizero-watchdog/outage.state`
+- Planned-maintenance state: `/var/lib/aizero-watchdog/maintenance.state`
 - Email alert script: `scripts/send-error-report.mjs`
 - Default stale threshold: `180` seconds
 - Default recovery command: `bash ./scripts/pm2-aizero.sh start` (override with `RECOVERY_CMD`)
+- Alert behavior: sends on outage detection, sends again if recovery fails, and sends a recovery email after a previously alerted incident becomes healthy
 - Watchdog alert env vars:
   `MAIL_USER`, `MAIL_CLIENT_ID`, `MAIL_PRIVATE_KEY`
   Optional overrides: `ERROR_REPORT_TO`, `ERROR_REPORT_FROM`, `ERROR_REPORT_SUBJECT`
@@ -44,6 +47,20 @@ Manual watchdog check:
 
 ```bash
 npm run watchdog:check
+```
+
+Planned maintenance before a manual restart or deploy:
+
+```bash
+sudo bash ./scripts/watchdog-maintenance-aizero.sh on 180 "deploy restart"
+sudo systemctl restart aizero.service
+sudo bash ./scripts/watchdog-maintenance-aizero.sh off
+```
+
+Maintenance status:
+
+```bash
+bash ./scripts/watchdog-maintenance-aizero.sh status
 ```
 
 Manual email test:

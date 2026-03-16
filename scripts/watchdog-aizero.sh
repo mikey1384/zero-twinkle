@@ -9,6 +9,8 @@ APP_DIR="${AIZERO_APP_DIR:-$APP_DIR_DEFAULT}"
 ROOT_STATE_DIR="/var/lib/aizero-watchdog"
 ROOT_LOCK_FILE="$ROOT_STATE_DIR/watchdog.lock"
 ROOT_ALERT_STATE_FILE="$ROOT_STATE_DIR/alert.state"
+ROOT_OUTAGE_STATE_FILE="$ROOT_STATE_DIR/outage.state"
+ROOT_MAINTENANCE_STATE_FILE="$ROOT_STATE_DIR/maintenance.state"
 
 if [[ -n "${LOCK_FILE:-}" ]]; then
   lock_dir_private=0
@@ -37,7 +39,38 @@ else
   fi
 fi
 
-mkdir -p "$(dirname "$LOCK_FILE")" "$(dirname "$ALERT_STATE_FILE")"
+if [[ -n "${OUTAGE_STATE_FILE:-}" ]]; then
+  outage_state_dir_private=0
+else
+  if [[ "${EUID}" -eq 0 ]]; then
+    OUTAGE_STATE_FILE="$ROOT_OUTAGE_STATE_FILE"
+    outage_state_dir_private=0
+  else
+    OUTAGE_STATE_FILE="${TMPDIR:-/tmp}/aizero-watchdog-${EUID}/outage.state"
+    outage_state_dir_private=1
+  fi
+fi
+
+if [[ -n "${MAINTENANCE_STATE_FILE:-}" ]]; then
+  maintenance_state_dir_private=0
+else
+  if [[ -f "$ROOT_MAINTENANCE_STATE_FILE" ]]; then
+    MAINTENANCE_STATE_FILE="$ROOT_MAINTENANCE_STATE_FILE"
+    maintenance_state_dir_private=0
+  elif [[ "${EUID}" -eq 0 ]]; then
+    MAINTENANCE_STATE_FILE="$ROOT_MAINTENANCE_STATE_FILE"
+    maintenance_state_dir_private=0
+  else
+    MAINTENANCE_STATE_FILE="${TMPDIR:-/tmp}/aizero-watchdog-${EUID}/maintenance.state"
+    maintenance_state_dir_private=1
+  fi
+fi
+
+mkdir -p \
+  "$(dirname "$LOCK_FILE")" \
+  "$(dirname "$ALERT_STATE_FILE")" \
+  "$(dirname "$OUTAGE_STATE_FILE")" \
+  "$(dirname "$MAINTENANCE_STATE_FILE")"
 if [[ "${EUID}" -eq 0 ]] && [[ "$LOCK_FILE" == "$ROOT_LOCK_FILE" ]]; then
   WATCHDOG_LOCK_GROUP="${WATCHDOG_LOCK_GROUP:-ec2-user}"
   chmod 0755 "$(dirname "$LOCK_FILE")"
@@ -52,6 +85,12 @@ if [[ "${lock_dir_private}" -eq 1 ]]; then
 fi
 if [[ "${alert_state_dir_private}" -eq 1 ]]; then
   chmod 700 "$(dirname "$ALERT_STATE_FILE")"
+fi
+if [[ "${outage_state_dir_private}" -eq 1 ]]; then
+  chmod 700 "$(dirname "$OUTAGE_STATE_FILE")"
+fi
+if [[ "${maintenance_state_dir_private}" -eq 1 ]]; then
+  chmod 700 "$(dirname "$MAINTENANCE_STATE_FILE")"
 fi
 
 exec 9>"$LOCK_FILE"
@@ -120,6 +159,48 @@ send_alert() {
   return 1
 }
 
+format_ts_utc() {
+  local ts="$1"
+
+  if [[ "$ts" == "0" ]]; then
+    printf 'until_disabled'
+    return 0
+  fi
+
+  date -u -d "@${ts}" '+%Y-%m-%d %H:%M:%S UTC' 2>/dev/null || printf '%s' "$ts"
+}
+
+maintenance_until=""
+maintenance_note=""
+
+maintenance_active() {
+  maintenance_until=""
+  maintenance_note=""
+
+  if [[ ! -f "$MAINTENANCE_STATE_FILE" ]]; then
+    return 1
+  fi
+
+  local raw_until=""
+  local raw_note=""
+  IFS='|' read -r raw_until raw_note < "$MAINTENANCE_STATE_FILE" || true
+
+  if [[ ! "$raw_until" =~ ^[0-9]+$ ]]; then
+    echo "[watchdog] ignoring invalid maintenance state: ${MAINTENANCE_STATE_FILE}" >&2
+    rm -f "$MAINTENANCE_STATE_FILE" 2>/dev/null || true
+    return 1
+  fi
+
+  if [[ "$raw_until" -ne 0 ]] && (( $(date +%s) >= raw_until )); then
+    rm -f "$MAINTENANCE_STATE_FILE" 2>/dev/null || true
+    return 1
+  fi
+
+  maintenance_until="$raw_until"
+  maintenance_note="$raw_note"
+  return 0
+}
+
 should_send_alert() {
   local fingerprint="$1"
   local now
@@ -142,6 +223,58 @@ should_send_alert() {
 record_alert_sent() {
   local fingerprint="$1"
   printf '%s|%s\n' "$(date +%s)" "$fingerprint" > "$ALERT_STATE_FILE"
+}
+
+open_incident_ts=""
+open_incident_fingerprint=""
+open_incident_details=""
+
+read_open_incident() {
+  open_incident_ts=""
+  open_incident_fingerprint=""
+  open_incident_details=""
+
+  if [[ ! -f "$OUTAGE_STATE_FILE" ]]; then
+    return 1
+  fi
+
+  IFS='|' read -r open_incident_ts open_incident_fingerprint open_incident_details < "$OUTAGE_STATE_FILE" || true
+  if [[ ! "$open_incident_ts" =~ ^[0-9]+$ ]] || [[ -z "$open_incident_fingerprint" ]]; then
+    echo "[watchdog] ignoring invalid outage state: ${OUTAGE_STATE_FILE}" >&2
+    rm -f "$OUTAGE_STATE_FILE" 2>/dev/null || true
+    return 1
+  fi
+
+  return 0
+}
+
+record_open_incident() {
+  local fingerprint="$1"
+  local details="$2"
+
+  printf '%s|%s|%s\n' "$(date +%s)" "$fingerprint" "$details" > "$OUTAGE_STATE_FILE"
+}
+
+clear_open_incident() {
+  rm -f "$OUTAGE_STATE_FILE" 2>/dev/null || true
+}
+
+send_recovery_alert_if_needed() {
+  if ! read_open_incident; then
+    return 0
+  fi
+
+  local now_ts
+  now_ts="$(date +%s)"
+  local duration_seconds="$((now_ts - open_incident_ts))"
+  local recovery_details="incident_at=$(format_ts_utc "$open_incident_ts"), recovered_at=$(format_ts_utc "$now_ts"), duration_seconds=${duration_seconds}, ${open_incident_details}"
+
+  if send_alert "aizero watchdog recovered" "$recovery_details"; then
+    clear_open_incident
+    echo "[watchdog] recovery alert sent (duration_seconds=${duration_seconds})"
+  else
+    echo "[watchdog] failed to send recovery alert" >&2
+  fi
 }
 
 is_process_running() {
@@ -182,7 +315,13 @@ if is_process_running; then
   process_ok=1
 fi
 
+if maintenance_active; then
+  echo "[watchdog] maintenance active (until=$(format_ts_utc "$maintenance_until"), note=${maintenance_note:-none}); skipping health checks"
+  exit 0
+fi
+
 if healthy_now; then
+  send_recovery_alert_if_needed
   rm -f "$ALERT_STATE_FILE"
   echo "[watchdog] healthy (process=up heartbeat_age=${heartbeat_age}s)"
   exit 0
@@ -202,6 +341,7 @@ details="reason=${reason}, process_ok=${process_ok}, heartbeat_file=${HEARTBEAT_
 if should_send_alert "detected:${fingerprint}"; then
   if send_alert "aizero watchdog detected outage" "$details"; then
     record_alert_sent "detected:${fingerprint}"
+    record_open_incident "$fingerprint" "$details"
   fi
 fi
 
@@ -216,6 +356,7 @@ fi
 sleep "$RECOVERY_WAIT_SECONDS"
 
 if healthy_now; then
+  send_recovery_alert_if_needed
   echo "[watchdog] recovered after restart attempt (recovery_exit=${recovery_exit_code})"
   exit 0
 fi
@@ -226,7 +367,9 @@ if is_process_running; then
   post_process_ok=1
 fi
 post_details="reason=${reason}, post_process_ok=${post_process_ok}, post_heartbeat_age=${post_age}, heartbeat_file=${HEARTBEAT_FILE}, recovery_cmd=${RECOVERY_CMD}, recovery_exit=${recovery_exit_code}"
-if ! send_alert "aizero watchdog failed recovery" "$post_details"; then
+if send_alert "aizero watchdog failed recovery" "$post_details"; then
+  record_open_incident "$fingerprint" "$post_details"
+else
   logger -t aizero-watchdog "failed to deliver failed-recovery alert | ${post_details}"
 fi
 echo "[watchdog] failed recovery (${post_details})" >&2

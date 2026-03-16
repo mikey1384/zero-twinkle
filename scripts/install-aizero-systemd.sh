@@ -14,6 +14,8 @@ WATCHDOG_INSTALL_PATH="$WATCHDOG_INSTALL_DIR/watchdog-aizero.sh"
 WATCHDOG_STATE_DIR="/var/lib/aizero-watchdog"
 WATCHDOG_LOCK_FILE="$WATCHDOG_STATE_DIR/watchdog.lock"
 WATCHDOG_ALERT_STATE_FILE="$WATCHDOG_STATE_DIR/alert.state"
+WATCHDOG_OUTAGE_STATE_FILE="$WATCHDOG_STATE_DIR/outage.state"
+WATCHDOG_MAINTENANCE_STATE_FILE="$WATCHDOG_STATE_DIR/maintenance.state"
 AIZERO_APP_USER="${AIZERO_APP_USER:-ec2-user}"
 
 if ! id -u "$AIZERO_APP_USER" >/dev/null 2>&1; then
@@ -35,6 +37,14 @@ chmod 0660 "$WATCHDOG_LOCK_FILE"
 touch "$WATCHDOG_ALERT_STATE_FILE"
 chown root:root "$WATCHDOG_ALERT_STATE_FILE"
 chmod 0600 "$WATCHDOG_ALERT_STATE_FILE"
+if [[ -f "$WATCHDOG_OUTAGE_STATE_FILE" ]]; then
+  chown root:root "$WATCHDOG_OUTAGE_STATE_FILE"
+  chmod 0600 "$WATCHDOG_OUTAGE_STATE_FILE"
+fi
+if [[ -f "$WATCHDOG_MAINTENANCE_STATE_FILE" ]]; then
+  chown root:root "$WATCHDOG_MAINTENANCE_STATE_FILE"
+  chmod 0644 "$WATCHDOG_MAINTENANCE_STATE_FILE"
+fi
 
 systemctl daemon-reload
 systemctl enable --now aizero.service
