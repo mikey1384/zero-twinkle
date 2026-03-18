@@ -80,9 +80,9 @@ npm install
 # Run locally (for testing)
 node index.js
 
-# Production (via PM2)
-pm2 start index.js --name zero-twinkle
-pm2 save
+# Production (systemd)
+sudo systemctl restart aizero.service
+sudo systemctl status aizero.service --no-pager
 ```
 
 ## Operational Notes

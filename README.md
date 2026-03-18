@@ -24,6 +24,15 @@ sudo systemctl status aizero.service --no-pager
 sudo systemctl status aizero-watchdog.timer --no-pager
 ```
 
+Package scripts now target that same detached `systemd` service path:
+
+```bash
+bun run start
+bun run stop
+bun run restart
+bun run status
+```
+
 ## Echo Notification Timing
 
 - `runEchoNotifications` is checked every `900` seconds on wall-clock quarter hours, not every hour from service start.
@@ -41,7 +50,7 @@ sudo systemctl status aizero-watchdog.timer --no-pager
 - Planned-maintenance state: `/var/lib/aizero-watchdog/maintenance.state`
 - Email alert script: `scripts/send-error-report.mjs`
 - Default stale threshold: `180` seconds
-- Default recovery command: `bash ./scripts/pm2-aizero.sh start` (override with `RECOVERY_CMD`)
+- Default recovery command: `bash ./scripts/aizero-service.sh restart` (override with `RECOVERY_CMD`)
 - Alert behavior: sends on outage detection, sends again if recovery fails, and sends a recovery email after a previously alerted incident becomes healthy
 - Important operational caveat: a manual `systemctl restart aizero.service` can look like `process_down` to the watchdog unless maintenance mode is enabled first
 - Watchdog alert env vars:
