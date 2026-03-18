@@ -1,4 +1,4 @@
-const GPT = "gpt-5.1-2025-11-13";
+const GPT = "gpt-5.4-mini";
 
 module.exports = {
   auth: {
