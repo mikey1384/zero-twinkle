@@ -8,7 +8,6 @@ const {
   checkAndTriggerRewardCard,
   updateWordMasterRankings,
   runEchoNotifications,
-  processInsightsQueue,
   // syncChessPuzzles,
 } = require("./service");
 
@@ -46,11 +45,6 @@ const tasks = [
     intervalSeconds: 900,
     alignToInterval: true,
     alignmentGraceSeconds: 60,
-  },
-  {
-    name: "processInsightsQueue",
-    fn: processInsightsQueue,
-    intervalSeconds: 21600,
   },
 ];
 const taskState = new Map(
@@ -244,15 +238,6 @@ const heartbeatInterval = setInterval(() => {
   writeHeartbeat();
 }, HEARTBEAT_INTERVAL_SECONDS * 1000);
 global.twinkleIntervals.push(heartbeatInterval);
-
-// Run insights queue processing on startup (after 30 second delay)
-const insightsStartupTimeout = setTimeout(() => {
-  const task = tasks.find((entry) => entry.name === "processInsightsQueue");
-  if (task) {
-    void runTask(task);
-  }
-}, 30000);
-global.twinkleIntervals.push(insightsStartupTimeout);
 
 console.log(`🚀 Started ${global.twinkleIntervals.length} intervals`);
 writeHeartbeat({ startup: true });
