@@ -8,6 +8,7 @@ const {
   checkAndTriggerRewardCard,
   updateWordMasterRankings,
   runEchoNotifications,
+  purgeExpiredPendingEchoSignups,
   // syncChessPuzzles,
 } = require("./service");
 
@@ -43,6 +44,13 @@ const tasks = [
     name: "runEchoNotifications",
     fn: runEchoNotifications,
     intervalSeconds: 900,
+    alignToInterval: true,
+    alignmentGraceSeconds: 60,
+  },
+  {
+    name: "purgeExpiredPendingEchoSignups",
+    fn: purgeExpiredPendingEchoSignups,
+    intervalSeconds: 3600,
     alignToInterval: true,
     alignmentGraceSeconds: 60,
   },

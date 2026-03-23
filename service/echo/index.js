@@ -460,8 +460,51 @@ async function runEchoNotifications() {
   }
 }
 
+async function purgeExpiredPendingEchoSignups() {
+  const now = Math.floor(Date.now() / 1000);
+  const batchSize = 500;
+  const maxBatchesPerRun = 20;
+  let totalDeleted = 0;
+
+  for (let batch = 0; batch < maxBatchesPerRun; batch += 1) {
+    try {
+      const result = await poolQuery(
+        `DELETE FROM echo_pending_signups
+         WHERE expiresAt < ?
+         ORDER BY expiresAt ASC
+         LIMIT ${batchSize}`,
+        [now],
+      );
+      const deletedRows = Number(result?.affectedRows || 0);
+      totalDeleted += deletedRows;
+
+      if (deletedRows < batchSize) {
+        break;
+      }
+    } catch (error) {
+      if (error?.code === "ER_NO_SUCH_TABLE") {
+        return { deleted: 0 };
+      }
+      throw error;
+    }
+  }
+
+  if (totalDeleted > 0) {
+    console.log(`[Echo] Purged ${totalDeleted} expired pending signups`);
+  }
+
+  if (totalDeleted === batchSize * maxBatchesPerRun) {
+    console.warn(
+      `[Echo] Pending signup purge hit the per-run cap (${maxBatchesPerRun} batches)`,
+    );
+  }
+
+  return { deleted: totalDeleted };
+}
+
 module.exports = {
   runEchoNotifications,
   sendDailyReminders,
   sendStreakReminders,
+  purgeExpiredPendingEchoSignups,
 };
