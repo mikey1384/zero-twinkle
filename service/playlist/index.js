@@ -21,7 +21,7 @@ async function setPlaylistRewardLevel() {
     const { id, title } = playlist;
     const videoIdRows = await poolQuery(
       `SELECT videoId FROM vq_playlistvideos WHERE playlistId = ? ORDER BY id DESC LIMIT 5`,
-      id
+      id,
     );
     const videoIds = videoIdRows.map(({ videoId }) => videoId);
     let videoTitles = [];
@@ -29,7 +29,7 @@ async function setPlaylistRewardLevel() {
     if (videoIds.length) {
       const videos = await poolQuery(
         `SELECT id, title, rewardLevel, ytChannelName FROM vq_videos WHERE id IN (?)`,
-        [videoIds]
+        [videoIds],
       );
       videoTitles = videos.map(({ title }) => title);
       videoChannelNames = videos.map(({ ytChannelName }) => ytChannelName);
@@ -57,7 +57,7 @@ async function setPlaylistRewardLevel() {
       .map(({ message: { content = "" } }) => content.trim())
       .join(" ");
     const result = JSON.parse(
-      (ResultingJSON || "").replace("```json", "").replace("```", "")
+      (ResultingJSON || "").replace("```json", "").replace("```", ""),
     );
     const rewardLevel = result.digit;
     await poolQuery(`UPDATE vq_playlists SET rewardLevel = ? WHERE id = ?`, [
@@ -89,7 +89,7 @@ async function tagVideosToPlaylist() {
         ytChannelName,
       } = {},
     ] = await poolQuery(
-      `SELECT v.id AS videoId, v.ytTags, v.ytChannelName, v.rewardLevel, v.title AS videoTitle, v.content FROM vq_videos v LEFT JOIN vq_playlistvideos pv ON v.id = pv.videoId WHERE v.isDeleted = 0 AND pv.videoId IS NULL ORDER BY v.id DESC LIMIT 1`
+      `SELECT v.id AS videoId, v.ytTags, v.ytChannelName, v.rewardLevel, v.title AS videoTitle, v.content FROM vq_videos v LEFT JOIN vq_playlistvideos pv ON v.id = pv.videoId WHERE v.isDeleted = 0 AND pv.videoId IS NULL ORDER BY v.id DESC LIMIT 1`,
     );
     if (!ytTags || !videoId || videoId === lastVideoId) {
       return;
@@ -102,14 +102,14 @@ async function tagVideosToPlaylist() {
     if (ytChannelName) {
       let [{ id: playlistId, title, rewardLevel } = {}] = await poolQuery(
         `SELECT * FROM vq_playlists WHERE title = ?`,
-        ytChannelName
+        ytChannelName,
       );
       if (title) {
         playlists.push({ playlistId, title, rewardLevel });
       } else {
         const rows = await poolQuery(
           `SELECT * FROM vq_videos WHERE ytChannelName = ?`,
-          ytChannelName
+          ytChannelName,
         );
         if (rows.length > 1) {
           const { insertId } = await poolQuery(
@@ -118,7 +118,7 @@ async function tagVideosToPlaylist() {
               title: ytChannelName,
               creator: userId,
               timeStamp: Math.floor(Date.now() / 1000),
-            }
+            },
           );
           for (let { id } of rows) {
             if (id !== videoId) {
@@ -148,7 +148,7 @@ async function tagVideosToPlaylist() {
       }
       const [{ id: playlistId, title, rewardLevel } = {}] = await poolQuery(
         `SELECT * FROM vq_playlists WHERE title = ?`,
-        tag
+        tag,
       );
       if (title) {
         const lowerCaseTitle = (title || "").toLowerCase();
@@ -180,13 +180,13 @@ async function tagVideosToPlaylist() {
     let playlistCreatedByZero = false;
     if (playlists.length === 0) {
       const suggestedTag = await suggestTag(
-        `Video Title: ${videoTitle}, Channel Name: ${ytChannelName}, Tags: ${ytTags}`
+        `Video Title: ${videoTitle}, Channel Name: ${ytChannelName}, Tags: ${ytTags}`,
       );
       if (suggestedTag) {
         suggestedByZero = true;
         const [{ id: playlistId, title, rewardLevel } = {}] = await poolQuery(
           `SELECT * FROM vq_playlists WHERE title = ?`,
-          suggestedTag
+          suggestedTag,
         );
         if (title) {
           playlists.push({ playlistId, title, rewardLevel });
@@ -197,7 +197,7 @@ async function tagVideosToPlaylist() {
               title: suggestedTag,
               creator: userId,
               timeStamp: Math.floor(Date.now() / 1000),
-            }
+            },
           );
           playlists.push({
             playlistId: insertId,
@@ -212,7 +212,7 @@ async function tagVideosToPlaylist() {
 
     const videosWithTheSameVideoCode = await poolQuery(
       `SELECT * FROM vq_videos WHERE content = ?`,
-      content
+      content,
     );
 
     let appliedVideoRewardLevel = 0;
