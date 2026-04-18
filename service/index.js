@@ -2,7 +2,11 @@ const { tagVideosToPlaylist, setPlaylistRewardLevel } = require("./playlist");
 const { checkAndTriggerRewardCard } = require("./reward");
 const { syncChessPuzzles } = require("./chess");
 const { updateWordMasterRankings } = require("./leaderboards/wordMaster");
-const { runEchoNotifications, purgeExpiredPendingEchoSignups } = require("./echo");
+const {
+  runEchoNotifications,
+  purgeExpiredPendingEchoSignups,
+  reconcileExpiredEchoSubscriptions,
+} = require("./echo");
 
 module.exports = {
   tagVideosToPlaylist,
@@ -12,4 +16,5 @@ module.exports = {
   updateWordMasterRankings,
   runEchoNotifications,
   purgeExpiredPendingEchoSignups,
+  reconcileExpiredEchoSubscriptions,
 };

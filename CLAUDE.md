@@ -36,6 +36,8 @@ zero-twinkle/
 | `checkAndTriggerRewardCard` | 30s | Checks and triggers vocabulary reward cards |
 | `updateWordMasterRankings` | 900s (15min) | Updates Word Master leaderboard rankings |
 | `runEchoNotifications` | 900s (15min, wall-clock aligned) | Checks on quarter-hour boundaries and only sends at the user's local `:00` |
+| `purgeExpiredPendingEchoSignups` | 3600s (1h, wall-clock aligned) | Deletes expired Echo pending signup rows in batches |
+| `reconcileExpiredEchoSubscriptions` | 3600s (1h, wall-clock aligned) | Cleans stale Echo paid subscription rows after the configured grace window |
 
 ### Echo Notifications
 

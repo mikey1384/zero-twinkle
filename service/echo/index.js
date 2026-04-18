@@ -14,6 +14,25 @@ const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
 
 // Day resets at 7 AM local time
 const DAY_RESET_HOUR = 7;
+const EXPIRED_SUBSCRIPTION_CLEANUP_GRACE_SECONDS = readPositiveIntEnv(
+  "ECHO_EXPIRED_SUBSCRIPTION_CLEANUP_GRACE_SECONDS",
+  24 * 60 * 60,
+);
+const EXPIRED_SUBSCRIPTION_CLEANUP_BATCH_SIZE = readPositiveIntEnv(
+  "ECHO_EXPIRED_SUBSCRIPTION_CLEANUP_BATCH_SIZE",
+  500,
+);
+const EXPIRED_SUBSCRIPTION_CLEANUP_MAX_BATCHES = readPositiveIntEnv(
+  "ECHO_EXPIRED_SUBSCRIPTION_CLEANUP_MAX_BATCHES",
+  20,
+);
+
+function readPositiveIntEnv(name, fallback) {
+  const raw = process.env[name];
+  const parsed = raw ? Number(raw) : NaN;
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.floor(parsed);
+}
 
 // ===================================
 // DATE HELPERS (ported from TypeScript)
@@ -502,9 +521,60 @@ async function purgeExpiredPendingEchoSignups() {
   return { deleted: totalDeleted };
 }
 
+async function reconcileExpiredEchoSubscriptions() {
+  const now = Math.floor(Date.now() / 1000);
+  const cutoff = now - EXPIRED_SUBSCRIPTION_CLEANUP_GRACE_SECONDS;
+  let totalUpdated = 0;
+
+  for (
+    let batch = 0;
+    batch < EXPIRED_SUBSCRIPTION_CLEANUP_MAX_BATCHES;
+    batch += 1
+  ) {
+    const result = await poolQuery(
+      `UPDATE echo_users
+       SET subscriptionTier = 'free',
+           subscriptionExpiresAt = NULL,
+           autoRenew = 0
+       WHERE subscriptionTier = 'pro'
+         AND subscriptionExpiresAt IS NOT NULL
+         AND subscriptionExpiresAt < ?
+         AND (proExpiresAt IS NULL OR proExpiresAt <= ?)
+       ORDER BY subscriptionExpiresAt ASC
+       LIMIT ${EXPIRED_SUBSCRIPTION_CLEANUP_BATCH_SIZE}`,
+      [cutoff, now],
+    );
+    const updatedRows = Number(result?.affectedRows || 0);
+    totalUpdated += updatedRows;
+
+    if (updatedRows < EXPIRED_SUBSCRIPTION_CLEANUP_BATCH_SIZE) {
+      break;
+    }
+  }
+
+  if (totalUpdated > 0) {
+    console.log(
+      `[Echo] Reconciled ${totalUpdated} expired subscription user rows`,
+    );
+  }
+
+  if (
+    totalUpdated ===
+    EXPIRED_SUBSCRIPTION_CLEANUP_BATCH_SIZE *
+      EXPIRED_SUBSCRIPTION_CLEANUP_MAX_BATCHES
+  ) {
+    console.warn(
+      `[Echo] Subscription cleanup hit the per-run cap (${EXPIRED_SUBSCRIPTION_CLEANUP_MAX_BATCHES} batches)`,
+    );
+  }
+
+  return { updated: totalUpdated };
+}
+
 module.exports = {
   runEchoNotifications,
   sendDailyReminders,
   sendStreakReminders,
   purgeExpiredPendingEchoSignups,
+  reconcileExpiredEchoSubscriptions,
 };

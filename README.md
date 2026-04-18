@@ -40,6 +40,12 @@ bun run status
 - This is intentional so users in full-hour, half-hour, and quarter-hour offsets get notifications at local `x:00`, not at the server start offset like `x:26`.
 - After changing Echo scheduling logic in `index.js` or `service/echo/index.js`, restart `aizero.service`.
 
+## Echo Subscription Cleanup
+
+- `reconcileExpiredEchoSubscriptions` runs hourly and downgrades stale paid `echo_users` rows after `subscriptionExpiresAt` is older than the grace window.
+- Default grace window: `86400` seconds. Override with `ECHO_EXPIRED_SUBSCRIPTION_CLEANUP_GRACE_SECONDS`.
+- The cleanup skips users with active promotional/admin `proExpiresAt` access.
+
 ## Heartbeat And Recovery
 
 - Heartbeat file: `/tmp/aizero-heartbeat.json`
