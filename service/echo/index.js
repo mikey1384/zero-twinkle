@@ -28,7 +28,10 @@ const EXPIRED_SUBSCRIPTION_CLEANUP_MAX_BATCHES = readPositiveIntEnv(
 );
 const REVENUECAT_SECRET_KEY = process.env.REVENUECAT_SECRET_KEY || "";
 const REVENUECAT_PROJECT_ID = process.env.REVENUECAT_PROJECT_ID || "";
+const REVENUECAT_API_ORIGIN = "https://api.revenuecat.com";
 const REVENUECAT_API_BASE_URL = "https://api.revenuecat.com/v2";
+const REVENUECAT_SUBSCRIPTION_PAGE_LIMIT = 20;
+const REVENUECAT_MAX_SUBSCRIPTION_PAGES = 50;
 const REVENUECAT_RENEWING_STATUSES = new Set([
   "will_renew",
   "will_change_product",
@@ -63,6 +66,13 @@ function getRevenueCatCustomerPath(userId, suffix) {
   const projectId = encodeURIComponent(REVENUECAT_PROJECT_ID);
   const customerId = encodeURIComponent(String(userId));
   return `/projects/${projectId}/customers/${customerId}${suffix}`;
+}
+
+function getRevenueCatApiUrl(path) {
+  if (path.startsWith("https://")) return path;
+  if (path.startsWith("/v2/")) return `${REVENUECAT_API_ORIGIN}${path}`;
+  if (path.startsWith("/")) return `${REVENUECAT_API_BASE_URL}${path}`;
+  return `${REVENUECAT_API_BASE_URL}/${path}`;
 }
 
 function epochMsToSeconds(value) {
@@ -106,30 +116,55 @@ function findActiveRevenueCatSubscription(subscriptions, now) {
 }
 
 async function fetchRevenueCatSubscriptions(userId) {
-  const response = await fetch(
-    `${REVENUECAT_API_BASE_URL}${getRevenueCatCustomerPath(
+  let nextUrl = getRevenueCatApiUrl(
+    getRevenueCatCustomerPath(
       userId,
-      "/subscriptions?limit=20",
-    )}`,
-    {
+      `/subscriptions?limit=${REVENUECAT_SUBSCRIPTION_PAGE_LIMIT}`,
+    ),
+  );
+  const subscriptions = [];
+  const seenUrls = new Set();
+
+  for (let page = 0; nextUrl; page += 1) {
+    if (page >= REVENUECAT_MAX_SUBSCRIPTION_PAGES) {
+      throw new Error(
+        `RevenueCat subscriptions pagination exceeded ${REVENUECAT_MAX_SUBSCRIPTION_PAGES} pages`,
+      );
+    }
+    if (seenUrls.has(nextUrl)) {
+      throw new Error("RevenueCat subscriptions pagination loop detected");
+    }
+    seenUrls.add(nextUrl);
+
+    const response = await fetch(nextUrl, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${REVENUECAT_SECRET_KEY}`,
         "Content-Type": "application/json",
       },
-    },
-  );
+    });
 
-  if (response.status === 404) {
-    return [];
+    if (response.status === 404) {
+      return [];
+    }
+
+    if (!response.ok) {
+      throw new Error(`RevenueCat API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    if (Array.isArray(data?.items)) {
+      subscriptions.push(...data.items);
+    }
+
+    const nextPage =
+      typeof data?.next_page === "string" && data.next_page
+        ? data.next_page
+        : null;
+    nextUrl = nextPage ? getRevenueCatApiUrl(nextPage) : null;
   }
 
-  if (!response.ok) {
-    throw new Error(`RevenueCat API error: ${response.status}`);
-  }
-
-  const data = await response.json();
-  return Array.isArray(data?.items) ? data.items : [];
+  return subscriptions;
 }
 
 // ===================================
