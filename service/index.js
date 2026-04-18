@@ -6,6 +6,8 @@ const {
   runEchoNotifications,
   purgeExpiredPendingEchoSignups,
   reconcileExpiredEchoSubscriptions,
+  reconcileEchoSubscriptionRenewalStatus,
+  reconcileEchoSubscriptions,
 } = require("./echo");
 
 module.exports = {
@@ -17,4 +19,6 @@ module.exports = {
   runEchoNotifications,
   purgeExpiredPendingEchoSignups,
   reconcileExpiredEchoSubscriptions,
+  reconcileEchoSubscriptionRenewalStatus,
+  reconcileEchoSubscriptions,
 };

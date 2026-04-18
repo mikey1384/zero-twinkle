@@ -42,9 +42,14 @@ bun run status
 
 ## Echo Subscription Cleanup
 
-- `reconcileExpiredEchoSubscriptions` runs hourly and downgrades stale paid `echo_users` rows after `subscriptionExpiresAt` is older than the grace window.
+- `reconcileEchoSubscriptions` runs hourly. It repairs RevenueCat renewal state first, then downgrades stale paid `echo_users` rows after `subscriptionExpiresAt` is older than the grace window.
+- `subscriptionExpiresAt` is the authoritative Echo Pro expiry. `proExpiresAt` is legacy and is intentionally ignored by cleanup.
 - Default grace window: `86400` seconds. Override with `ECHO_EXPIRED_SUBSCRIPTION_CLEANUP_GRACE_SECONDS`.
-- The cleanup skips users with active promotional/admin `proExpiresAt` access.
+- `autoRenew` is only cached renewal status from RevenueCat. Cleanup clears it when the subscription row expires.
+- `reconcileEchoSubscriptionRenewalStatus` repairs `autoRenew = 1` rows from RevenueCat `auto_renewal_status`.
+- Renewal repair checks locally expired rows inside the cleanup grace window first, then checks active rows.
+- RevenueCat renewal repair requires `REVENUECAT_SECRET_KEY` and `REVENUECAT_PROJECT_ID` with `customer_information:subscriptions:read` permission.
+- Renewal repair batch size defaults to `50`. Override with `ECHO_RENEWAL_STATUS_RECONCILE_BATCH_SIZE`.
 
 ## Heartbeat And Recovery
 

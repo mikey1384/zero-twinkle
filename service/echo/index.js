@@ -26,12 +26,110 @@ const EXPIRED_SUBSCRIPTION_CLEANUP_MAX_BATCHES = readPositiveIntEnv(
   "ECHO_EXPIRED_SUBSCRIPTION_CLEANUP_MAX_BATCHES",
   20,
 );
+const REVENUECAT_SECRET_KEY = process.env.REVENUECAT_SECRET_KEY || "";
+const REVENUECAT_PROJECT_ID = process.env.REVENUECAT_PROJECT_ID || "";
+const REVENUECAT_API_BASE_URL = "https://api.revenuecat.com/v2";
+const REVENUECAT_RENEWING_STATUSES = new Set([
+  "will_renew",
+  "will_change_product",
+  "has_already_renewed",
+]);
+const ECHO_RENEWAL_STATUS_RECONCILE_BATCH_SIZE = readPositiveIntEnv(
+  "ECHO_RENEWAL_STATUS_RECONCILE_BATCH_SIZE",
+  50,
+);
+const ECHO_RENEWAL_STATUS_RECONCILE_DELAY_MS = readPositiveIntEnv(
+  "ECHO_RENEWAL_STATUS_RECONCILE_DELAY_MS",
+  150,
+);
+let renewalStatusReconcileCursor = {
+  subscriptionExpiresAt: 0,
+  id: 0,
+};
+let warnedMissingRevenueCatConfig = false;
 
 function readPositiveIntEnv(name, fallback) {
   const raw = process.env[name];
   const parsed = raw ? Number(raw) : NaN;
   if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
   return Math.floor(parsed);
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getRevenueCatCustomerPath(userId, suffix) {
+  const projectId = encodeURIComponent(REVENUECAT_PROJECT_ID);
+  const customerId = encodeURIComponent(String(userId));
+  return `/projects/${projectId}/customers/${customerId}${suffix}`;
+}
+
+function epochMsToSeconds(value) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return null;
+  }
+  return Math.floor(value / 1000);
+}
+
+function getRevenueCatSubscriptionExpiresAt(subscription) {
+  return epochMsToSeconds(
+    subscription?.ends_at ?? subscription?.current_period_ends_at,
+  );
+}
+
+function findActiveRevenueCatSubscription(subscriptions, now) {
+  let activeSubscription = null;
+
+  for (const subscription of subscriptions) {
+    if (subscription?.gives_access !== true) continue;
+
+    const expiresAt = getRevenueCatSubscriptionExpiresAt(subscription);
+    if (expiresAt !== null && expiresAt < now) continue;
+
+    const candidate = {
+      expiresAt,
+      autoRenew: REVENUECAT_RENEWING_STATUSES.has(
+        subscription.auto_renewal_status || "",
+      ),
+    };
+
+    const candidateExpiry = candidate.expiresAt ?? Number.MAX_SAFE_INTEGER;
+    const activeExpiry =
+      activeSubscription?.expiresAt ?? Number.MAX_SAFE_INTEGER;
+    if (!activeSubscription || candidateExpiry > activeExpiry) {
+      activeSubscription = candidate;
+    }
+  }
+
+  return activeSubscription;
+}
+
+async function fetchRevenueCatSubscriptions(userId) {
+  const response = await fetch(
+    `${REVENUECAT_API_BASE_URL}${getRevenueCatCustomerPath(
+      userId,
+      "/subscriptions?limit=20",
+    )}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${REVENUECAT_SECRET_KEY}`,
+        "Content-Type": "application/json",
+      },
+    },
+  );
+
+  if (response.status === 404) {
+    return [];
+  }
+
+  if (!response.ok) {
+    throw new Error(`RevenueCat API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return Array.isArray(data?.items) ? data.items : [];
 }
 
 // ===================================
@@ -539,10 +637,9 @@ async function reconcileExpiredEchoSubscriptions() {
        WHERE subscriptionTier = 'pro'
          AND subscriptionExpiresAt IS NOT NULL
          AND subscriptionExpiresAt < ?
-         AND (proExpiresAt IS NULL OR proExpiresAt <= ?)
        ORDER BY subscriptionExpiresAt ASC
        LIMIT ${EXPIRED_SUBSCRIPTION_CLEANUP_BATCH_SIZE}`,
-      [cutoff, now],
+      [cutoff],
     );
     const updatedRows = Number(result?.affectedRows || 0);
     totalUpdated += updatedRows;
@@ -571,10 +668,163 @@ async function reconcileExpiredEchoSubscriptions() {
   return { updated: totalUpdated };
 }
 
+async function selectEchoRenewalStatusGraceBatch(now, cutoff, limit) {
+  const normalizedLimit = Math.max(0, Math.floor(limit));
+  if (normalizedLimit <= 0) return [];
+
+  return poolQuery(
+    `SELECT id, subscriptionExpiresAt, autoRenew
+     FROM echo_users
+     WHERE subscriptionTier = 'pro'
+       AND autoRenew = 1
+       AND subscriptionExpiresAt IS NOT NULL
+       AND subscriptionExpiresAt >= ?
+       AND subscriptionExpiresAt < ?
+     ORDER BY subscriptionExpiresAt ASC, id ASC
+     LIMIT ${normalizedLimit}`,
+    [cutoff, now],
+  );
+}
+
+async function selectEchoRenewalStatusActiveBatch(now, limit) {
+  const normalizedLimit = Math.max(0, Math.floor(limit));
+  if (normalizedLimit <= 0) return [];
+
+  const cursorExpiresAt = renewalStatusReconcileCursor.subscriptionExpiresAt;
+  const cursorId = renewalStatusReconcileCursor.id;
+
+  const rows = await poolQuery(
+    `SELECT id, subscriptionExpiresAt, autoRenew
+     FROM echo_users
+     WHERE subscriptionTier = 'pro'
+       AND autoRenew = 1
+       AND subscriptionExpiresAt IS NOT NULL
+       AND subscriptionExpiresAt >= ?
+       AND (
+         subscriptionExpiresAt > ?
+         OR (subscriptionExpiresAt = ? AND id > ?)
+       )
+     ORDER BY subscriptionExpiresAt ASC, id ASC
+     LIMIT ${normalizedLimit}`,
+    [now, cursorExpiresAt, cursorExpiresAt, cursorId],
+  );
+
+  if (
+    rows.length === 0 &&
+    (renewalStatusReconcileCursor.subscriptionExpiresAt > 0 ||
+      renewalStatusReconcileCursor.id > 0)
+  ) {
+    renewalStatusReconcileCursor = { subscriptionExpiresAt: 0, id: 0 };
+    return selectEchoRenewalStatusActiveBatch(now, normalizedLimit);
+  }
+
+  return rows;
+}
+
+async function selectEchoRenewalStatusReconcileBatch(now) {
+  const cutoff = now - EXPIRED_SUBSCRIPTION_CLEANUP_GRACE_SECONDS;
+  const graceRows = await selectEchoRenewalStatusGraceBatch(
+    now,
+    cutoff,
+    ECHO_RENEWAL_STATUS_RECONCILE_BATCH_SIZE,
+  );
+  const remaining =
+    ECHO_RENEWAL_STATUS_RECONCILE_BATCH_SIZE - graceRows.length;
+  const activeRows = await selectEchoRenewalStatusActiveBatch(now, remaining);
+  return [...graceRows, ...activeRows];
+}
+
+async function reconcileEchoSubscriptionRenewalStatus() {
+  if (!REVENUECAT_SECRET_KEY || !REVENUECAT_PROJECT_ID) {
+    if (!warnedMissingRevenueCatConfig) {
+      console.warn(
+        "[Echo] Skipping renewal status reconciliation: RevenueCat config is missing",
+      );
+      warnedMissingRevenueCatConfig = true;
+    }
+    return { checked: 0, updated: 0, errors: 0, skipped: true };
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const rows = await selectEchoRenewalStatusReconcileBatch(now);
+  let checked = 0;
+  let updated = 0;
+  let errors = 0;
+
+  for (const row of rows) {
+    const rowSubscriptionExpiresAt = Number(row.subscriptionExpiresAt || 0);
+    if (rowSubscriptionExpiresAt >= now) {
+      renewalStatusReconcileCursor = {
+        subscriptionExpiresAt: rowSubscriptionExpiresAt,
+        id: Number(row.id || 0),
+      };
+    }
+    checked += 1;
+
+    try {
+      const subscriptions = await fetchRevenueCatSubscriptions(row.id);
+      const activeSubscription = findActiveRevenueCatSubscription(
+        subscriptions,
+        now,
+      );
+      const nextAutoRenew = activeSubscription?.autoRenew === true ? 1 : 0;
+      const nextSubscriptionExpiresAt =
+        activeSubscription?.expiresAt ?? rowSubscriptionExpiresAt;
+
+      if (
+        nextAutoRenew !== Number(row.autoRenew || 0) ||
+        nextSubscriptionExpiresAt !== rowSubscriptionExpiresAt
+      ) {
+        await poolQuery(
+          `UPDATE echo_users
+           SET autoRenew = ?,
+               subscriptionExpiresAt = ?
+           WHERE id = ?
+             AND subscriptionTier = 'pro'`,
+          [nextAutoRenew, nextSubscriptionExpiresAt, row.id],
+        );
+        updated += 1;
+      }
+    } catch (error) {
+      errors += 1;
+      console.error(
+        `[Echo] Failed to reconcile RevenueCat renewal status for user ${row.id}:`,
+        error?.message || error,
+      );
+    }
+
+    if (ECHO_RENEWAL_STATUS_RECONCILE_DELAY_MS > 0) {
+      await sleep(ECHO_RENEWAL_STATUS_RECONCILE_DELAY_MS);
+    }
+  }
+
+  if (checked > 0 && (updated > 0 || errors > 0)) {
+    console.log(
+      `[Echo] Reconciled RevenueCat renewal status: checked=${checked}, updated=${updated}, errors=${errors}`,
+    );
+  }
+
+  if (checked === ECHO_RENEWAL_STATUS_RECONCILE_BATCH_SIZE) {
+    console.warn(
+      `[Echo] Renewal status reconciliation hit the per-run cap (${ECHO_RENEWAL_STATUS_RECONCILE_BATCH_SIZE})`,
+    );
+  }
+
+  return { checked, updated, errors, skipped: false };
+}
+
+async function reconcileEchoSubscriptions() {
+  const renewalStatus = await reconcileEchoSubscriptionRenewalStatus();
+  const expiredSubscriptions = await reconcileExpiredEchoSubscriptions();
+  return { renewalStatus, expiredSubscriptions };
+}
+
 module.exports = {
   runEchoNotifications,
   sendDailyReminders,
   sendStreakReminders,
   purgeExpiredPendingEchoSignups,
   reconcileExpiredEchoSubscriptions,
+  reconcileEchoSubscriptionRenewalStatus,
+  reconcileEchoSubscriptions,
 };
