@@ -49,6 +49,11 @@ let renewalStatusReconcileCursor = {
   subscriptionExpiresAt: 0,
   id: 0,
 };
+let renewalStatusGraceReconcileCursor = {
+  subscriptionExpiresAt: 0,
+  id: 0,
+};
+let renewalStatusGraceReconcileCycleUpperBound = 0;
 let warnedMissingRevenueCatConfig = false;
 
 function readPositiveIntEnv(name, fallback) {
@@ -707,18 +712,55 @@ async function selectEchoRenewalStatusGraceBatch(now, cutoff, limit) {
   const normalizedLimit = Math.max(0, Math.floor(limit));
   if (normalizedLimit <= 0) return [];
 
-  return poolQuery(
+  const cycleUpperBoundIsInvalid =
+    renewalStatusGraceReconcileCycleUpperBound <= cutoff ||
+    renewalStatusGraceReconcileCycleUpperBound > now;
+  if (cycleUpperBoundIsInvalid) {
+    renewalStatusGraceReconcileCursor = { subscriptionExpiresAt: 0, id: 0 };
+    renewalStatusGraceReconcileCycleUpperBound = now;
+  }
+
+  const cycleUpperBound = renewalStatusGraceReconcileCycleUpperBound;
+  const cursorExpiresAt =
+    renewalStatusGraceReconcileCursor.subscriptionExpiresAt;
+  const cursorId = renewalStatusGraceReconcileCursor.id;
+  const cursorAfterCurrentWindow = cursorExpiresAt >= cycleUpperBound;
+  const effectiveCursorExpiresAt = cursorAfterCurrentWindow
+    ? 0
+    : cursorExpiresAt;
+  const effectiveCursorId = cursorAfterCurrentWindow ? 0 : cursorId;
+  if (cursorAfterCurrentWindow) {
+    renewalStatusGraceReconcileCursor = { subscriptionExpiresAt: 0, id: 0 };
+  }
+
+  const rows = await poolQuery(
     `SELECT id, subscriptionExpiresAt, autoRenew
      FROM echo_users
      WHERE subscriptionTier = 'pro'
-       AND autoRenew = 1
        AND subscriptionExpiresAt IS NOT NULL
        AND subscriptionExpiresAt >= ?
        AND subscriptionExpiresAt < ?
+       AND (
+         subscriptionExpiresAt > ?
+         OR (subscriptionExpiresAt = ? AND id > ?)
+       )
      ORDER BY subscriptionExpiresAt ASC, id ASC
      LIMIT ${normalizedLimit}`,
-    [cutoff, now],
+    [
+      cutoff,
+      cycleUpperBound,
+      effectiveCursorExpiresAt,
+      effectiveCursorExpiresAt,
+      effectiveCursorId,
+    ],
   );
+
+  if (rows.length < normalizedLimit) {
+    renewalStatusGraceReconcileCursor = { subscriptionExpiresAt: 0, id: 0 };
+    renewalStatusGraceReconcileCycleUpperBound = 0;
+  }
+
+  return rows;
 }
 
 async function selectEchoRenewalStatusActiveBatch(now, limit) {
@@ -790,6 +832,11 @@ async function reconcileEchoSubscriptionRenewalStatus() {
     const rowSubscriptionExpiresAt = Number(row.subscriptionExpiresAt || 0);
     if (rowSubscriptionExpiresAt >= now) {
       renewalStatusReconcileCursor = {
+        subscriptionExpiresAt: rowSubscriptionExpiresAt,
+        id: Number(row.id || 0),
+      };
+    } else if (rowSubscriptionExpiresAt > 0) {
+      renewalStatusGraceReconcileCursor = {
         subscriptionExpiresAt: rowSubscriptionExpiresAt,
         id: Number(row.id || 0),
       };
