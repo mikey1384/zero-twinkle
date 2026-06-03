@@ -71,8 +71,8 @@ npm install
 node index.js
 
 # Production (systemd)
-sudo systemctl restart aizero.service
-sudo systemctl status aizero.service --no-pager
+bun run restart
+bun run status
 ```
 
 ## Operational Notes
@@ -84,11 +84,9 @@ sudo systemctl status aizero.service --no-pager
   ```bash
   sudo bash ./scripts/install-aizero-systemd.sh
   ```
-- Before a planned restart or rollout, enable maintenance so the watchdog does not send a false outage email during the restart window:
+- For a planned restart or rollout, use the wrapper so watchdog maintenance is enabled and cleared automatically:
   ```bash
-  sudo bash ./scripts/watchdog-maintenance-aizero.sh on 180 "deploy restart"
-  sudo systemctl restart aizero.service
-  sudo bash ./scripts/watchdog-maintenance-aizero.sh off
+  bun run restart
   ```
 - The watchdog now sends:
   - outage detection email

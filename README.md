@@ -33,12 +33,14 @@ bun run restart
 bun run status
 ```
 
+`bun run restart` automatically enables a short watchdog maintenance window before restarting `aizero.service`, then clears that window afterward.
+
 ## Echo Notification Timing
 
 - `runEchoNotifications` is checked every `900` seconds on wall-clock quarter hours, not every hour from service start.
 - Daily reminders and streak reminders only send when the user's local minute is exactly `00`.
 - This is intentional so users in full-hour, half-hour, and quarter-hour offsets get notifications at local `x:00`, not at the server start offset like `x:26`.
-- After changing Echo scheduling logic in `index.js` or `service/echo/index.js`, restart `aizero.service`.
+- After changing Echo scheduling logic in `index.js` or `service/echo/index.js`, run `bun run restart`.
 
 ## Echo Subscription Cleanup
 
@@ -64,7 +66,7 @@ bun run status
 - Default stale threshold: `180` seconds
 - Default recovery command: `bash ./scripts/aizero-service.sh restart` (override with `RECOVERY_CMD`)
 - Alert behavior: sends on outage detection, sends again if recovery fails, and sends a recovery email after a previously alerted incident becomes healthy
-- Important operational caveat: a manual `systemctl restart aizero.service` can look like `process_down` to the watchdog unless maintenance mode is enabled first
+- Important operational caveat: a manual `systemctl restart aizero.service` can look like `process_down` to the watchdog unless maintenance mode is enabled first. Prefer `bun run restart` for deploy restarts because it wraps maintenance automatically.
 - Watchdog alert env vars:
   `MAIL_USER`, `MAIL_CLIENT_ID`, `MAIL_PRIVATE_KEY`
   Optional overrides: `ERROR_REPORT_TO`, `ERROR_REPORT_FROM`, `ERROR_REPORT_SUBJECT`
@@ -78,7 +80,7 @@ Manual watchdog check:
 npm run watchdog:check
 ```
 
-Planned maintenance before a manual restart or deploy:
+Planned maintenance before a direct manual `systemctl` restart:
 
 ```bash
 sudo bash ./scripts/watchdog-maintenance-aizero.sh on 180 "deploy restart"
