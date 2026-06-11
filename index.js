@@ -7,6 +7,7 @@ const {
   setPlaylistRewardLevel,
   checkAndTriggerRewardCard,
   updateWordMasterRankings,
+  rebuildAiStoryChapterStats,
   runEchoNotifications,
   purgeExpiredPendingEchoSignups,
   reconcileEchoSubscriptions,
@@ -40,6 +41,13 @@ const tasks = [
     name: "updateWordMasterRankings",
     fn: updateWordMasterRankings,
     intervalSeconds: 900,
+  },
+  {
+    name: "rebuildAiStoryChapterStats",
+    fn: rebuildAiStoryChapterStats,
+    intervalSeconds: 600,
+    alignToInterval: true,
+    alignmentGraceSeconds: 60,
   },
   {
     name: "runEchoNotifications",
