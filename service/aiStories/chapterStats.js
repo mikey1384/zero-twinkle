@@ -12,7 +12,20 @@ const TABLE = "ai_story_chapter_stats";
 const NEXT_TABLE = "ai_story_chapter_stats_next";
 const TMP_TABLE = "ai_story_chapter_stats_swap_tmp";
 
+// The precheck (eligible COUNT / MAX(id) / id-set fingerprint) cannot see
+// edits that change rollup columns without changing row eligibility — e.g. an
+// imagePath backfill on an already-complete story
+// (controllers/content/routes/aiStory/images.ts). This clamp bounds that
+// staleness: after 6h a rebuild runs even if the precheck says nothing
+// changed. It also backstops the fingerprint's ~2^-32 collision odds.
+const FORCE_REBUILD_INTERVAL_MS = 6 * 60 * 60 * 1000;
+
 let isRunning = false;
+// Precheck snapshot taken just before the last successful rebuild. Stored
+// pre-rebuild on purpose: a write racing the rebuild makes next tick's
+// precheck mismatch and rebuild again (extra rebuild, never a missed one).
+// In-memory by design — a process restart clears it and the next tick rebuilds.
+let lastRebuildSnapshot = null;
 
 async function rebuildAiStoryChapterStats() {
   if (isRunning) {
@@ -25,6 +38,40 @@ async function rebuildAiStoryChapterStats() {
 
   try {
     const builtAt = Math.floor(Date.now() / 1000);
+
+    // Skip-no-op precheck: same eligibility predicate as the rebuild. The
+    // BIT_XOR(CRC32(id)) fingerprint changes whenever the *set* of eligible
+    // ids changes — inserts, deletes (listening.ts hard-deletes stale attempt
+    // stories), draft->complete fills (socket/aiStory.ts), and balanced
+    // remove-one/add-one swaps that keep COUNT and MAX(id) stable. Runs on the
+    // read pool (no fromWriter) so quiet ticks never touch the writer at all;
+    // a lagged replica read can only under-claim, which causes an extra
+    // rebuild next tick, never a skipped change.
+    const [
+      { eligibleCount = 0, maxEligibleId = 0, eligibleIdsHash = 0 } = {},
+    ] = await poolQuery(
+      `SELECT COUNT(*) AS eligibleCount,
+              COALESCE(MAX(s.id), 0) AS maxEligibleId,
+              COALESCE(BIT_XOR(CRC32(s.id)), 0) AS eligibleIdsHash
+       FROM ai_stories s
+       WHERE s.isDeleted = 0
+         AND s.story IS NOT NULL AND s.story != ''
+         AND s.type IS NOT NULL AND s.type != ''
+         AND s.topicKey IS NOT NULL AND s.topicKey != ''`
+    );
+
+    if (
+      lastRebuildSnapshot &&
+      Number(lastRebuildSnapshot.eligibleCount) === Number(eligibleCount) &&
+      Number(lastRebuildSnapshot.maxEligibleId) === Number(maxEligibleId) &&
+      Number(lastRebuildSnapshot.eligibleIdsHash) === Number(eligibleIdsHash) &&
+      startedAt - lastRebuildSnapshot.rebuiltAtMs < FORCE_REBUILD_INTERVAL_MS
+    ) {
+      console.log(
+        "⏭️  AI Story chapter stats unchanged, skipping rebuild"
+      );
+      return;
+    }
 
     await poolQuery(`TRUNCATE TABLE ${NEXT_TABLE}`, null, true);
 
@@ -75,6 +122,13 @@ async function rebuildAiStoryChapterStats() {
       null,
       true
     );
+
+    lastRebuildSnapshot = {
+      eligibleCount,
+      maxEligibleId,
+      eligibleIdsHash,
+      rebuiltAtMs: Date.now(),
+    };
 
     const [{ chapterCount = 0 } = {}] = await poolQuery(
       `SELECT COUNT(*) AS chapterCount FROM ${TABLE}`,

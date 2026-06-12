@@ -45,7 +45,7 @@ const tasks = [
   {
     name: "rebuildAiStoryChapterStats",
     fn: rebuildAiStoryChapterStats,
-    intervalSeconds: 600,
+    intervalSeconds: 1800,
     alignToInterval: true,
     alignmentGraceSeconds: 60,
   },
