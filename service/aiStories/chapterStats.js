@@ -39,9 +39,13 @@ async function rebuildAiStoryChapterStats() {
   try {
     const builtAt = Math.floor(Date.now() / 1000);
 
-    // Skip-no-op precheck: same eligibility predicate as the rebuild. The
-    // BIT_XOR(CRC32(id)) fingerprint changes whenever the *set* of eligible
-    // ids changes — inserts, deletes (listening.ts hard-deletes stale attempt
+    // Skip-no-op precheck: same eligibility predicate as the rebuild, encoded as
+    // the isChapterEligible generated column so it reads from the covering index
+    // idx_ai_stories_chapter_eligible (isChapterEligible, id) instead of
+    // dereferencing every row's story TEXT to test the story != '' completion
+    // check (see migration add-ai-stories-chapter-eligible-index.sql). The
+    // BIT_XOR(CRC32(id)) fingerprint changes whenever the *set* of eligible ids
+    // changes — inserts, deletes (listening.ts hard-deletes stale attempt
     // stories), draft->complete fills (socket/aiStory.ts), and balanced
     // remove-one/add-one swaps that keep COUNT and MAX(id) stable. Runs on the
     // read pool (no fromWriter) so quiet ticks never touch the writer at all;
@@ -54,10 +58,7 @@ async function rebuildAiStoryChapterStats() {
               COALESCE(MAX(s.id), 0) AS maxEligibleId,
               COALESCE(BIT_XOR(CRC32(s.id)), 0) AS eligibleIdsHash
        FROM ai_stories s
-       WHERE s.isDeleted = 0
-         AND s.story IS NOT NULL AND s.story != ''
-         AND s.type IS NOT NULL AND s.type != ''
-         AND s.topicKey IS NOT NULL AND s.topicKey != ''`
+       WHERE s.isChapterEligible = 1`
     );
 
     if (
