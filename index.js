@@ -8,6 +8,7 @@ const {
   checkAndTriggerRewardCard,
   updateWordMasterRankings,
   rebuildAiStoryChapterStats,
+  reconcileEarnCommentCandidates,
   runEchoNotifications,
   purgeExpiredPendingEchoSignups,
   reconcileEchoSubscriptions,
@@ -66,6 +67,15 @@ const tasks = [
   {
     name: "reconcileEchoSubscriptions",
     fn: reconcileEchoSubscriptions,
+    intervalSeconds: 3600,
+    alignToInterval: true,
+    alignmentGraceSeconds: 60,
+  },
+  {
+    // Hourly tick; the task itself only does work at its configured UTC hour
+    // (once nightly, off-peak).
+    name: "reconcileEarnCommentCandidates",
+    fn: reconcileEarnCommentCandidates,
     intervalSeconds: 3600,
     alignToInterval: true,
     alignmentGraceSeconds: 60,

@@ -39,6 +39,7 @@ zero-twinkle/
 | `runEchoNotifications` | 900s (15min, wall-clock aligned) | Checks on quarter-hour boundaries and only sends at the user's local `:00` |
 | `purgeExpiredPendingEchoSignups` | 3600s (1h, wall-clock aligned) | Deletes expired Echo pending signup rows in batches |
 | `reconcileExpiredEchoSubscriptions` | 3600s (1h, wall-clock aligned) | Cleans stale Echo paid subscription rows after the configured grace window |
+| `reconcileEarnCommentCandidates` | 3600s (1h, wall-clock aligned; works once nightly at `EARN_CANDIDATE_RECONCILE_UTC_HOUR`, default 19:00 UTC = 4am KST) | Full-backfill reconciliation of `earn_comment_candidates` (the /karma/recommend picker's candidate table): restores rows the twinkle-api write hooks missed (e.g. supermod demotions) and purges no-longer-eligible rows |
 
 ### Echo Notifications
 
