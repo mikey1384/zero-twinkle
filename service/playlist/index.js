@@ -261,7 +261,7 @@ async function tagVideosToPlaylist() {
 async function suggestTag(videoData) {
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-5.4-mini",
+      model: "gpt-5.6-luna",
       messages: [
         {
           role: "system",
