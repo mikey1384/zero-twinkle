@@ -79,6 +79,10 @@ bun run status
 
 ## Operational Notes
 
+Full update/verification runbook: `SERVER_AGENT_MAINTENANCE.md` (host access,
+standard update procedure, watchdog reinstall, expected file ownership/modes,
+alert semantics).
+
 ### Watchdog Deploy Safety
 
 - Production uses the installed root-owned watchdog script at `/usr/local/lib/zero-twinkle/watchdog-aizero.sh`, not just the repo copy.
