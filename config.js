@@ -1,12 +1,6 @@
 const GPT = "gpt-5.6-luna";
 
 module.exports = {
-  auth: {
-    headers: {
-      "User-Agent": "AI-Zero",
-      authorization: process.env.ZERO_TWINKLE_TOKEN,
-    },
-  },
   mailAuth: {
     type: "OAuth2",
     user: process.env.MAIL_USER,
