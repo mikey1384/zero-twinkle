@@ -12,6 +12,9 @@ function getTwinkleNewspaperRequestConfig() {
     headers: {
       "User-Agent": "AI-Zero",
       [ZERO_TWINKLE_TOKEN_HEADER]: token,
+      // Keep the previous API rollback target compatible during this
+      // cross-service transition. Request errors are sanitized below.
+      authorization: token,
     },
   };
 }

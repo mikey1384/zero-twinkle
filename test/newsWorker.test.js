@@ -5,7 +5,7 @@ const {
   getTwinkleNewspaperRequestConfig,
 } = require("../service/news");
 
-test("newspaper worker sends its secret only through the dedicated header", () => {
+test("newspaper worker supports current and previous API auth transports", () => {
   const originalToken = process.env.ZERO_TWINKLE_TOKEN;
   process.env.ZERO_TWINKLE_TOKEN = "worker-secret";
 
@@ -15,9 +15,13 @@ test("newspaper worker sends its secret only through the dedicated header", () =
       headers: {
         "User-Agent": "AI-Zero",
         "x-zero-twinkle-token": "worker-secret",
+        authorization: "worker-secret",
       },
     });
-    assert.equal(config.headers.authorization, undefined);
+    assert.equal(
+      config.headers.authorization,
+      config.headers["x-zero-twinkle-token"]
+    );
   } finally {
     if (originalToken === undefined) {
       delete process.env.ZERO_TWINKLE_TOKEN;
@@ -51,6 +55,7 @@ test("newspaper worker errors never retain Axios request headers", () => {
     config: {
       headers: {
         "x-zero-twinkle-token": exposedSecret,
+        authorization: exposedSecret,
       },
     },
     response: {
