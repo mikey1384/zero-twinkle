@@ -1,5 +1,6 @@
 const { tagVideosToPlaylist, setPlaylistRewardLevel } = require("./playlist");
 const { checkAndTriggerRewardCard } = require("./reward");
+const { processTwinkleNewspaper } = require("./news");
 const { syncChessPuzzles } = require("./chess");
 const { updateWordMasterRankings } = require("./leaderboards/wordMaster");
 const { rebuildAiStoryChapterStats } = require("./aiStories/chapterStats");
@@ -16,6 +17,7 @@ module.exports = {
   tagVideosToPlaylist,
   setPlaylistRewardLevel,
   checkAndTriggerRewardCard,
+  processTwinkleNewspaper,
   syncChessPuzzles,
   updateWordMasterRankings,
   rebuildAiStoryChapterStats,
