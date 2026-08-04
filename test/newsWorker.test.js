@@ -12,6 +12,9 @@ test("newspaper worker supports current and previous API auth transports", () =>
   try {
     const config = getTwinkleNewspaperRequestConfig();
     assert.deepEqual(config, {
+      timeout: 300000,
+      maxBodyLength: 16384,
+      maxContentLength: 1048576,
       headers: {
         "User-Agent": "AI-Zero",
         "x-zero-twinkle-token": "worker-secret",
@@ -20,7 +23,7 @@ test("newspaper worker supports current and previous API auth transports", () =>
     });
     assert.equal(
       config.headers.authorization,
-      config.headers["x-zero-twinkle-token"]
+      config.headers["x-zero-twinkle-token"],
     );
   } finally {
     if (originalToken === undefined) {
@@ -38,7 +41,7 @@ test("newspaper worker fails before requesting when its token is missing", () =>
   try {
     assert.throws(
       () => getTwinkleNewspaperRequestConfig(),
-      /ZERO_TWINKLE_TOKEN is not configured/
+      /ZERO_TWINKLE_TOKEN is not configured/,
     );
   } finally {
     if (originalToken !== undefined) {
@@ -66,7 +69,7 @@ test("newspaper worker errors never retain Axios request headers", () => {
 
   assert.equal(
     error.message,
-    "Twinkle newspaper worker request failed: HTTP 401 - Unauthorized"
+    "Twinkle newspaper worker request failed: HTTP 401 - Unauthorized",
   );
   assert.equal(error.message.includes(exposedSecret), false);
   assert.equal(Object.hasOwn(error, "config"), false);

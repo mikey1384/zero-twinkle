@@ -1,4 +1,7 @@
 const { poolQuery } = require("../helpers");
+const {
+  rotatePersistentStagingTable,
+} = require("../helpers/tableRotation");
 
 // Chapter-grain rollup of the AI Story library index. Rebuilt wholesale so it
 // can never drift and so the heavy GROUP BY over ai_stories (with the
@@ -51,15 +54,14 @@ async function rebuildAiStoryChapterStats() {
     // read pool (no fromWriter) so quiet ticks never touch the writer at all;
     // a lagged replica read can only under-claim, which causes an extra
     // rebuild next tick, never a skipped change.
-    const [
-      { eligibleCount = 0, maxEligibleId = 0, eligibleIdsHash = 0 } = {},
-    ] = await poolQuery(
-      `SELECT COUNT(*) AS eligibleCount,
+    const [{ eligibleCount = 0, maxEligibleId = 0, eligibleIdsHash = 0 } = {}] =
+      await poolQuery(
+        `SELECT COUNT(*) AS eligibleCount,
               COALESCE(MAX(s.id), 0) AS maxEligibleId,
               COALESCE(BIT_XOR(CRC32(s.id)), 0) AS eligibleIdsHash
        FROM ai_stories s
-       WHERE s.isChapterEligible = 1`
-    );
+       WHERE s.isChapterEligible = 1`,
+      );
 
     if (
       lastRebuildSnapshot &&
@@ -68,9 +70,7 @@ async function rebuildAiStoryChapterStats() {
       Number(lastRebuildSnapshot.eligibleIdsHash) === Number(eligibleIdsHash) &&
       startedAt - lastRebuildSnapshot.rebuiltAtMs < FORCE_REBUILD_INTERVAL_MS
     ) {
-      console.log(
-        "⏭️  AI Story chapter stats unchanged, skipping rebuild"
-      );
+      console.log("⏭️  AI Story chapter stats unchanged, skipping rebuild");
       return;
     }
 
@@ -111,18 +111,15 @@ async function rebuildAiStoryChapterStats() {
          AND s.topicKey IS NOT NULL AND s.topicKey != ''
        GROUP BY COALESCE(s.storyBy, ''), s.difficulty, s.type, s.topicKey`,
       [builtAt],
-      true
+      true,
     );
 
-    // Atomic 3-way swap: live <-> next, keeping both persistent tables (TMP is
-    // only a transient rename slot). DROP IF EXISTS guards a crashed prior swap;
-    // it only ever touches the ephemeral TMP name, never a provisioned table.
-    await poolQuery(`DROP TABLE IF EXISTS ${TMP_TABLE}`, null, true);
-    await poolQuery(
-      `RENAME TABLE ${TABLE} TO ${TMP_TABLE}, ${NEXT_TABLE} TO ${TABLE}, ${TMP_TABLE} TO ${NEXT_TABLE}`,
-      null,
-      true
-    );
+    await rotatePersistentStagingTable({
+      query: poolQuery,
+      liveTable: TABLE,
+      stagingTable: NEXT_TABLE,
+      swapTable: TMP_TABLE,
+    });
 
     lastRebuildSnapshot = {
       eligibleCount,
@@ -134,16 +131,17 @@ async function rebuildAiStoryChapterStats() {
     const [{ chapterCount = 0 } = {}] = await poolQuery(
       `SELECT COUNT(*) AS chapterCount FROM ${TABLE}`,
       null,
-      true
+      true,
     );
     console.log(
       `✅ AI Story chapter stats rebuilt (${chapterCount} chapters) in ${(
         (Date.now() - startedAt) /
         1000
-      ).toFixed(1)}s`
+      ).toFixed(1)}s`,
     );
   } catch (error) {
     console.error("❌ Failed to rebuild AI Story chapter stats:", error);
+    throw error;
   } finally {
     isRunning = false;
   }

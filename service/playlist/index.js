@@ -3,12 +3,24 @@ const { sendEmailReport, sendEmailReportForPLRewardLevel } = require("./model");
 const config = require("../../config");
 const { GPT } = config;
 const OpenAI = require("openai");
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const {
+  OPENAI_INPUT_MAX_CHARS,
+  OPENAI_OUTPUT_MAX_CHARS,
+  boundText,
+  getPlaylistOpenAiClientOptions,
+  parsePlaylistRewardResult,
+  parseVideoTags,
+} = require("./policy");
+const {
+  completePlaylistTagging,
+  deliverReportBestEffort,
+  loadNextPlaylistTaggingCandidate,
+} = require("./progress");
+const openai = new OpenAI(
+  getPlaylistOpenAiClientOptions(process.env.OPENAI_API_KEY),
+);
 
 const userId = Number(process.env.ZERO_TWINKLE_ID);
-let lastVideoId = 0;
 
 async function setPlaylistRewardLevel() {
   try {
@@ -34,13 +46,17 @@ async function setPlaylistRewardLevel() {
       videoTitles = videos.map(({ title }) => title);
       videoChannelNames = videos.map(({ ytChannelName }) => ytChannelName);
     }
-    const playlistData = JSON.stringify({
-      "Playlist Title": title,
-      "Video Titles": videoTitles,
-      "Video Channel Names": videoChannelNames,
-    });
+    const playlistData = boundText(
+      JSON.stringify({
+        "Playlist Title": title,
+        "Video Titles": videoTitles,
+        "Video Channel Names": videoChannelNames,
+      }),
+      OPENAI_INPUT_MAX_CHARS,
+    );
     const response = await openai.chat.completions.create({
       model: GPT,
+      max_completion_tokens: 300,
       messages: [
         {
           role: "system",
@@ -53,65 +69,62 @@ async function setPlaylistRewardLevel() {
         },
       ],
     });
-    const ResultingJSON = response.choices
+    const resultingJson = response.choices
       .map(({ message: { content = "" } }) => content.trim())
-      .join(" ");
-    const result = JSON.parse(
-      (ResultingJSON || "").replace("```json", "").replace("```", ""),
-    );
-    const rewardLevel = result.digit;
+      .join(" ")
+      .slice(0, OPENAI_OUTPUT_MAX_CHARS);
+    const result = parsePlaylistRewardResult(resultingJson);
     await poolQuery(`UPDATE vq_playlists SET rewardLevel = ? WHERE id = ?`, [
-      rewardLevel,
+      result.rewardLevel,
       id,
     ]);
-    sendEmailReportForPLRewardLevel({
-      rewardLevel,
-      playlistId: id,
-      playlistTitle: title,
-      explanation: result.explanation,
+    await deliverReportBestEffort({
+      description: `playlist reward-level report for playlist ${id}`,
+      deliver: () =>
+        sendEmailReportForPLRewardLevel({
+          rewardLevel: result.rewardLevel,
+          playlistId: id,
+          playlistTitle: title,
+          explanation: result.explanation,
+        }),
     });
   } catch (error) {
-    console.error("An error occurred: ", error);
-    await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait for 5 seconds
-    await setPlaylistRewardLevel();
+    console.error("Failed to set playlist reward level:", error);
+    throw error;
   }
 }
 
 async function tagVideosToPlaylist() {
   try {
-    const [
-      {
-        content,
-        videoId,
-        ytTags,
-        rewardLevel: videoRewardLevel,
-        videoTitle,
-        ytChannelName,
-      } = {},
-    ] = await poolQuery(
-      `SELECT v.id AS videoId, v.ytTags, v.ytChannelName, v.rewardLevel, v.title AS videoTitle, v.content FROM vq_videos v LEFT JOIN vq_playlistvideos pv ON v.id = pv.videoId WHERE v.isDeleted = 0 AND pv.videoId IS NULL ORDER BY v.id DESC LIMIT 1`,
-    );
-    if (!ytTags || !videoId || videoId === lastVideoId) {
+    const {
+      content,
+      videoId,
+      ytTags,
+      rewardLevel: videoRewardLevel,
+      videoTitle,
+      ytChannelName,
+    } = (await loadNextPlaylistTaggingCandidate(poolQuery)) || {};
+    if (!videoId) {
       return;
     }
 
-    const tags = JSON.parse(ytTags);
+    const tags = parseVideoTags(ytTags);
     let playlists = [];
     let newPlaylistName = "";
 
     if (ytChannelName) {
       let [{ id: playlistId, title, rewardLevel } = {}] = await poolQuery(
-        `SELECT * FROM vq_playlists WHERE title = ?`,
+        `SELECT id, title, rewardLevel FROM vq_playlists WHERE title = ? LIMIT 1`,
         ytChannelName,
       );
       if (title) {
         playlists.push({ playlistId, title, rewardLevel });
       } else {
-        const rows = await poolQuery(
-          `SELECT * FROM vq_videos WHERE ytChannelName = ?`,
+        const [{ videoCount = 0 } = {}] = await poolQuery(
+          `SELECT COUNT(*) AS videoCount FROM vq_videos WHERE ytChannelName = ?`,
           ytChannelName,
         );
-        if (rows.length > 1) {
+        if (Number(videoCount) > 1) {
           const { insertId } = await poolQuery(
             `INSERT INTO vq_playlists SET ?`,
             {
@@ -120,14 +133,13 @@ async function tagVideosToPlaylist() {
               timeStamp: Math.floor(Date.now() / 1000),
             },
           );
-          for (let { id } of rows) {
-            if (id !== videoId) {
-              await poolQuery(`INSERT INTO vq_playlistvideos SET ?`, {
-                playlistId: insertId,
-                videoId: id,
-              });
-            }
-          }
+          await poolQuery(
+            `INSERT INTO vq_playlistvideos (playlistId, videoId)
+             SELECT ?, id
+             FROM vq_videos
+             WHERE ytChannelName = ? AND id <> ?`,
+            [insertId, ytChannelName, videoId],
+          );
           playlists.push({
             playlistId: insertId,
             title: ytChannelName.toLowerCase(),
@@ -147,7 +159,7 @@ async function tagVideosToPlaylist() {
         tag = "quiz";
       }
       const [{ id: playlistId, title, rewardLevel } = {}] = await poolQuery(
-        `SELECT * FROM vq_playlists WHERE title = ?`,
+        `SELECT id, title, rewardLevel FROM vq_playlists WHERE title = ? LIMIT 1`,
         tag,
       );
       if (title) {
@@ -180,12 +192,15 @@ async function tagVideosToPlaylist() {
     let playlistCreatedByZero = false;
     if (playlists.length === 0) {
       const suggestedTag = await suggestTag(
-        `Video Title: ${videoTitle}, Channel Name: ${ytChannelName}, Tags: ${ytTags}`,
+        boundText(
+          `Video Title: ${videoTitle}, Channel Name: ${ytChannelName}, Tags: ${ytTags}`,
+          OPENAI_INPUT_MAX_CHARS,
+        ),
       );
       if (suggestedTag) {
         suggestedByZero = true;
         const [{ id: playlistId, title, rewardLevel } = {}] = await poolQuery(
-          `SELECT * FROM vq_playlists WHERE title = ?`,
+          `SELECT id, title, rewardLevel FROM vq_playlists WHERE title = ? LIMIT 1`,
           suggestedTag,
         );
         if (title) {
@@ -210,13 +225,13 @@ async function tagVideosToPlaylist() {
       }
     }
 
-    const videosWithTheSameVideoCode = await poolQuery(
-      `SELECT * FROM vq_videos WHERE content = ?`,
+    const [{ matchingVideoCount = 0 } = {}] = await poolQuery(
+      `SELECT COUNT(*) AS matchingVideoCount FROM vq_videos WHERE content = ?`,
       content,
     );
 
     let appliedVideoRewardLevel = 0;
-    const isNewVideo = videosWithTheSameVideoCode.length < 2;
+    const isNewVideo = Number(matchingVideoCount) < 2;
 
     for (let { playlistId, rewardLevel } of playlists) {
       await poolQuery(`INSERT INTO vq_playlistvideos SET ?`, {
@@ -242,7 +257,7 @@ async function tagVideosToPlaylist() {
         videoId,
       ]);
     }
-    await sendEmailReport({
+    const report = {
       playlists,
       newRewardLevel: appliedVideoRewardLevel,
       newPlaylistName,
@@ -251,10 +266,17 @@ async function tagVideosToPlaylist() {
       ytTags,
       suggestedByZero,
       playlistCreatedByZero,
+    };
+    await completePlaylistTagging({
+      query: poolQuery,
+      videoId,
+      outcome: playlists.length > 0 ? "matched" : "unmatched",
+      report,
+      sendReport: sendEmailReport,
     });
-    lastVideoId = videoId;
   } catch (error) {
-    return console.error(error);
+    console.error("Failed to tag video to playlist:", error);
+    throw error;
   }
 }
 
@@ -262,6 +284,7 @@ async function suggestTag(videoData) {
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-5.6-luna",
+      max_completion_tokens: 64,
       messages: [
         {
           role: "system",
@@ -277,11 +300,14 @@ async function suggestTag(videoData) {
     const tag = response.choices
       .map(({ message: { content = "" } }) => content.trim())
       .join(" ");
-    return (tag || "").replace(/[".]/g, "");
+    return boundText(tag, 100).replace(/[".]/g, "");
   } catch (error) {
     console.error(`Error while processing video category: ${error}`);
     return "";
   }
 }
 
-module.exports = { tagVideosToPlaylist, setPlaylistRewardLevel };
+module.exports = {
+  tagVideosToPlaylist,
+  setPlaylistRewardLevel,
+};

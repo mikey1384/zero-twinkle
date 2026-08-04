@@ -1,13 +1,25 @@
 const { writePool, readPool } = require("../pool");
+const crypto = require("crypto");
+
+const DB_QUERY_TIMEOUT_MS = 10 * 60 * 1000;
+
+function describeQuery(query) {
+  const normalized = String(query || "")
+    .trim()
+    .replace(/\s+/g, " ");
+  return {
+    queryOperation: normalized.split(" ", 1)[0]?.toUpperCase() || "UNKNOWN",
+    queryFingerprint: crypto
+      .createHash("sha256")
+      .update(normalized)
+      .digest("hex")
+      .slice(0, 16),
+  };
+}
 
 async function poolQuery(query = "", params = null, fromWriter = false) {
   if (!query) {
-    reportError({
-      message: `poolQuery did not have a query. Params: ${JSON.stringify(
-        params
-      )}`,
-    });
-    return Promise.reject(new Error("Missing query"));
+    throw new Error("Missing query");
   }
 
   const retryCount = 3;
@@ -15,13 +27,17 @@ async function poolQuery(query = "", params = null, fromWriter = false) {
 
   const executeQuery = async (query, params, pool) => {
     return new Promise((resolve, reject) => {
-      pool.query(query, params, (err, results) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(results);
-        }
-      });
+      pool.query(
+        { sql: query, timeout: DB_QUERY_TIMEOUT_MS },
+        params,
+        (err, results) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(results);
+          }
+        },
+      );
     });
   };
 
@@ -39,12 +55,13 @@ async function poolQuery(query = "", params = null, fromWriter = false) {
     } catch (error) {
       console.error({
         message: "Database query error",
-        query,
-        params: JSON.stringify(params),
-        error,
-        errorMessage: error.message,
-        errorCode: error.code,
-        retryCount: 3 - retryCount,
+        ...describeQuery(query),
+        parameterCount: Array.isArray(params) ? params.length : params ? 1 : 0,
+        errorName: error?.name || "Error",
+        errorMessage: String(error?.message || error).slice(0, 300),
+        errorCode: error?.code || null,
+        failedAttempt: 4 - retryCount,
+        retriesRemaining: error?.code === "ER_LOCK_DEADLOCK" ? retryCount : 0,
       });
 
       if (error.code === "ER_LOCK_DEADLOCK" && retryCount > 0) {
@@ -71,6 +88,8 @@ function isImageFile(fileName) {
 }
 
 module.exports = {
+  DB_QUERY_TIMEOUT_MS,
+  describeQuery,
   isImageFile,
   poolQuery,
 };

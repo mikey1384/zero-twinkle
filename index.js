@@ -17,12 +17,13 @@ const {
 } = require("./service");
 
 const HEARTBEAT_FILE = path.resolve(
-  process.env.AIZERO_HEARTBEAT_FILE || "/tmp/aizero-heartbeat.json"
+  process.env.AIZERO_HEARTBEAT_FILE || "/tmp/aizero-heartbeat.json",
 );
 const HEARTBEAT_INTERVAL_SECONDS = Number(
-  process.env.AIZERO_HEARTBEAT_INTERVAL_SECONDS || 15
+  process.env.AIZERO_HEARTBEAT_INTERVAL_SECONDS || 15,
 );
 const EXIT_ON_FATAL = process.env.AIZERO_EXIT_ON_FATAL !== "0";
+const SHUTDOWN_DRAIN_TIMEOUT_MS = 30_000;
 const tasks = [
   {
     name: "tagVideosToPlaylist",
@@ -100,12 +101,13 @@ const taskState = new Map(
       lastErrorAt: null,
       lastErrorMessage: null,
     },
-  ])
+  ]),
 );
 // const chessPuzzleSyncInterval = 86400; // 24 hours
 
 //let syncing = false;
 let shuttingDown = false;
+const activeTaskPromises = new Set();
 
 function safeErrorMessage(error) {
   if (!error) return "unknown";
@@ -142,7 +144,10 @@ function writeHeartbeat(extra = {}) {
   try {
     fs.writeFileSync(HEARTBEAT_FILE, `${JSON.stringify(payload)}\n`);
   } catch (error) {
-    console.error("[heartbeat] failed to write heartbeat:", safeErrorMessage(error));
+    console.error(
+      "[heartbeat] failed to write heartbeat:",
+      safeErrorMessage(error),
+    );
   }
 }
 
@@ -185,7 +190,11 @@ async function runTask(task) {
 
 function scheduleTask(task) {
   const run = () => {
-    void runTask(task);
+    const taskPromise = runTask(task);
+    activeTaskPromises.add(taskPromise);
+    void taskPromise.finally(() => {
+      activeTaskPromises.delete(taskPromise);
+    });
   };
 
   if (task.alignToInterval) {
@@ -221,7 +230,7 @@ function scheduleTask(task) {
   global.twinkleIntervals.push(interval);
 }
 
-function shutdown(signal, code) {
+async function shutdown(signal, code) {
   if (shuttingDown) {
     return;
   }
@@ -229,7 +238,27 @@ function shutdown(signal, code) {
   shuttingDown = true;
   console.log(`[shutdown] received ${signal}, cleaning up intervals...`);
   global.twinkleIntervals.forEach(clearInterval);
-  writeHeartbeat({ shutdownSignal: signal });
+  writeHeartbeat({
+    shutdownSignal: signal,
+    activeTaskCount: activeTaskPromises.size,
+  });
+  let drainTimedOut = false;
+  if (activeTaskPromises.size > 0) {
+    await Promise.race([
+      Promise.allSettled([...activeTaskPromises]),
+      new Promise((resolve) => {
+        setTimeout(() => {
+          drainTimedOut = true;
+          resolve();
+        }, SHUTDOWN_DRAIN_TIMEOUT_MS);
+      }),
+    ]);
+  }
+  writeHeartbeat({
+    shutdownSignal: signal,
+    activeTaskCount: activeTaskPromises.size,
+    drainTimedOut,
+  });
   process.exit(code);
 }
 

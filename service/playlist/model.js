@@ -1,6 +1,20 @@
 const nodemailer = require("nodemailer");
 const config = require("../../config");
 const { mailAuth } = config;
+const SMTP_CONNECTION_TIMEOUT_MS = 15_000;
+const SMTP_SOCKET_TIMEOUT_MS = 30_000;
+
+function createSmtpTransport() {
+  return nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    auth: mailAuth,
+    connectionTimeout: SMTP_CONNECTION_TIMEOUT_MS,
+    greetingTimeout: SMTP_CONNECTION_TIMEOUT_MS,
+    socketTimeout: SMTP_SOCKET_TIMEOUT_MS,
+  });
+}
 
 async function sendEmailReportForPLRewardLevel({
   rewardLevel,
@@ -8,13 +22,7 @@ async function sendEmailReportForPLRewardLevel({
   playlistTitle,
   explanation,
 }) {
-  const smtpTransport = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
-    auth: mailAuth,
-  });
-  await smtpTransport.verify();
+  const smtpTransport = createSmtpTransport();
   const mailOptions = {
     from: "twinkle.notification@gmail.com",
     to: "mikey@twin-kle.com",
@@ -25,8 +33,11 @@ async function sendEmailReportForPLRewardLevel({
       <p>Explanation: ${explanation}</p>
       `,
   };
-  smtpTransport.sendMail(mailOptions);
-  return Promise.resolve();
+  try {
+    await smtpTransport.sendMail(mailOptions);
+  } finally {
+    smtpTransport.close();
+  }
 }
 
 async function sendEmailReport({
@@ -43,14 +54,7 @@ async function sendEmailReport({
     .map(({ playlistId, title }) => `${title} (${playlistId})`)
     .join(", ");
 
-  const smtpTransport = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
-    auth: mailAuth,
-  });
-
-  await smtpTransport.verify();
+  const smtpTransport = createSmtpTransport();
 
   const mailOptions = {
     from: "twinkle.notification@gmail.com",
@@ -96,8 +100,11 @@ async function sendEmailReport({
         }
       `,
   };
-  smtpTransport.sendMail(mailOptions);
-  return Promise.resolve();
+  try {
+    await smtpTransport.sendMail(mailOptions);
+  } finally {
+    smtpTransport.close();
+  }
 }
 
 module.exports = { sendEmailReport, sendEmailReportForPLRewardLevel };

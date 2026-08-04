@@ -1,6 +1,8 @@
 const axios = require("axios");
 
 const ZERO_TWINKLE_TOKEN_HEADER = "x-zero-twinkle-token";
+const NEWSPAPER_REQUEST_TIMEOUT_MS = 5 * 60 * 1000;
+const NEWSPAPER_RESPONSE_MAX_BYTES = 1024 * 1024;
 
 function getTwinkleNewspaperRequestConfig() {
   const token = process.env.ZERO_TWINKLE_TOKEN;
@@ -9,6 +11,9 @@ function getTwinkleNewspaperRequestConfig() {
   }
 
   return {
+    timeout: NEWSPAPER_REQUEST_TIMEOUT_MS,
+    maxBodyLength: 16 * 1024,
+    maxContentLength: NEWSPAPER_RESPONSE_MAX_BYTES,
     headers: {
       "User-Agent": "AI-Zero",
       [ZERO_TWINKLE_TOKEN_HEADER]: token,
@@ -37,7 +42,7 @@ function createTwinkleNewspaperRequestError(error) {
   return new Error(
     `Twinkle newspaper worker request failed${
       details.length ? `: ${details.join(" - ")}` : ""
-    }`
+    }`,
   );
 }
 
@@ -49,11 +54,7 @@ async function processTwinkleNewspaper() {
   const requestConfig = getTwinkleNewspaperRequestConfig();
 
   try {
-    await axios.post(
-      `${apiUrl}/zero/news/process`,
-      null,
-      requestConfig
-    );
+    await axios.post(`${apiUrl}/zero/news/process`, null, requestConfig);
   } catch (error) {
     throw createTwinkleNewspaperRequestError(error);
   }

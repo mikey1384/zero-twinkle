@@ -11,6 +11,9 @@ const fetch = require("node-fetch");
 
 // Expo Push Notification endpoint
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
+const EXTERNAL_REQUEST_TIMEOUT_MS = 15_000;
+const EXTERNAL_RESPONSE_MAX_BYTES = 1024 * 1024;
+const EXPO_REQUEST_MAX_BYTES = 512 * 1024;
 
 // Day resets at 7 AM local time
 const DAY_RESET_HOUR = 7;
@@ -147,6 +150,8 @@ async function fetchRevenueCatSubscriptions(userId) {
         Authorization: `Bearer ${REVENUECAT_SECRET_KEY}`,
         "Content-Type": "application/json",
       },
+      timeout: EXTERNAL_REQUEST_TIMEOUT_MS,
+      size: EXTERNAL_RESPONSE_MAX_BYTES,
     });
 
     if (response.status === 404) {
@@ -159,7 +164,14 @@ async function fetchRevenueCatSubscriptions(userId) {
 
     const data = await response.json();
     if (Array.isArray(data?.items)) {
-      subscriptions.push(...data.items);
+      subscriptions.push(
+        ...data.items.map((subscription) => ({
+          gives_access: subscription?.gives_access,
+          ends_at: subscription?.ends_at,
+          current_period_ends_at: subscription?.current_period_ends_at,
+          auto_renewal_status: subscription?.auto_renewal_status,
+        })),
+      );
     }
 
     const nextPage =
@@ -211,6 +223,23 @@ function getUserPreviousDate(timezone) {
   }
 }
 
+function getUserLocalDateForTimestamp(timezone, timestampSeconds) {
+  try {
+    let dt = DateTime.fromSeconds(timestampSeconds).setZone(timezone);
+    if (!dt.isValid) throw new Error("Invalid timezone");
+    if (dt.hour < DAY_RESET_HOUR) {
+      dt = dt.minus({ days: 1 });
+    }
+    return dt.toFormat("yyyy-MM-dd");
+  } catch {
+    let utc = DateTime.fromSeconds(timestampSeconds).toUTC();
+    if (utc.hour < DAY_RESET_HOUR) {
+      utc = utc.minus({ days: 1 });
+    }
+    return utc.toFormat("yyyy-MM-dd");
+  }
+}
+
 function getCurrentTimePartsInTimezone(timezone) {
   try {
     const dt = DateTime.now().setZone(timezone);
@@ -239,6 +268,10 @@ async function sendExpoPushNotifications(messages) {
 
   for (const batch of batches) {
     try {
+      const requestBody = JSON.stringify(batch);
+      if (Buffer.byteLength(requestBody, "utf8") > EXPO_REQUEST_MAX_BYTES) {
+        throw new Error("Expo push request exceeded the size limit");
+      }
       const response = await fetch(EXPO_PUSH_URL, {
         method: "POST",
         headers: {
@@ -246,11 +279,19 @@ async function sendExpoPushNotifications(messages) {
           "Accept-Encoding": "gzip, deflate",
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(batch),
+        body: requestBody,
+        timeout: EXTERNAL_REQUEST_TIMEOUT_MS,
+        size: EXTERNAL_RESPONSE_MAX_BYTES,
       });
 
+      if (!response.ok) {
+        throw new Error(`Expo push API error: ${response.status}`);
+      }
       const result = await response.json();
-      tickets.push(...(result.data || []));
+      if (!Array.isArray(result?.data) || result.data.length !== batch.length) {
+        throw new Error("Expo push returned an invalid ticket list");
+      }
+      tickets.push(...result.data);
     } catch (error) {
       console.error("[Echo] Expo push error:", error);
       // Add error tickets for this batch
@@ -281,14 +322,12 @@ async function getUsersForDailyReminder() {
       COALESCE(s.currentStreak, 0) as currentStreak,
       s.lastLocalDate
     FROM echo_users u
-    INNER JOIN echo_push_tokens pt ON pt.userId = u.id
     LEFT JOIN echo_streaks s ON s.userId = u.id
     WHERE u.notificationsEnabled = 1
       AND u.dailyReminderEnabled = 1
   `);
 
-  const result = [];
-
+  const dueUsers = [];
   for (const user of users) {
     const timezone = user.timezone || "UTC";
 
@@ -311,34 +350,33 @@ async function getUsersForDailyReminder() {
       continue;
     }
 
-    // Check if user has already responded today (in their timezone)
-    const [todayResponse] = await poolQuery(
-      `SELECT r.id FROM echo_questions q
-       JOIN echo_responses r ON r.questionId = q.id AND r.grade != 'Fail'
-       WHERE q.userId = ? AND q.localDate = ?`,
-      [user.userId, localDate],
+    dueUsers.push({ ...user, timezone, localDate });
+  }
+
+  const dueUserIds = dueUsers.map((user) => Number(user.userId));
+  const [latestSuccessfulAtByUserId, tokensByUserId] = await Promise.all([
+    loadLatestSuccessfulEchoResponseAtByUserId(dueUserIds),
+    loadEchoPushTokensByUserId(dueUserIds),
+  ]);
+  const result = [];
+  for (const user of dueUsers) {
+    const lastSuccessfulAt = latestSuccessfulAtByUserId.get(
+      Number(user.userId),
     );
-
-    if (todayResponse) {
-      // Already responded today, skip
-      continue;
-    }
-
-    const tokens = await poolQuery(
-      `SELECT token FROM echo_push_tokens WHERE userId = ?`,
-      [user.userId],
-    );
-
-    if (tokens.length > 0) {
-      result.push({
-        userId: user.userId,
-        tokens: tokens.map((t) => t.token),
-        currentStreak: user.currentStreak || 0,
-        lastLocalDate: user.lastLocalDate || null,
-        timezone,
-        localDate,
-      });
-    }
+    const lastSuccessfulLocalDate = lastSuccessfulAt
+      ? getUserLocalDateForTimestamp(user.timezone, lastSuccessfulAt)
+      : null;
+    if (lastSuccessfulLocalDate === user.localDate) continue;
+    const tokens = tokensByUserId.get(Number(user.userId)) || [];
+    if (tokens.length === 0) continue;
+    result.push({
+      userId: user.userId,
+      tokens,
+      currentStreak: user.currentStreak || 0,
+      lastLocalDate: lastSuccessfulLocalDate,
+      timezone: user.timezone,
+      localDate: user.localDate,
+    });
   }
 
   return result;
@@ -359,14 +397,12 @@ async function getUsersWithStreakAtRisk() {
       s.currentStreak,
       s.lastLocalDate
     FROM echo_users u
-    INNER JOIN echo_push_tokens pt ON pt.userId = u.id
     INNER JOIN echo_streaks s ON s.userId = u.id AND s.currentStreak > 0
     WHERE u.notificationsEnabled = 1
       AND u.streakReminderEnabled = 1
   `);
 
-  const result = [];
-
+  const dueUsers = [];
   for (const user of users) {
     const timezone = user.timezone || "UTC";
 
@@ -381,48 +417,80 @@ async function getUsersWithStreakAtRisk() {
     const localDate = getUserLocalDate(timezone);
     const yesterday = getUserPreviousDate(timezone);
 
-    // Skip if streak is already broken (lastLocalDate is not yesterday)
-    // If the user's last response was before yesterday, their streak is gone
-    // and we shouldn't send a misleading "Don't lose your streak!" notification
-    if (user.lastLocalDate !== yesterday) {
-      continue;
-    }
-
     // Skip if we already sent a streak reminder for this date
     if (user.lastStreakReminderDate === localDate) {
       continue;
     }
 
-    // Check if user has already responded today (in their timezone)
-    const [todayResponse] = await poolQuery(
-      `SELECT r.id FROM echo_questions q
-       JOIN echo_responses r ON r.questionId = q.id AND r.grade != 'Fail'
-       WHERE q.userId = ? AND q.localDate = ?`,
-      [user.userId, localDate],
+    dueUsers.push({ ...user, timezone, localDate, yesterday });
+  }
+
+  const dueUserIds = dueUsers.map((user) => Number(user.userId));
+  const [latestSuccessfulAtByUserId, tokensByUserId] = await Promise.all([
+    loadLatestSuccessfulEchoResponseAtByUserId(dueUserIds),
+    loadEchoPushTokensByUserId(dueUserIds),
+  ]);
+  const result = [];
+  for (const user of dueUsers) {
+    const lastSuccessfulAt = latestSuccessfulAtByUserId.get(
+      Number(user.userId),
     );
-
-    if (todayResponse) {
-      // Already responded today, streak is safe
-      continue;
-    }
-
-    const tokens = await poolQuery(
-      `SELECT token FROM echo_push_tokens WHERE userId = ?`,
-      [user.userId],
-    );
-
-    if (tokens.length > 0) {
-      result.push({
-        userId: user.userId,
-        tokens: tokens.map((t) => t.token),
-        currentStreak: user.currentStreak,
-        timezone,
-        localDate,
-      });
-    }
+    const lastSuccessfulLocalDate = lastSuccessfulAt
+      ? getUserLocalDateForTimestamp(user.timezone, lastSuccessfulAt)
+      : null;
+    if (lastSuccessfulLocalDate !== user.yesterday) continue;
+    const tokens = tokensByUserId.get(Number(user.userId)) || [];
+    if (tokens.length === 0) continue;
+    result.push({
+      userId: user.userId,
+      tokens,
+      currentStreak: user.currentStreak,
+      timezone: user.timezone,
+      localDate: user.localDate,
+    });
   }
 
   return result;
+}
+
+async function loadLatestSuccessfulEchoResponseAtByUserId(userIds) {
+  const normalizedUserIds = Array.from(
+    new Set(userIds.filter((userId) => Number.isInteger(userId) && userId > 0)),
+  );
+  if (normalizedUserIds.length === 0) return new Map();
+  const rows = await poolQuery(
+    `SELECT userId, MAX(submittedAt) AS submittedAt
+     FROM echo_responses
+     WHERE userId IN (?) AND grade != 'Fail'
+     GROUP BY userId`,
+    [normalizedUserIds],
+  );
+  return new Map(
+    rows.map((row) => [Number(row.userId), Number(row.submittedAt || 0)]),
+  );
+}
+
+async function loadEchoPushTokensByUserId(userIds) {
+  const normalizedUserIds = Array.from(
+    new Set(userIds.filter((userId) => Number.isInteger(userId) && userId > 0)),
+  );
+  if (normalizedUserIds.length === 0) return new Map();
+  const rows = await poolQuery(
+    `SELECT userId, token
+     FROM echo_push_tokens
+     WHERE userId IN (?)`,
+    [normalizedUserIds],
+  );
+  const tokensByUserId = new Map();
+  for (const row of rows) {
+    const userId = Number(row.userId);
+    const token = String(row.token || "").trim();
+    if (!userId || !token) continue;
+    const tokens = tokensByUserId.get(userId) || [];
+    tokens.push(token);
+    tokensByUserId.set(userId, tokens);
+  }
+  return tokensByUserId;
 }
 
 // ===================================
@@ -614,6 +682,7 @@ async function runEchoNotifications() {
     }
   } catch (error) {
     console.error("[Echo] Notification scheduler error:", error);
+    throw error;
   }
 }
 
@@ -805,8 +874,7 @@ async function selectEchoRenewalStatusReconcileBatch(now) {
     cutoff,
     ECHO_RENEWAL_STATUS_RECONCILE_BATCH_SIZE,
   );
-  const remaining =
-    ECHO_RENEWAL_STATUS_RECONCILE_BATCH_SIZE - graceRows.length;
+  const remaining = ECHO_RENEWAL_STATUS_RECONCILE_BATCH_SIZE - graceRows.length;
   const activeRows = await selectEchoRenewalStatusActiveBatch(now, remaining);
   return [...graceRows, ...activeRows];
 }
