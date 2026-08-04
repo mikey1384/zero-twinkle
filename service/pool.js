@@ -6,6 +6,11 @@ const mysqlReaderHost =
   process.env.MYSQL_HOST_READER ||
   mysqlHost;
 const mysqlUser = process.env.MYSQL_USER_PROXY || process.env.MYSQL_USER;
+const mysqlSslProfile = (
+  process.env.MYSQL_SSL_PROFILE ||
+  (process.env.NODE_ENV === "production" ? "Amazon RDS" : "")
+).trim();
+const mysqlSsl = mysqlSslProfile || undefined;
 
 // Optimized pool settings to prevent memory bloat during ETL operations
 const writePool = mysql.createPool({
@@ -15,6 +20,7 @@ const writePool = mysql.createPool({
   user: mysqlUser,
   password: process.env.MYSQL_PASSWORD,
   database: process.env.MYSQL_DATABASE,
+  ssl: mysqlSsl,
   supportBigNumbers: true,
   bigNumberStrings: true,
   charset: "utf8mb4",
@@ -28,6 +34,7 @@ const readPool = mysql.createPool({
   user: mysqlUser,
   password: process.env.MYSQL_PASSWORD,
   database: process.env.MYSQL_DATABASE,
+  ssl: mysqlSsl,
   supportBigNumbers: true,
   bigNumberStrings: true,
   charset: "utf8mb4",
