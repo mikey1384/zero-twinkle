@@ -53,11 +53,8 @@ test("persistent table rotation rejects unsafe or overlapping table names before
   assert.equal(queryAttempted, false);
 });
 
-test("all recurring rollup workers use the shared rotation and perform no runtime schema create or drop", () => {
-  for (const relativePath of [
-    "service/leaderboards/wordMaster.js",
-    "service/aiStories/chapterStats.js",
-  ]) {
+test("wholesale recurring rollup workers use the shared rotation and perform no runtime schema create or drop", () => {
+  for (const relativePath of ["service/leaderboards/wordMaster.js"]) {
     const source = readFileSync(
       path.resolve(__dirname, "..", relativePath),
       "utf8",
@@ -65,4 +62,18 @@ test("all recurring rollup workers use the shared rotation and perform no runtim
     assert.match(source, /rotatePersistentStagingTable\(\{/);
     assert.doesNotMatch(source, /\b(?:CREATE|DROP|ALTER)\s+TABLE\b/i);
   }
+});
+
+test("AI Story chapter maintenance is event-driven and owns no runtime schema", () => {
+  const source = readFileSync(
+    path.resolve(
+      __dirname,
+      "..",
+      "service/aiStories/chapterStats.js",
+    ),
+    "utf8",
+  );
+  assert.match(source, /ai_story_chapter_dirty_events/);
+  assert.doesNotMatch(source, /rotatePersistentStagingTable|TRUNCATE|RENAME TABLE/i);
+  assert.doesNotMatch(source, /\b(?:CREATE|DROP|ALTER)\s+TABLE\b/i);
 });

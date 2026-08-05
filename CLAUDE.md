@@ -35,7 +35,7 @@ zero-twinkle/
 | `setPlaylistRewardLevel` | 60s | Sets reward levels for playlists |
 | `checkAndTriggerRewardCard` | 30s | Checks and triggers vocabulary reward cards |
 | `updateWordMasterRankings` | 900s (15min) | Updates Word Master leaderboard rankings |
-| `rebuildAiStoryChapterStats` | 1800s (30min, wall-clock aligned) | Rebuilds the AI Story chapter rollup; skips the heavy scan when a precheck shows no eligible story changed (forced through at least every 6h) |
+| `refreshAiStoryChapterStats` | 30s (wall-clock aligned) | Drains bounded live-first dirty-group event batches and recomputes only affected AI Story chapter rollup rows from canonical `ai_stories` data |
 | `runEchoNotifications` | 900s (15min, wall-clock aligned) | Checks on quarter-hour boundaries and only sends at the user's local `:00` |
 | `purgeExpiredPendingEchoSignups` | 3600s (1h, wall-clock aligned) | Deletes expired Echo pending signup rows in batches |
 | `reconcileExpiredEchoSubscriptions` | 3600s (1h, wall-clock aligned) | Cleans stale Echo paid subscription rows after the configured grace window |

@@ -3,7 +3,7 @@ const { checkAndTriggerRewardCard } = require("./reward");
 const { processTwinkleNewspaper } = require("./news");
 const { syncChessPuzzles } = require("./chess");
 const { updateWordMasterRankings } = require("./leaderboards/wordMaster");
-const { rebuildAiStoryChapterStats } = require("./aiStories/chapterStats");
+const { refreshAiStoryChapterStats } = require("./aiStories/chapterStats");
 const { reconcileEarnCommentCandidates } = require("./earnCandidates");
 const {
   runEchoNotifications,
@@ -20,7 +20,7 @@ module.exports = {
   processTwinkleNewspaper,
   syncChessPuzzles,
   updateWordMasterRankings,
-  rebuildAiStoryChapterStats,
+  refreshAiStoryChapterStats,
   reconcileEarnCommentCandidates,
   runEchoNotifications,
   purgeExpiredPendingEchoSignups,
