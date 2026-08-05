@@ -22,11 +22,17 @@ test("dirty-group refresh uses the indexed source group and exact canonical aggr
     /FORCE INDEX \(idx_ai_stories_deleted_storyby_difficulty_type_topic\)/,
   );
   assert.match(upsertSql, /s\.story IS NOT NULL AND s\.story != ''/);
+  assert.match(upsertSql, /s\.type IS NOT NULL AND s\.type != ''/);
+  assert.match(upsertSql, /s\.topicKey IS NOT NULL AND s\.topicKey != ''/);
   assert.match(upsertSql, /SUM\(CASE WHEN s\.isListening = 1/);
   assert.match(upsertSql, /s\.imagePath IS NOT NULL/);
   assert.match(upsertSql, /s\.questions IS NOT NULL/);
   assert.match(upsertSql, /ON DUPLICATE KEY UPDATE/);
   assert.match(deleteSql, /LEFT JOIN ai_stories/);
+  assert.match(deleteSql, /s\.type IS NOT NULL/);
+  assert.match(deleteSql, /s\.type != ''/);
+  assert.match(deleteSql, /s\.topicKey IS NOT NULL/);
+  assert.match(deleteSql, /s\.topicKey != ''/);
   assert.match(deleteSql, /WHERE s\.id IS NULL/);
   assert.match(deleteSql, /cs\.topicKey = d\.topicKey/);
   assert.doesNotMatch(deleteSql, /COLLATE/);

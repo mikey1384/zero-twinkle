@@ -56,6 +56,8 @@ function buildUpsertSql({ bootstrap, includeUnauthored }) {
            AND s.type = d.type
            AND s.topicKey = d.topicKey
           WHERE s.story IS NOT NULL AND s.story != ''
+            AND s.type IS NOT NULL AND s.type != ''
+            AND s.topicKey IS NOT NULL AND s.topicKey != ''
           GROUP BY d.storyBy, d.difficulty, d.type, d.topicKey
           ON DUPLICATE KEY UPDATE
             sampleTopic = VALUES(sampleTopic),
@@ -89,6 +91,10 @@ function buildDeleteEmptySql({ bootstrap, includeUnauthored }) {
            AND s.topicKey = d.topicKey
            AND s.story IS NOT NULL
            AND s.story != ''
+           AND s.type IS NOT NULL
+           AND s.type != ''
+           AND s.topicKey IS NOT NULL
+           AND s.topicKey != ''
           WHERE s.id IS NULL`;
 }
 
