@@ -20,7 +20,7 @@ const { poolQuery } = require("../helpers");
 // Literals:
 //   length thresholds 700/450/250/100 = expectedResponseLength(5/4/3/default)
 //   achievementPoints >= 1000         = levels[TEACHER_LEVEL].ap
-//   authLevel > 10                    = supermod bar
+//   authLevel + 1 >= TEACHER_LEVEL    = assigned Teacher Level bar
 //   reward caps 50/40/30/20/10 (ELSE 5) = per-rewardLevel totalRewards caps
 // The tables are provisioned by the add-earn-comment-candidates and
 // add-earn-reward-candidates migrations; this task never creates schema.
@@ -29,6 +29,7 @@ const { poolQuery } = require("../helpers");
 // not, hence the documented fallback.
 const ZERO_TWINKLE_ID = Number(process.env.ZERO_TWINKLE_ID || 7587);
 const CIEL_TWINKLE_ID = Number(process.env.CIEL_TWINKLE_ID || 8411);
+const TEACHER_LEVEL = 5;
 const REQUIRED_AP_FOR_SUPERMOD = 1000;
 
 // Full-scan work runs once a day at this UTC hour (19:00 UTC = 4am KST,
@@ -67,7 +68,8 @@ const ELIGIBILITY_SQL = `
         WHERE cr.rootType = 'comment'
           AND cr.isDeleted = 0
           AND cr.rootId = b.id
-          AND (COALESCE(ut.authLevel, 0) > 10 OR u.achievementPoints >= ?)
+          AND (COALESCE(ut.authLevel, 0) + 1 >= ${TEACHER_LEVEL}
+               OR u.achievementPoints >= ?)
       )
       AND NOT EXISTS (
         SELECT 1
@@ -76,7 +78,8 @@ const ELIGIBILITY_SQL = `
         LEFT JOIN users_types ut2 ON ut2.label = u2.userType
         WHERE s.contentType = 'comment'
           AND s.contentId = b.id
-          AND (COALESCE(ut2.authLevel, 0) > 10 OR u2.achievementPoints >= ?)
+          AND (COALESCE(ut2.authLevel, 0) + 1 >= ${TEACHER_LEVEL}
+               OR u2.achievementPoints >= ?)
       )`;
 
 function eligibilityParams() {
