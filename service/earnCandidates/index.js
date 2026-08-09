@@ -11,8 +11,9 @@ const { poolQuery } = require("../helpers");
 // recommendations/skips had disqualified eligible again, with no hook firing.
 // A missing row means the picker never serves that item, so this task re-runs
 // the full backfills (INSERT IGNORE) to restore any missing rows, and purges
-// rows that are no longer eligible so the pickers' scans stay shallow. All
-// statements are idempotent and re-evaluate eligibility at execution time,
+// rows that are no longer eligible so the pickers' scans stay shallow. Reward
+// upserts also refresh the teacher-eligibility selection hint. All statements
+// are idempotent and re-evaluate eligibility at execution time,
 // so overlapping with the API's per-comment syncs is safe.
 //
 // The eligibility rules below MUST mirror the canonical copies in
@@ -31,6 +32,7 @@ const ZERO_TWINKLE_ID = Number(process.env.ZERO_TWINKLE_ID || 7587);
 const CIEL_TWINKLE_ID = Number(process.env.CIEL_TWINKLE_ID || 8411);
 const TEACHER_LEVEL = 5;
 const REQUIRED_AP_FOR_SUPERMOD = 1000;
+const REWARD_TEACHER_ELIGIBILITY_SQL = `COALESCE((r.rewardDisabled = '0' AND (COALESCE(ut.authLevel, 0) + 1 >= ${TEACHER_LEVEL} OR COALESCE(u.achievementPoints, 0) >= ${REQUIRED_AP_FOR_SUPERMOD})), 0)`;
 
 // Full-scan work runs once a day at this UTC hour (19:00 UTC = 4am KST,
 // off-peak for the user base). The scheduler ticks hourly; other hours no-op.
@@ -98,6 +100,8 @@ const REWARD_ELIGIBILITY_SQL = `
     FROM content_recommendations r
     JOIN content_comments b ON b.id = r.rootId
     JOIN content_subjects c ON c.id = b.subjectId
+    JOIN users u ON u.id = r.userId
+    LEFT JOIN users_types ut ON ut.label = u.userType
     WHERE r.rootType = 'comment'
       AND r.isDeleted = 0
       AND b.isDeleted = 0
@@ -157,9 +161,19 @@ async function reconcileEarnCommentCandidates() {
   const purgedCount = Number(deleteResult?.affectedRows || 0);
 
   const rewardInsertResult = await poolQuery(
-    `INSERT IGNORE INTO earn_reward_candidates (recommendationId, commentId, subjectId, timeStamp)
-     SELECT r.id, b.id, b.subjectId, UNIX_TIMESTAMP()
-     ${REWARD_ELIGIBILITY_SQL}`,
+    `INSERT INTO earn_reward_candidates
+       (recommendationId, commentId, subjectId, timeStamp, teacherEligible)
+     SELECT
+       r.id,
+       b.id,
+       b.subjectId,
+       UNIX_TIMESTAMP(),
+       ${REWARD_TEACHER_ELIGIBILITY_SQL}
+     ${REWARD_ELIGIBILITY_SQL}
+     ON DUPLICATE KEY UPDATE
+       commentId = VALUES(commentId),
+       subjectId = VALUES(subjectId),
+       teacherEligible = VALUES(teacherEligible)`,
     rewardEligibilityParams()
   );
   const rewardRestoredCount = Number(rewardInsertResult?.affectedRows || 0);

@@ -111,7 +111,7 @@ test("playlist progress survives report failures and worker restarts", async () 
   );
   assert.match(
     model.selectionReads[0].normalized,
-    /LEFT JOIN vq_playlist_tagging_outcomes outcome ON v\.id = outcome\.videoId AND outcome\.outcome = 'unmatched'/,
+    /NOT EXISTS \( SELECT 1 FROM vq_playlist_tagging_outcomes outcome WHERE outcome\.videoId = v\.id AND outcome\.outcome = 'unmatched'/,
   );
 });
 
@@ -148,6 +148,14 @@ test("matched playlist progress also advances independently of reporting", async
   assert.match(
     SELECT_NEXT_PLAYLIST_TAGGING_CANDIDATE,
     /v\.ytTags IS NOT NULL[\s\S]*v\.ytTags <> ''/,
+  );
+  assert.match(
+    SELECT_NEXT_PLAYLIST_TAGGING_CANDIDATE,
+    /FORCE INDEX \(idx_vq_videos_deleted_id\)/,
+  );
+  assert.match(
+    SELECT_NEXT_PLAYLIST_TAGGING_CANDIDATE,
+    /NOT EXISTS \([\s\S]*vq_playlistvideos[\s\S]*NOT EXISTS \([\s\S]*vq_playlist_tagging_outcomes/,
   );
 });
 
