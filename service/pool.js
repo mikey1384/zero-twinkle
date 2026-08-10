@@ -1,5 +1,9 @@
 const mysql = require("mysql2");
 
+// A brief queue is normal during a scheduled burst; warn only when it remains
+// queued or delays an acquisition long enough to be operationally meaningful.
+const DB_POOL_QUEUED_WAIT_PRESSURE_MS = 250;
+
 const mysqlProxyHost = process.env.MYSQL_HOST_PROXY || "";
 const mysqlReaderProxyHost = process.env.MYSQL_HOST_READER_PROXY || "";
 const mysqlDirectReaderHost = process.env.MYSQL_HOST_READER || "";
@@ -7,16 +11,14 @@ const mysqlProxyUser = process.env.MYSQL_USER_PROXY || "";
 const mysqlDirectUser = process.env.MYSQL_USER;
 const mysqlHost = mysqlProxyHost || process.env.MYSQL_HOST;
 const mysqlReaderHost =
-  mysqlReaderProxyHost ||
-  mysqlDirectReaderHost ||
-  mysqlHost;
+  mysqlReaderProxyHost || mysqlDirectReaderHost || mysqlHost;
 const mysqlWriteUser =
   (mysqlProxyHost ? mysqlProxyUser : "") || mysqlDirectUser;
 const mysqlReadUser = mysqlReaderProxyHost
   ? mysqlProxyUser || mysqlDirectUser
   : mysqlDirectReaderHost
-  ? mysqlDirectUser
-  : mysqlWriteUser;
+    ? mysqlDirectUser
+    : mysqlWriteUser;
 const mysqlSslProfile = (
   process.env.MYSQL_SSL_PROFILE ||
   (process.env.NODE_ENV === "production" ? "Amazon RDS" : "")
@@ -55,6 +57,8 @@ const readPool = mysql.createPool({
 function attachPoolPressureTelemetry(pool, route) {
   let enqueuedRequests = 0;
   let maxQueuedRequests = 0;
+  let completedQueuedRequests = 0;
+  let maxQueuedWaitMs = 0;
   let intervalCount = 0;
 
   function snapshot() {
@@ -71,22 +75,38 @@ function attachPoolPressureTelemetry(pool, route) {
     // mysql2 emits "enqueue" immediately before pushing the pending callback.
     // Include that callback so the high-water mark is not one request low.
     const queuedRequestsAfterEnqueue = snapshot().queuedRequests + 1;
-    maxQueuedRequests = Math.max(
-      maxQueuedRequests,
-      queuedRequestsAfterEnqueue
-    );
+    maxQueuedRequests = Math.max(maxQueuedRequests, queuedRequestsAfterEnqueue);
   });
+
+  const originalGetConnection = pool.getConnection.bind(pool);
+  pool.getConnection = (callback) => {
+    const before = snapshot();
+    const enteredQueue =
+      before.limit > 0 &&
+      before.allConnections >= before.limit &&
+      before.freeConnections === 0;
+    const queuedAtMs = enteredQueue ? Date.now() : 0;
+    return originalGetConnection((error, connection) => {
+      if (enteredQueue) {
+        completedQueuedRequests += 1;
+        maxQueuedWaitMs = Math.max(maxQueuedWaitMs, Date.now() - queuedAtMs);
+      }
+      callback(error, connection);
+    });
+  };
 
   const timer = setInterval(() => {
     intervalCount += 1;
     const current = snapshot();
-    const wasPressured =
+    const hadQueueActivity =
       enqueuedRequests > 0 ||
-      current.queuedRequests > 0 ||
-      (current.limit > 0 &&
-        current.allConnections >= current.limit &&
-        current.freeConnections === 0);
-    if (wasPressured || intervalCount % 15 === 0) {
+      completedQueuedRequests > 0 ||
+      current.queuedRequests > 0;
+    const wasPressured = isActionableDatabasePoolPressure({
+      snapshot: current,
+      maxQueuedWaitMs,
+    });
+    if (hadQueueActivity || wasPressured || intervalCount % 15 === 0) {
       const payload = {
         message: wasPressured
           ? "Database pool pressure"
@@ -95,12 +115,16 @@ function attachPoolPressureTelemetry(pool, route) {
         ...current,
         enqueuedRequests,
         maxQueuedRequests,
+        completedQueuedRequests,
+        maxQueuedWaitMs,
       };
       if (wasPressured) console.warn(payload);
       else console.info(payload);
     }
     enqueuedRequests = 0;
     maxQueuedRequests = 0;
+    completedQueuedRequests = 0;
+    maxQueuedWaitMs = 0;
   }, 60_000);
   timer.unref();
 }
@@ -108,4 +132,16 @@ function attachPoolPressureTelemetry(pool, route) {
 attachPoolPressureTelemetry(writePool, "writer");
 attachPoolPressureTelemetry(readPool, "reader");
 
-module.exports = { writePool, readPool };
+function isActionableDatabasePoolPressure({ snapshot, maxQueuedWaitMs }) {
+  return (
+    snapshot.queuedRequests > 0 ||
+    maxQueuedWaitMs >= DB_POOL_QUEUED_WAIT_PRESSURE_MS
+  );
+}
+
+module.exports = {
+  DB_POOL_QUEUED_WAIT_PRESSURE_MS,
+  isActionableDatabasePoolPressure,
+  writePool,
+  readPool,
+};

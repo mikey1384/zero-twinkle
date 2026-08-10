@@ -17,7 +17,12 @@ function describeQuery(query) {
   };
 }
 
-async function poolQuery(query = "", params = null, fromWriter = false) {
+async function poolQuery(
+  query = "",
+  params = null,
+  fromWriter = false,
+  queryLabel = null,
+) {
   if (!query) {
     throw new Error("Missing query");
   }
@@ -55,6 +60,9 @@ async function poolQuery(query = "", params = null, fromWriter = false) {
     } catch (error) {
       console.error({
         message: "Database query error",
+        ...(queryLabel
+          ? { queryLabel: String(queryLabel).trim().slice(0, 80) }
+          : {}),
         ...describeQuery(query),
         parameterCount: Array.isArray(params) ? params.length : params ? 1 : 0,
         errorName: error?.name || "Error",

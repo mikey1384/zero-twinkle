@@ -12,9 +12,12 @@ const { poolQuery } = require("../helpers");
 // A missing row means the picker never serves that item, so this task re-runs
 // the full backfills (INSERT IGNORE) to restore any missing rows, and purges
 // rows that are no longer eligible so the pickers' scans stay shallow. Reward
-// upserts also refresh the teacher-eligibility selection hint. All statements
-// are idempotent and re-evaluate eligibility at execution time,
-// so overlapping with the API's per-comment syncs is safe.
+// upserts also refresh the teacher-eligibility selection hint. Source-of-truth
+// reads are kept separate from candidate-table writes so reconciliation never
+// takes recommendation/user source locks while mutating the derived indexes.
+// Cleanup is bracketed by restorative passes: if an API hook inserts a newly
+// eligible row while a stale snapshot is being purged, the final canonical
+// pass puts it back before reconciliation completes.
 //
 // The eligibility rules below MUST mirror the canonical copies in
 // twinkle-api/helpers/earnCommentCandidates.ts and earnRewardCandidates.ts.
@@ -32,12 +35,13 @@ const ZERO_TWINKLE_ID = Number(process.env.ZERO_TWINKLE_ID || 7587);
 const CIEL_TWINKLE_ID = Number(process.env.CIEL_TWINKLE_ID || 8411);
 const TEACHER_LEVEL = 5;
 const REQUIRED_AP_FOR_SUPERMOD = 1000;
+const SYNC_CHUNK_SIZE = 500;
 const REWARD_TEACHER_ELIGIBILITY_SQL = `COALESCE((r.rewardDisabled = '0' AND (COALESCE(ut.authLevel, 0) + 1 >= ${TEACHER_LEVEL} OR COALESCE(u.achievementPoints, 0) >= ${REQUIRED_AP_FOR_SUPERMOD})), 0)`;
 
 // Full-scan work runs once a day at this UTC hour (19:00 UTC = 4am KST,
 // off-peak for the user base). The scheduler ticks hourly; other hours no-op.
 const RECONCILE_UTC_HOUR = Number(
-  process.env.EARN_CANDIDATE_RECONCILE_UTC_HOUR || 19
+  process.env.EARN_CANDIDATE_RECONCILE_UTC_HOUR || 19,
 );
 
 const ELIGIBILITY_SQL = `
@@ -134,71 +138,263 @@ function rewardEligibilityParams() {
   return [ZERO_TWINKLE_ID, CIEL_TWINKLE_ID];
 }
 
-async function reconcileEarnCommentCandidates() {
-  if (new Date().getUTCHours() !== RECONCILE_UTC_HOUR) {
+function chunks(rows) {
+  const result = [];
+  for (let index = 0; index < rows.length; index += SYNC_CHUNK_SIZE) {
+    result.push(rows.slice(index, index + SYNC_CHUNK_SIZE));
+  }
+  return result;
+}
+
+async function loadEligibleCommentCandidates(query) {
+  return query(
+    `SELECT b.id AS commentId, b.subjectId
+     ${ELIGIBILITY_SQL}`,
+    eligibilityParams(),
+    true,
+    "earn_comment_candidates.reconcile_eligibility",
+  );
+}
+
+async function restoreCommentCandidates(rows, query) {
+  let affectedRows = 0;
+  for (const batch of chunks(rows)) {
+    if (batch.length === 0) continue;
+    const timeStamp = Math.floor(Date.now() / 1000);
+    const result = await query(
+      `INSERT IGNORE INTO earn_comment_candidates
+         (commentId, subjectId, timeStamp)
+       VALUES ${batch.map(() => "(?, ?, ?)").join(", ")}`,
+      batch.flatMap((row) => [
+        Number(row.commentId),
+        Number(row.subjectId),
+        timeStamp,
+      ]),
+      true,
+      "earn_comment_candidates.reconcile_restore",
+    );
+    affectedRows += Number(result?.affectedRows || 0);
+  }
+  return affectedRows;
+}
+
+async function loadEligibleRewardCandidates(query) {
+  return query(
+    `SELECT
+       r.id AS recommendationId,
+       b.id AS commentId,
+       b.subjectId,
+       ${REWARD_TEACHER_ELIGIBILITY_SQL} AS teacherEligible
+     ${REWARD_ELIGIBILITY_SQL}`,
+    rewardEligibilityParams(),
+    true,
+    "earn_reward_candidates.reconcile_eligibility",
+  );
+}
+
+async function restoreRewardCandidates(rows, query) {
+  let affectedRows = 0;
+  for (const batch of chunks(rows)) {
+    if (batch.length === 0) continue;
+    const timeStamp = Math.floor(Date.now() / 1000);
+    const result = await query(
+      `INSERT INTO earn_reward_candidates
+         (recommendationId, commentId, subjectId, timeStamp, teacherEligible)
+       VALUES ${batch.map(() => "(?, ?, ?, ?, ?)").join(", ")}
+       ON DUPLICATE KEY UPDATE
+         commentId = VALUES(commentId),
+         subjectId = VALUES(subjectId),
+         teacherEligible = VALUES(teacherEligible)`,
+      batch.flatMap((row) => [
+        Number(row.recommendationId),
+        Number(row.commentId),
+        Number(row.subjectId),
+        timeStamp,
+        Number(row.teacherEligible) === 1 ? 1 : 0,
+      ]),
+      true,
+      "earn_reward_candidates.reconcile_restore",
+    );
+    affectedRows += Number(result?.affectedRows || 0);
+  }
+  return affectedRows;
+}
+
+async function loadCurrentCommentCandidates(query) {
+  return query(
+    `SELECT commentId FROM earn_comment_candidates`,
+    null,
+    true,
+    "earn_comment_candidates.reconcile_current",
+  );
+}
+
+async function loadCurrentRewardCandidates(query) {
+  return query(
+    `SELECT recommendationId, commentId, subjectId, teacherEligible
+     FROM earn_reward_candidates`,
+    null,
+    true,
+    "earn_reward_candidates.reconcile_current",
+  );
+}
+
+async function purgeStaleCandidates({
+  query,
+  table,
+  idColumn,
+  eligibleRows,
+  eligibleRowId,
+  currentRows,
+  currentRowId,
+  queryLabel,
+}) {
+  const eligibleIds = new Set(
+    eligibleRows
+      .map((row) => Number(eligibleRowId(row)))
+      .filter((id) => id > 0),
+  );
+  const staleIds = currentRows
+    .map((row) => Number(currentRowId(row)))
+    .filter((id) => id > 0 && !eligibleIds.has(id));
+  let affectedRows = 0;
+  for (const batch of chunks(staleIds)) {
+    const result = await query(
+      `DELETE FROM ${table}
+       WHERE ${idColumn} IN (${batch.map(() => "?").join(", ")})`,
+      batch,
+      true,
+      `${queryLabel}.reconcile_purge`,
+    );
+    affectedRows += Number(result?.affectedRows || 0);
+  }
+  return affectedRows;
+}
+
+function commentRepairRows(initialRows, finalRows) {
+  const initialIds = new Set(
+    initialRows.map((row) => Number(row.commentId)).filter((id) => id > 0),
+  );
+  return finalRows.filter(
+    (row) =>
+      Number(row.commentId) > 0 && !initialIds.has(Number(row.commentId)),
+  );
+}
+
+function rewardRepairRows(initialRows, finalRows) {
+  const initialState = new Map(
+    initialRows.map((row) => [
+      Number(row.recommendationId),
+      [
+        Number(row.commentId),
+        Number(row.subjectId),
+        Number(row.teacherEligible) === 1 ? 1 : 0,
+      ].join(":"),
+    ]),
+  );
+  return finalRows.filter((row) => {
+    const recommendationId = Number(row.recommendationId);
+    const state = [
+      Number(row.commentId),
+      Number(row.subjectId),
+      Number(row.teacherEligible) === 1 ? 1 : 0,
+    ].join(":");
+    return recommendationId > 0 && initialState.get(recommendationId) !== state;
+  });
+}
+
+async function reconcileEarnCommentCandidates(options = {}) {
+  const now = options.now || new Date();
+  const query = options.query || poolQuery;
+  if (now.getUTCHours() !== RECONCILE_UTC_HOUR) {
     return;
   }
 
   const start = Date.now();
-
-  const insertResult = await poolQuery(
-    `INSERT IGNORE INTO earn_comment_candidates (commentId, subjectId, timeStamp)
-     SELECT b.id, b.subjectId, UNIX_TIMESTAMP()
-     ${ELIGIBILITY_SQL}`,
-    eligibilityParams()
+  const initialCommentRows = await loadEligibleCommentCandidates(query);
+  const currentCommentRows = await loadCurrentCommentCandidates(query);
+  const initialCommentRepairs = commentRepairRows(
+    currentCommentRows,
+    initialCommentRows,
   );
-  const restoredCount = Number(insertResult?.affectedRows || 0);
-
-  const deleteResult = await poolQuery(
-    `DELETE ec FROM earn_comment_candidates ec
-     WHERE NOT EXISTS (
-       SELECT 1
-       ${ELIGIBILITY_SQL}
-         AND b.id = ec.commentId
-     )`,
-    eligibilityParams()
+  await restoreCommentCandidates(initialCommentRepairs, query);
+  const restoredCount = initialCommentRepairs.length;
+  let purgedCount = 0;
+  let commentPurgeError;
+  try {
+    purgedCount = await purgeStaleCandidates({
+      query,
+      table: "earn_comment_candidates",
+      idColumn: "commentId",
+      eligibleRows: initialCommentRows,
+      eligibleRowId: (row) => row.commentId,
+      currentRows: currentCommentRows,
+      currentRowId: (row) => row.commentId,
+      queryLabel: "earn_comment_candidates",
+    });
+  } catch (error) {
+    commentPurgeError = error;
+  }
+  // Even a partial purge can have removed a row inserted by a concurrent API
+  // hook after the first snapshot. Always make the final canonical repair
+  // attempt before propagating cleanup failure.
+  const finalCommentRows = await loadEligibleCommentCandidates(query);
+  const commentRowsToRepair = commentRepairRows(
+    initialCommentRows,
+    finalCommentRows,
   );
-  const purgedCount = Number(deleteResult?.affectedRows || 0);
+  await restoreCommentCandidates(commentRowsToRepair, query);
+  const finalRestoredCount = commentRowsToRepair.length;
+  if (commentPurgeError) throw commentPurgeError;
 
-  const rewardInsertResult = await poolQuery(
-    `INSERT INTO earn_reward_candidates
-       (recommendationId, commentId, subjectId, timeStamp, teacherEligible)
-     SELECT
-       r.id,
-       b.id,
-       b.subjectId,
-       UNIX_TIMESTAMP(),
-       ${REWARD_TEACHER_ELIGIBILITY_SQL}
-     ${REWARD_ELIGIBILITY_SQL}
-     ON DUPLICATE KEY UPDATE
-       commentId = VALUES(commentId),
-       subjectId = VALUES(subjectId),
-       teacherEligible = VALUES(teacherEligible)`,
-    rewardEligibilityParams()
+  const initialRewardRows = await loadEligibleRewardCandidates(query);
+  const currentRewardRows = await loadCurrentRewardCandidates(query);
+  const initialRewardRepairs = rewardRepairRows(
+    currentRewardRows,
+    initialRewardRows,
   );
-  const rewardRestoredCount = Number(rewardInsertResult?.affectedRows || 0);
-
-  const rewardDeleteResult = await poolQuery(
-    `DELETE erc FROM earn_reward_candidates erc
-     WHERE NOT EXISTS (
-       SELECT 1
-       ${REWARD_ELIGIBILITY_SQL}
-         AND r.id = erc.recommendationId
-     )`,
-    rewardEligibilityParams()
+  await restoreRewardCandidates(initialRewardRepairs, query);
+  const rewardRestoredCount = initialRewardRepairs.length;
+  let rewardPurgedCount = 0;
+  let rewardPurgeError;
+  try {
+    rewardPurgedCount = await purgeStaleCandidates({
+      query,
+      table: "earn_reward_candidates",
+      idColumn: "recommendationId",
+      eligibleRows: initialRewardRows,
+      eligibleRowId: (row) => row.recommendationId,
+      currentRows: currentRewardRows,
+      currentRowId: (row) => row.recommendationId,
+      queryLabel: "earn_reward_candidates",
+    });
+  } catch (error) {
+    rewardPurgeError = error;
+  }
+  const finalRewardRows = await loadEligibleRewardCandidates(query);
+  const rewardRowsToRepair = rewardRepairRows(
+    initialRewardRows,
+    finalRewardRows,
   );
-  const rewardPurgedCount = Number(rewardDeleteResult?.affectedRows || 0);
+  await restoreRewardCandidates(rewardRowsToRepair, query);
+  const finalRewardRestoredCount = rewardRowsToRepair.length;
+  if (rewardPurgeError) throw rewardPurgeError;
 
   const durationMs = Date.now() - start;
-  if (restoredCount > 0 || rewardRestoredCount > 0) {
-    // Restores mean the API hooks missed an eligibility flip (expected for
-    // supermod demotions; anything chronic beyond that deserves a look).
+  if (
+    restoredCount > 0 ||
+    finalRestoredCount > 0 ||
+    rewardRestoredCount > 0 ||
+    finalRewardRestoredCount > 0
+  ) {
+    // Repairs mean an API hook missed a row or a user's level changed the
+    // canonical eligibility projection; anything chronic deserves a look.
     console.warn(
-      `[earnCandidates] restored missing candidate row(s) during reconciliation (comment: ${restoredCount}, reward: ${rewardRestoredCount})`
+      `[earnCandidates] repaired candidate row(s) during reconciliation (comment: initial ${restoredCount}, post-purge ${finalRestoredCount}; reward: initial ${rewardRestoredCount}, post-purge ${finalRewardRestoredCount})`,
     );
   }
   console.log(
-    `[earnCandidates] reconciled in ${durationMs}ms (comment: restored ${restoredCount}, purged ${purgedCount}; reward: restored ${rewardRestoredCount}, purged ${rewardPurgedCount})`
+    `[earnCandidates] reconciled in ${durationMs}ms (comment: repaired ${restoredCount} + ${finalRestoredCount}, purged ${purgedCount}; reward: repaired ${rewardRestoredCount} + ${finalRewardRestoredCount}, purged ${rewardPurgedCount})`,
   );
 }
 
