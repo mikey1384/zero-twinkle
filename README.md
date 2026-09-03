@@ -5,7 +5,7 @@ Scripts used for automating various tasks for the Twinkle website.
 
 The robust setup is `systemd` + watchdog timer:
 
-- `systemd/aizero.service`: runs `node index.js` with `Restart=always`
+- `systemd/aizero.service`: runs `node index.js` with `Restart=always`, memory-accounted with `MemoryHigh=256M` / `MemoryMax=384M` (measured steady state ~97MB) so it cannot crowd the API cluster on the shared host; reinstall with `sudo bash ./scripts/install-aizero-systemd.sh` after changing it
 - `systemd/aizero-watchdog.service`: checks process + heartbeat freshness
 - `systemd/aizero-watchdog.timer`: runs watchdog every minute
 - `scripts/install-aizero-systemd.sh`: installs the units and a root-owned watchdog script at `/usr/local/lib/zero-twinkle/watchdog-aizero.sh`

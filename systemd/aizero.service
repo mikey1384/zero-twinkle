@@ -16,6 +16,17 @@ Restart=always
 RestartSec=5
 KillMode=process
 TimeoutStopSec=30
+# Zero shares a 3.75GiB no-swap host with the API cluster and its workers.
+# Measured steady state is ~97MB; the ceilings keep a regression from eating
+# the API's rolling-deploy headroom. OOMScoreAdjust sits between the API
+# workers (+500) and the optimizer (0): Zero is auto-restarted and watched,
+# so the kernel should take it before the primary or the optimizer.
+MemoryAccounting=true
+MemoryHigh=256M
+MemoryMax=384M
+MemorySwapMax=0
+OOMPolicy=stop
+OOMScoreAdjust=300
 
 [Install]
 WantedBy=multi-user.target
