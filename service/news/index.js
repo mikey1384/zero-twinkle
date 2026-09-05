@@ -1,4 +1,5 @@
 const axios = require("axios");
+const { apiTransport } = require("../../helpers/apiTransport");
 
 const ZERO_TWINKLE_TOKEN_HEADER = "x-zero-twinkle-token";
 const NEWSPAPER_REQUEST_TIMEOUT_MS = 5 * 60 * 1000;
@@ -54,7 +55,8 @@ async function processTwinkleNewspaper() {
   const requestConfig = getTwinkleNewspaperRequestConfig();
 
   try {
-    await axios.post(`${apiUrl}/zero/news/process`, null, requestConfig);
+    const transport = apiTransport("/zero/news/process");
+    await axios.post(transport.url, null, { ...requestConfig, ...transport.config });
   } catch (error) {
     throw createTwinkleNewspaperRequestError(error);
   }

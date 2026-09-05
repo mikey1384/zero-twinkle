@@ -79,6 +79,16 @@ bun run status
 
 ## Operational Notes
 
+For the separately approved deploy-time NLB migration, set
+`TWINKLE_API_HOST_DIRECTORY=/home/ec2-user/server` only after the role-aware API
+and its durable private serving-host marker are installed. Newspaper/reward API
+requests then use `helpers/apiTransport.js`: read the primary-owned marker on
+each request, pin the selected private address and validate public TLS/SNI, with
+no NLB hairpin, redirect, HTTP fallback or ambiguous POST retry. The default
+without this setting remains the existing `API_URL`. Zero stays primary-only;
+target cron/watchdog units must remain masked. Full migration and rollback gates
+are in `twinkle-api/DEPLOY_TIME_HANDOFF.md`; this note is not deployment authority.
+
 Full update/verification runbook: `SERVER_AGENT_MAINTENANCE.md` (host access,
 standard update procedure, watchdog reinstall, expected file ownership/modes,
 alert semantics).
