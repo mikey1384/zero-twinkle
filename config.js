@@ -1,4 +1,4 @@
-const GPT = "gpt-5.6-luna";
+const GPT = "gpt-6-luna";
 
 module.exports = {
   mailAuth: {
