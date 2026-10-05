@@ -42,11 +42,34 @@ function parseVideoTags(rawTags) {
     .filter(Boolean);
 }
 
+// The label becomes a permanent public playlist title, so accept only a short plain category.
+// Anything else (citations, links, a preamble, injected text) leaves the video unmatched.
+function cleanSuggestedLabel(text) {
+  const label = String(text || "")
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/https?:\/\/\S+/g, "")
+    .replace(/\([^)]*\)/g, "")
+    .split("\n")
+    .map((line) => line.trim())
+    .find(Boolean) || "";
+  const cleaned = label
+    .replace(/[‘’ʼ]/g, "'")
+    .replace(/^label\s*:\s*/i, "")
+    .replace(/["“”.*_`]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!cleaned || cleaned.length > 40) return "";
+  if (!/^[\p{L}\p{N}][\p{L}\p{N} &'-]*$/u.test(cleaned)) return "";
+  if (cleaned.split(" ").length > 3) return "";
+  return cleaned;
+}
+
 module.exports = {
   OPENAI_INPUT_MAX_CHARS,
   OPENAI_OUTPUT_MAX_CHARS,
   OPENAI_REQUEST_TIMEOUT_MS,
   boundText,
+  cleanSuggestedLabel,
   getPlaylistOpenAiClientOptions,
   parsePlaylistRewardResult,
   parseVideoTags,

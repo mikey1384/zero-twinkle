@@ -16,6 +16,15 @@ function createSmtpTransport() {
   });
 }
 
+// Titles, channel names and labels come from uploaders or the AI; never inject them as HTML.
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 async function sendEmailReportForPLRewardLevel({
   rewardLevel,
   playlistId,
@@ -53,6 +62,8 @@ async function sendEmailReport({
   const playlistsText = playlists
     .map(({ playlistId, title }) => `${title} (${playlistId})`)
     .join(", ");
+  const playlistsHtml = escapeHtml(playlistsText);
+  const newPlaylistNameHtml = escapeHtml(newPlaylistName);
 
   const smtpTransport = createSmtpTransport();
 
@@ -67,13 +78,13 @@ async function sendEmailReport({
         : "Could not tag this video",
     html: `
         <p>the video with id: ${videoId} was not included in any playlists.</p>
-        <p>yt tags contained are as follows: ${ytTags}</p>
+        <p>yt tags contained are as follows: ${escapeHtml(ytTags)}</p>
         <p>reward level of this video was: ${videoRewardLevel}</p>
         ${
           playlistsText
             ? `
                 <p>the video was successfully added to the following playlists:</p>
-                <p>${playlistsText}</p>
+                <p>${playlistsHtml}</p>
               `
             : ""
         }
@@ -87,7 +98,7 @@ async function sendEmailReport({
         }/videos/${videoId}">${process.env.CONTENT_URL}/videos/${videoId}</a>
         ${
           newPlaylistName
-            ? `<p>New playlist "${newPlaylistName}" has been created for this video</p>`
+            ? `<p>New playlist "${newPlaylistNameHtml}" has been created for this video</p>`
             : ""
         }
         ${
