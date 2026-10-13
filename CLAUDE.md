@@ -1,5 +1,7 @@
 # CLAUDE.md - zero-twinkle
 
+> **Core values:** Twinkle's mission and core values are canonical in [CORE_VALUES.md](../CORE_VALUES.md) at the workspace root (also read [AGENTS.md](../AGENTS.md)). Apply them here; don't restate them.
+
 ## Project Overview
 
 zero-twinkle is a dedicated Node.js cron/scheduler service that runs periodic background tasks for the Twinkle Network ecosystem. It runs separately from the main API to ensure scheduled tasks aren't affected by API deployments or load.
