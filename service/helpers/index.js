@@ -1,5 +1,6 @@
-const { writePool, readPool } = require("../pool");
+const { writePool, readPool, databaseOperationHealth } = require("../pool");
 const crypto = require("crypto");
+const { queryWithDeadline } = require("./database");
 
 const DB_QUERY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -22,6 +23,7 @@ async function poolQuery(
   params = null,
   fromWriter = false,
   queryLabel = null,
+  options = {},
 ) {
   if (!query) {
     throw new Error("Missing query");
@@ -31,19 +33,25 @@ async function poolQuery(
   const retryDelay = 500;
 
   const executeQuery = async (query, params, pool) => {
-    return new Promise((resolve, reject) => {
-      pool.query(
-        { sql: query, timeout: DB_QUERY_TIMEOUT_MS },
-        params,
-        (err, results) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(results);
-          }
-        },
+    const startedAt = Date.now();
+    let failure;
+    try {
+      return await queryWithDeadline(pool, query, params, {
+        statementTimeoutMs: DB_QUERY_TIMEOUT_MS,
+        ...options,
+      });
+    } catch (error) {
+      failure = error;
+      throw error;
+    } finally {
+      databaseOperationHealth.observe(
+        pool === readPool ? "reader" : "writer",
+        "query",
+        Date.now() - startedAt,
+        failure?.code,
+        Boolean(failure),
       );
-    });
+    }
   };
 
   const doQuery = async (retryCount, retryDelay) => {

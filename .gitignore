@@ -6,3 +6,4 @@ yarn-error.log
 yarn.lock
 zero_err.log
 zero_out.log
+logs/

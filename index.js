@@ -79,11 +79,11 @@ const tasks = [
     alignmentGraceSeconds: 60,
   },
   {
-    // Hourly tick; the task itself only does work at its configured UTC hour
-    // (once nightly, off-peak).
+    // Start once nightly; resume short checkpointed slices each minute until
+    // complete, including after a restart or a busy-database deferral.
     name: "reconcileEarnCommentCandidates",
     fn: reconcileEarnCommentCandidates,
-    intervalSeconds: 3600,
+    intervalSeconds: 60,
     alignToInterval: true,
     alignmentGraceSeconds: 60,
   },

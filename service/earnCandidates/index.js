@@ -1,4 +1,6 @@
 const { poolQuery } = require("../helpers");
+const { readCheckpoint, writeCheckpoint } = require("./checkpoint");
+const { writeDatabaseHealth } = require("../pool");
 
 // Nightly reconciliation for the earn candidate tables the twinkle-api
 // /content/karma/recommend and /content/karma/reward pickers drive their
@@ -38,14 +40,14 @@ const REQUIRED_AP_FOR_SUPERMOD = 1000;
 const SYNC_CHUNK_SIZE = 500;
 const REWARD_TEACHER_ELIGIBILITY_SQL = `COALESCE((r.rewardDisabled = '0' AND (COALESCE(ut.authLevel, 0) + 1 >= ${TEACHER_LEVEL} OR COALESCE(u.achievementPoints, 0) >= ${REQUIRED_AP_FOR_SUPERMOD})), 0)`;
 
-// Full-scan work runs once a day at this UTC hour (19:00 UTC = 4am KST,
-// off-peak for the user base). The scheduler ticks hourly; other hours no-op.
+// Start the daily pass at this UTC hour (19:00 UTC = 4am KST). Minute ticks
+// resume bounded slices; completed days do no more work.
 const RECONCILE_UTC_HOUR = Number(
   process.env.EARN_CANDIDATE_RECONCILE_UTC_HOUR || 19,
 );
 
 const ELIGIBILITY_SQL = `
-    FROM content_comments b
+    FROM content_comments b FORCE INDEX (PRIMARY)
     JOIN content_subjects c ON c.id = b.subjectId
     WHERE b.isDeleted = 0
       AND b.userId NOT IN (?, ?)
@@ -101,7 +103,7 @@ function eligibilityParams() {
 // currently-rewardable recommendation on a comment). Placeholders:
 // ZERO_TWINKLE_ID, CIEL_TWINKLE_ID.
 const REWARD_ELIGIBILITY_SQL = `
-    FROM content_recommendations r
+    FROM content_recommendations r FORCE INDEX (PRIMARY)
     JOIN content_comments b ON b.id = r.rootId
     JOIN content_subjects c ON c.id = b.subjectId
     JOIN users u ON u.id = r.userId
@@ -146,11 +148,11 @@ function chunks(rows) {
   return result;
 }
 
-async function loadEligibleCommentCandidates(query) {
+async function loadEligibleCommentCandidates(query, after, through) {
   return query(
-    `SELECT b.id AS commentId, b.subjectId
-     ${ELIGIBILITY_SQL}`,
-    eligibilityParams(),
+    `SELECT /*+ MAX_EXECUTION_TIME(5000) */ b.id AS commentId, b.subjectId
+     ${ELIGIBILITY_SQL} AND b.id > ? AND b.id <= ?`,
+    [...eligibilityParams(), after, through],
     true,
     "earn_comment_candidates.reconcile_eligibility",
   );
@@ -178,15 +180,15 @@ async function restoreCommentCandidates(rows, query) {
   return affectedRows;
 }
 
-async function loadEligibleRewardCandidates(query) {
+async function loadEligibleRewardCandidates(query, after, through) {
   return query(
-    `SELECT
+    `SELECT /*+ MAX_EXECUTION_TIME(5000) */
        r.id AS recommendationId,
        b.id AS commentId,
        b.subjectId,
        ${REWARD_TEACHER_ELIGIBILITY_SQL} AS teacherEligible
-     ${REWARD_ELIGIBILITY_SQL}`,
-    rewardEligibilityParams(),
+     ${REWARD_ELIGIBILITY_SQL} AND r.id > ? AND r.id <= ?`,
+    [...rewardEligibilityParams(), after, through],
     true,
     "earn_reward_candidates.reconcile_eligibility",
   );
@@ -220,20 +222,23 @@ async function restoreRewardCandidates(rows, query) {
   return affectedRows;
 }
 
-async function loadCurrentCommentCandidates(query) {
+async function loadCurrentCommentCandidates(query, after, through) {
   return query(
-    `SELECT commentId FROM earn_comment_candidates`,
-    null,
+    `SELECT commentId FROM earn_comment_candidates
+     WHERE commentId > ? AND commentId <= ? ORDER BY commentId LIMIT ${SYNC_CHUNK_SIZE}`,
+    [after, through],
     true,
     "earn_comment_candidates.reconcile_current",
   );
 }
 
-async function loadCurrentRewardCandidates(query) {
+async function loadCurrentRewardCandidates(query, after, through) {
   return query(
     `SELECT recommendationId, commentId, subjectId, teacherEligible
-     FROM earn_reward_candidates`,
-    null,
+     FROM earn_reward_candidates
+     WHERE recommendationId > ? AND recommendationId <= ?
+     ORDER BY recommendationId LIMIT ${SYNC_CHUNK_SIZE}`,
+    [after, through],
     true,
     "earn_reward_candidates.reconcile_current",
   );
@@ -303,99 +308,292 @@ function rewardRepairRows(initialRows, finalRows) {
   });
 }
 
-async function reconcileEarnCommentCandidates(options = {}) {
-  const now = options.now || new Date();
-  const query = options.query || poolQuery;
-  if (now.getUTCHours() !== RECONCILE_UTC_HOUR) {
-    return;
-  }
+const phases = [
+  {
+    table: "earn_comment_candidates",
+    source: "content_comments",
+    id: "commentId",
+    loadEligible: loadEligibleCommentCandidates,
+    loadCurrent: loadCurrentCommentCandidates,
+    repairs: commentRepairRows,
+    restore: restoreCommentCandidates,
+  },
+  {
+    table: "earn_reward_candidates",
+    source: "content_recommendations",
+    id: "recommendationId",
+    loadEligible: loadEligibleRewardCandidates,
+    loadCurrent: loadCurrentRewardCandidates,
+    repairs: rewardRepairRows,
+    restore: restoreRewardCandidates,
+  },
+];
 
-  const start = Date.now();
-  const initialCommentRows = await loadEligibleCommentCandidates(query);
-  const currentCommentRows = await loadCurrentCommentCandidates(query);
-  const initialCommentRepairs = commentRepairRows(
-    currentCommentRows,
-    initialCommentRows,
-  );
-  await restoreCommentCandidates(initialCommentRepairs, query);
-  const restoredCount = initialCommentRepairs.length;
-  let purgedCount = 0;
-  let commentPurgeError;
-  try {
-    purgedCount = await purgeStaleCandidates({
-      query,
-      table: "earn_comment_candidates",
-      idColumn: "commentId",
-      eligibleRows: initialCommentRows,
-      eligibleRowId: (row) => row.commentId,
-      currentRows: currentCommentRows,
-      currentRowId: (row) => row.commentId,
-      queryLabel: "earn_comment_candidates",
-    });
-  } catch (error) {
-    commentPurgeError = error;
-  }
-  // Even a partial purge can have removed a row inserted by a concurrent API
-  // hook after the first snapshot. Always make the final canonical repair
-  // attempt before propagating cleanup failure.
-  const finalCommentRows = await loadEligibleCommentCandidates(query);
-  const commentRowsToRepair = commentRepairRows(
-    initialCommentRows,
-    finalCommentRows,
-  );
-  await restoreCommentCandidates(commentRowsToRepair, query);
-  const finalRestoredCount = commentRowsToRepair.length;
-  if (commentPurgeError) throw commentPurgeError;
-
-  const initialRewardRows = await loadEligibleRewardCandidates(query);
-  const currentRewardRows = await loadCurrentRewardCandidates(query);
-  const initialRewardRepairs = rewardRepairRows(
-    currentRewardRows,
-    initialRewardRows,
-  );
-  await restoreRewardCandidates(initialRewardRepairs, query);
-  const rewardRestoredCount = initialRewardRepairs.length;
-  let rewardPurgedCount = 0;
-  let rewardPurgeError;
-  try {
-    rewardPurgedCount = await purgeStaleCandidates({
-      query,
-      table: "earn_reward_candidates",
-      idColumn: "recommendationId",
-      eligibleRows: initialRewardRows,
-      eligibleRowId: (row) => row.recommendationId,
-      currentRows: currentRewardRows,
-      currentRowId: (row) => row.recommendationId,
-      queryLabel: "earn_reward_candidates",
-    });
-  } catch (error) {
-    rewardPurgeError = error;
-  }
-  const finalRewardRows = await loadEligibleRewardCandidates(query);
-  const rewardRowsToRepair = rewardRepairRows(
-    initialRewardRows,
-    finalRewardRows,
-  );
-  await restoreRewardCandidates(rewardRowsToRepair, query);
-  const finalRewardRestoredCount = rewardRowsToRepair.length;
-  if (rewardPurgeError) throw rewardPurgeError;
-
-  const durationMs = Date.now() - start;
+function validateCheckpoint(state) {
   if (
-    restoredCount > 0 ||
-    finalRestoredCount > 0 ||
-    rewardRestoredCount > 0 ||
-    finalRewardRestoredCount > 0
+    !state ||
+    state.version !== 1 ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(state.day) ||
+    !Number.isInteger(state.phase) ||
+    state.phase < 0 ||
+    state.phase > phases.length ||
+    !Number.isSafeInteger(state.after) ||
+    state.after < 0 ||
+    (state.ceiling !== null &&
+      (!Number.isSafeInteger(state.ceiling) || state.ceiling < state.after))
   ) {
-    // Repairs mean an API hook missed a row or a user's level changed the
-    // canonical eligibility projection; anything chronic deserves a look.
-    console.warn(
-      `[earnCandidates] repaired candidate row(s) during reconciliation (comment: initial ${restoredCount}, post-purge ${finalRestoredCount}; reward: initial ${rewardRestoredCount}, post-purge ${finalRewardRestoredCount})`,
+    throw new Error(
+      "Invalid earn reconciliation checkpoint; preserve it for inspection",
     );
   }
-  console.log(
-    `[earnCandidates] reconciled in ${durationMs}ms (comment: repaired ${restoredCount} + ${finalRestoredCount}, purged ${purgedCount}; reward: repaired ${rewardRestoredCount} + ${finalRewardRestoredCount}, purged ${rewardPurgedCount})`,
-  );
+  if (
+    state.totals &&
+    Object.values(state.totals).some(
+      (value) => !Number.isFinite(value) || value < 0,
+    )
+  )
+    throw new Error("Invalid earn reconciliation health counters");
+  for (const key of ["startedAt", "lastProgressAt"])
+    if (state[key] && !Number.isFinite(Date.parse(state[key])))
+      throw new Error("Invalid earn reconciliation health timestamp");
+  return state;
+}
+
+async function reconcileEarnCommentCandidates(options = {}) {
+  const date = options.now || new Date();
+  const runQuery =
+    options.query ||
+    ((...args) =>
+      poolQuery(...args, {
+        acquireTimeoutMs: 5000,
+        statementTimeoutMs: 5000,
+      }));
+  const clock = options.clock || Date.now;
+  const load =
+    options.loadCheckpoint || (options.query ? () => null : readCheckpoint);
+  const save =
+    options.saveCheckpoint || (options.query ? () => {} : writeCheckpoint);
+  const pause =
+    options.pause || (() => new Promise((resolve) => setTimeout(resolve, 25)));
+  const today = date.toISOString().slice(0, 10);
+  let state = load();
+  if (state) validateCheckpoint(state);
+  if (!state || state.phase === phases.length) {
+    if (state?.day === today || date.getUTCHours() < RECONCILE_UTC_HOUR)
+      return { status: "idle" };
+    const lastCompleted = state?.phase === phases.length
+      ? { day: state.day, totals: state.totals || null }
+      : state?.lastCompleted || null;
+    state = { version: 1, day: today, phase: 0, after: 0, ceiling: null, lastCompleted };
+    save(state);
+  }
+  const startedAt = clock();
+  state.startedAt ||= new Date(startedAt).toISOString();
+  let batches = 0,
+    repaired = 0,
+    purged = 0,
+    sourceRows = 0;
+  let queryCount = 0,
+    queryDurationMs = 0,
+    maxQueryMs = 0,
+    queryFailures = 0;
+  let pausedSlices = 0,
+    failedSlices = 0;
+  const previous = { ...state.totals };
+  const persist = (progress = false) => {
+    if (progress) state.lastProgressAt = new Date(clock()).toISOString();
+    state.totals = {
+      batches,
+      repaired,
+      purged,
+      sourceRows,
+      queryCount,
+      queryDurationMs,
+      queryFailures,
+      pausedSlices,
+      failedSlices,
+      activeMs: clock() - startedAt,
+    };
+    for (const key of Object.keys(state.totals))
+      state.totals[key] += previous[key] || 0;
+    state.totals.maxQueryMs = Math.max(previous.maxQueryMs || 0, maxQueryMs);
+    save(state);
+  };
+  const query = async (...args) => {
+    const start = clock();
+    queryCount++;
+    try {
+      return await runQuery(...args);
+    } catch (error) {
+      queryFailures++;
+      throw error;
+    } finally {
+      const ms = clock() - start;
+      queryDurationMs += ms;
+      maxQueryMs = Math.max(maxQueryMs, ms);
+    }
+  };
+  let nextPressureCheck = 0;
+  const shouldPause =
+    options.shouldPause ||
+    (options.query
+      ? async () => false
+      : async () => {
+          if (clock() < nextPressureCheck) return false;
+          nextPressureCheck = clock() + 10_000;
+          const rows = await query(
+            "SHOW GLOBAL STATUS LIKE 'Threads_running'",
+            null,
+            true,
+            "earn_candidates.pressure",
+          );
+          // Two-core production database: give interactive work room when more
+          // than four statements are already running. Persisted work resumes on
+          // the next minute's tick; no batch or eligibility repair is dropped.
+          const running = Number(rows[0]?.Value);
+          if (!Number.isSafeInteger(running) || running < 0)
+            throw new Error("Database pressure sample unavailable");
+          return running > 4;
+        });
+  const reportSlice = (status, reason = null) => {
+    pausedSlices += Number(status === "paused");
+    failedSlices += Number(status === "failed");
+    persist();
+    const report = {
+      kind: "earn-reconcile",
+      status,
+      reason,
+      day: state.day,
+      phase: state.phase,
+      after: state.after,
+      ceiling: state.ceiling,
+      startedAt: state.startedAt,
+      lastProgressAt: state.lastProgressAt || null,
+      elapsedMs: clock() - Date.parse(state.startedAt),
+      durationMs: clock() - startedAt,
+      batches,
+      repaired,
+      purged,
+      sourceRows,
+      queryCount,
+      queryDurationMs,
+      maxQueryMs,
+      queryFailures,
+      totals: { ...state.totals },
+    };
+    if (!options.query) void writeDatabaseHealth?.(report);
+    options.report?.(report);
+    console.log(
+      `[earnCandidates] ${status} (${state.day}); ${batches} batches, ${repaired} repairs, ${purged} purges, ${report.durationMs}ms`,
+    );
+    return { ...report, checkpoint: { ...state } };
+  };
+  try {
+    while (state.phase < phases.length) {
+      if (clock() - startedAt >= (options.maxRunMs ?? 20_000))
+        return reportSlice("paused", "time_budget");
+      if (await shouldPause())
+        return reportSlice("paused", "database_pressure");
+      const phase = phases[state.phase];
+      if (state.ceiling === null) {
+        const rows = await query(
+          `SELECT GREATEST(
+        COALESCE((SELECT MAX(id) FROM ${phase.source}), 0),
+        COALESCE((SELECT MAX(${phase.id}) FROM ${phase.table}), 0)) AS maxId`,
+          null,
+          true,
+          `${phase.table}.reconcile_ceiling`,
+        );
+        state.ceiling = Number(rows[0]?.maxId);
+        validateCheckpoint(state);
+        save(state);
+      }
+      if (state.after >= state.ceiling) {
+        state = { ...state, phase: state.phase + 1, after: 0, ceiling: null };
+        persist(true);
+        continue;
+      }
+      // Both source and derived indexes are keyset-paged. The smaller full
+      // page boundary bounds *both* sets to 500 rows, including orphaned
+      // candidates whose source was deleted. A fixed ceiling prevents new
+      // traffic from making the nightly pass run forever.
+      const source = await query(
+        `SELECT id AS cursorId FROM ${phase.source}
+      WHERE id > ? AND id <= ? ORDER BY id LIMIT ${SYNC_CHUNK_SIZE}`,
+        [state.after, state.ceiling],
+        true,
+        `${phase.table}.reconcile_source_page`,
+      );
+      sourceRows += source.length;
+      const current = await phase.loadCurrent(
+        query,
+        state.after,
+        state.ceiling,
+      );
+      const through = Math.min(
+        state.ceiling,
+        source.length === SYNC_CHUNK_SIZE
+          ? Number(source.at(-1).cursorId)
+          : state.ceiling,
+        current.length === SYNC_CHUNK_SIZE
+          ? Number(current.at(-1)[phase.id])
+          : state.ceiling,
+      );
+      if (!Number.isSafeInteger(through) || through <= state.after)
+        throw new Error("Earn reconciliation cursor did not advance");
+      const initial = await phase.loadEligible(query, state.after, through);
+      if (initial.length > SYNC_CHUNK_SIZE)
+        throw new Error("Earn reconciliation exceeded its bounded source page");
+      const existing = current.filter(
+        (row) => Number(row[phase.id]) <= through,
+      );
+      const restore = phase.repairs(existing, initial);
+      await phase.restore(restore, query);
+      repaired += restore.length;
+      let purgeError;
+      const eligibleIds = new Set(initial.map((row) => Number(row[phase.id])));
+      const needsPurge = existing.some(
+        (row) => !eligibleIds.has(Number(row[phase.id])),
+      );
+      try {
+        purged += await purgeStaleCandidates({
+          query,
+          table: phase.table,
+          idColumn: phase.id,
+          eligibleRows: initial,
+          eligibleRowId: (row) => row[phase.id],
+          currentRows: existing,
+          currentRowId: (row) => row[phase.id],
+          queryLabel: phase.table,
+        });
+      } catch (error) {
+        purgeError = error;
+      }
+      // Preserve the existing race repair, including after a partial purge.
+      // Advance the durable cursor only after this whole range succeeds.
+      if (needsPurge) {
+        const final = await phase.loadEligible(query, state.after, through);
+        const finalRepairs = phase.repairs(initial, final);
+        await phase.restore(finalRepairs, query);
+        repaired += finalRepairs.length;
+      }
+      if (purgeError) throw purgeError;
+      state = { ...state, after: through };
+      batches++;
+      persist(true);
+      await pause();
+    }
+    return reportSlice("complete");
+  } catch (error) {
+    // Keep the last completed cursor and the failed slice's health evidence.
+    // A telemetry/checkpoint error never changes the original query failure.
+    try {
+      reportSlice("failed", error?.code || "operation_failed");
+    } catch {
+      /* original error below */
+    }
+    throw error;
+  }
 }
 
 module.exports = { reconcileEarnCommentCandidates };

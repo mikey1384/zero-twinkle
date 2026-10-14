@@ -1,4 +1,14 @@
 const mysql = require("mysql2");
+const { retireIdleConnections } = require("./poolMaintenance");
+const {
+  createDatabaseOperationHealth,
+  createDatabaseHealthWriter,
+} = require("./databaseOperationHealth");
+const databaseOperationHealth = createDatabaseOperationHealth();
+const writeDatabaseHealth =
+  process.env.NODE_ENV === "production"
+    ? createDatabaseHealthWriter({ service: "cron" })
+    : null;
 
 // A brief queue is normal during a scheduled burst; warn only when it remains
 // queued or delays an acquisition long enough to be operationally meaningful.
@@ -25,10 +35,11 @@ const mysqlSslProfile = (
 ).trim();
 const mysqlSsl = mysqlSslProfile || undefined;
 
-// Optimized pool settings to prevent memory bloat during ETL operations
+// Idle retirement is handled below with a warm floor. mysql2's idleTimeout
+// alone does not start a cleanup timer with its default maxIdle setting.
 const writePool = mysql.createPool({
   connectionLimit: 5,
-  idleTimeout: 60000,
+  maxPreparedStatements: 256,
   host: mysqlHost,
   user: mysqlWriteUser,
   password: process.env.MYSQL_PASSWORD,
@@ -41,8 +52,8 @@ const writePool = mysql.createPool({
 });
 
 const readPool = mysql.createPool({
-  connectionLimit: 5, // Reduced from 10 for consistency
-  idleTimeout: 60000, // 60 seconds - prevent connection caching
+  connectionLimit: 5,
+  maxPreparedStatements: 256,
   host: mysqlReaderHost,
   user: mysqlReadUser,
   password: process.env.MYSQL_PASSWORD,
@@ -55,6 +66,7 @@ const readPool = mysql.createPool({
 });
 
 function attachPoolPressureTelemetry(pool, route) {
+  let retiredConnections = 0;
   let enqueuedRequests = 0;
   let maxQueuedRequests = 0;
   let completedQueuedRequests = 0;
@@ -80,6 +92,7 @@ function attachPoolPressureTelemetry(pool, route) {
 
   const originalGetConnection = pool.getConnection.bind(pool);
   pool.getConnection = (callback) => {
+    const acquireStartedAt = Date.now();
     const before = snapshot();
     const enteredQueue =
       before.limit > 0 &&
@@ -87,6 +100,13 @@ function attachPoolPressureTelemetry(pool, route) {
       before.freeConnections === 0;
     const queuedAtMs = enteredQueue ? Date.now() : 0;
     return originalGetConnection((error, connection) => {
+      databaseOperationHealth.observe(
+        route,
+        "acquire",
+        Date.now() - acquireStartedAt,
+        error?.code,
+        Boolean(error),
+      );
       if (enteredQueue) {
         completedQueuedRequests += 1;
         maxQueuedWaitMs = Math.max(maxQueuedWaitMs, Date.now() - queuedAtMs);
@@ -96,6 +116,8 @@ function attachPoolPressureTelemetry(pool, route) {
   };
 
   const timer = setInterval(() => {
+    const retiredThisMinute = retireIdleConnections(pool);
+    retiredConnections += retiredThisMinute;
     intervalCount += 1;
     const current = snapshot();
     const hadQueueActivity =
@@ -106,6 +128,18 @@ function attachPoolPressureTelemetry(pool, route) {
       snapshot: current,
       maxQueuedWaitMs,
     });
+    void writeDatabaseHealth?.({
+      kind: "database-window",
+      ...databaseOperationHealth.drain(route),
+      pool: {
+        ...current,
+        enqueuedRequests,
+        maxQueuedRequests,
+        maxQueuedWaitMs,
+        wasPressured,
+      },
+      maintenance: { retiredConnections: retiredThisMinute, warmReserve: 1 },
+    });
     if (hadQueueActivity || wasPressured || intervalCount % 15 === 0) {
       const payload = {
         message: wasPressured
@@ -113,6 +147,7 @@ function attachPoolPressureTelemetry(pool, route) {
           : "Database pool telemetry",
         route,
         ...current,
+        retiredConnections,
         enqueuedRequests,
         maxQueuedRequests,
         completedQueuedRequests,
@@ -144,4 +179,6 @@ module.exports = {
   isActionableDatabasePoolPressure,
   writePool,
   readPool,
+  databaseOperationHealth,
+  writeDatabaseHealth,
 };

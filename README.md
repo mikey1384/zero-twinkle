@@ -56,6 +56,34 @@ bun run status
 
 ## Heartbeat And Recovery
 
+### Database work and daily health
+
+The nightly Earn candidate reconciliation begins at 19:00 UTC, then resumes
+bounded slices on each minute tick until complete. Each source/derived range
+contains at most 500 rows, queries have five-second acquisition/statement
+deadlines, and the task yields between batches. A twenty-second slice budget is
+checked between batches; one batch can take it past that time. More than four
+running database statements defers another slice. Canonical eligibility, teacher
+hints, orphan cleanup and the final repair after deletion remain intact.
+
+`logs/earn-candidate-reconcile.json` saves the last fully completed range and
+whole-pass health counters atomically. Preserve a corrupt checkpoint for
+inspection; do not delete it to conceal incomplete work. Restart resumes the
+cursor outside the start hour. Healthy idempotent ranges skip a redundant second
+eligibility scan; ranges that delete candidates retain the concurrent-write
+repair, including after a partial deletion failure.
+
+The five-slot pools keep one warm socket per route and retire unused extras
+after a minute. Acquisitions and statements have separate finite deadlines;
+ambiguous timed-out writes are never retried. Private minute summaries and
+reconciliation reports live in `logs/database-health/`, independently of the
+heartbeat and ordinary error logs. They retain eight UTC dates with bounded
+storage and include missing/dropped-data signals. The API repository's
+`scripts/daily-ops-gather.sh` reads them during daily website management.
+`service/databaseOperationHealth.js` is generated from the API's typed telemetry
+implementation with `node twinkle-api/scripts/sync-database-health.cjs`; regenerate
+and review both releases when changing that shared format.
+
 - Heartbeat file: `/tmp/aizero-heartbeat.json`
 - Repo watchdog script: `scripts/watchdog-aizero.sh`
 - Installed watchdog script used by `systemd`: `/usr/local/lib/zero-twinkle/watchdog-aizero.sh`
