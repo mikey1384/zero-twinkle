@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.databaseOperationHealth = exports.DATABASE_HEALTH_WRITER_PROCESSES = exports.DATABASE_HEALTH_TODAY_RESERVE_BYTES = exports.DATABASE_HEALTH_STOP_FREE_DISK_BYTES = exports.DATABASE_HEALTH_CORE_ONLY_FREE_DISK_BYTES = exports.DATABASE_HEALTH_MAX_DIRECTORY_BYTES = exports.DATABASE_HEALTH_DAY_DEGRADE_SHARE = exports.DATABASE_HEALTH_MAX_DAY_BYTES = exports.DATABASE_HEALTH_MAX_LINE_BYTES = exports.LATENCY_BUCKETS_MS = void 0;
+exports.databaseOperationHealth = exports.DATABASE_HEALTH_WRITER_PROCESSES = exports.DATABASE_HEALTH_TODAY_RESERVE_BYTES = exports.DATABASE_HEALTH_STOP_FREE_DISK_BYTES = exports.DATABASE_HEALTH_CORE_ONLY_FREE_DISK_BYTES = exports.DATABASE_HEALTH_MAX_DIRECTORY_BYTES = exports.DATABASE_HEALTH_CORE_ONLY_DAY_BYTES = exports.DATABASE_HEALTH_MAX_DAY_BYTES = exports.DATABASE_HEALTH_MAX_LINE_BYTES = exports.LATENCY_BUCKETS_MS = void 0;
 exports.createDatabaseOperationHealth = createDatabaseOperationHealth;
 exports.composeDatabaseHealthWindow = composeDatabaseHealthWindow;
 exports.fitDatabaseHealthLine = fitDatabaseHealthLine;
@@ -31,9 +31,10 @@ exports.DATABASE_HEALTH_MAX_LINE_BYTES = 24 * 1024;
 // Sized so a full day of extreme samples from every writer process stays
 // under the degrade share (a test asserts it). Realistic days use ~70 MB.
 exports.DATABASE_HEALTH_MAX_DAY_BYTES = 256 * 1024 * 1024;
-// Past this share of the day cap, new samples keep only their core route
-// metrics (about 1 KB) instead of reaching the cap and being dropped.
-exports.DATABASE_HEALTH_DAY_DEGRADE_SHARE = 0.85;
+// Once less than this much of today's budget is left, new windows keep only
+// their core metrics. It holds a whole day of extreme core-only windows from
+// every writer process (~44 MB), so a day that degrades never runs out.
+exports.DATABASE_HEALTH_CORE_ONLY_DAY_BYTES = 48 * 1024 * 1024;
 // Disk protection (twinkle-07, 10-19): the API and cron directories share the
 // primary's root disk, and a full disk would hurt the API itself, which is
 // worse than losing telemetry. Each directory keeps at most 1 GiB across its
@@ -46,6 +47,8 @@ exports.DATABASE_HEALTH_STOP_FREE_DISK_BYTES = 1024 * 1024 * 1024;
 // more, the oldest are deleted first (a whole day of extreme core-only windows
 // from every writer process is ~44 MB, so today can always write).
 exports.DATABASE_HEALTH_TODAY_RESERVE_BYTES = 64 * 1024 * 1024;
+// (The reserve is larger than DATABASE_HEALTH_CORE_ONLY_DAY_BYTES, so even a
+// squeezed day writes full windows first and keeps a core-only day after.)
 // Processes that load the database pool and so write samples: the API
 // cluster primary and its 2 workers (WEB_CONCURRENCY=2), the build-generation,
 // content-image-optimizer and town-sim workers, plus up to 2 provisional API
@@ -452,7 +455,14 @@ function createDatabaseHealthWriter({ service = 'api', directory = node_path_1.d
                             exports.DATABASE_HEALTH_MAX_DIRECTORY_BYTES -
                                 exports.DATABASE_HEALTH_TODAY_RESERVE_BYTES) {
                         const oldest = older.shift();
-                        await promises_1.default.unlink(oldest.file).catch(() => { });
+                        // Another writer may have removed it already (ENOENT is fine);
+                        // any other failure leaves the bytes counted.
+                        const removed = await promises_1.default
+                            .unlink(oldest.file)
+                            .then(() => true)
+                            .catch((error) => error?.code === 'ENOENT');
+                        if (!removed)
+                            continue;
                         olderDaysBytes -= oldest.size;
                         try {
                             warn('[database-health] removed an older day to keep today within the directory budget ' +
@@ -500,7 +510,7 @@ function createDatabaseHealthWriter({ service = 'api', directory = node_path_1.d
                 if (line &&
                     (diskLow ||
                         bytes + Buffer.byteLength(line) >
-                            dayBudget * exports.DATABASE_HEALTH_DAY_DEGRADE_SHARE)) {
+                            dayBudget - exports.DATABASE_HEALTH_CORE_ONLY_DAY_BYTES)) {
                     ({ line, trimmed, fullBytes } = fitDatabaseHealthLine(sample, envelope, exports.DATABASE_HEALTH_MAX_LINE_BYTES, { coreOnly: true, reason: diskLow ? 'disk_low' : 'day_budget' }));
                 }
                 if (!line) {
