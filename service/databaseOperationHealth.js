@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.databaseOperationHealth = exports.DATABASE_HEALTH_WRITER_PROCESSES = exports.DATABASE_HEALTH_STOP_FREE_DISK_BYTES = exports.DATABASE_HEALTH_CORE_ONLY_FREE_DISK_BYTES = exports.DATABASE_HEALTH_MAX_DIRECTORY_BYTES = exports.DATABASE_HEALTH_DAY_DEGRADE_SHARE = exports.DATABASE_HEALTH_MAX_DAY_BYTES = exports.DATABASE_HEALTH_MAX_LINE_BYTES = exports.LATENCY_BUCKETS_MS = void 0;
+exports.databaseOperationHealth = exports.DATABASE_HEALTH_WRITER_PROCESSES = exports.DATABASE_HEALTH_TODAY_RESERVE_BYTES = exports.DATABASE_HEALTH_STOP_FREE_DISK_BYTES = exports.DATABASE_HEALTH_CORE_ONLY_FREE_DISK_BYTES = exports.DATABASE_HEALTH_MAX_DIRECTORY_BYTES = exports.DATABASE_HEALTH_DAY_DEGRADE_SHARE = exports.DATABASE_HEALTH_MAX_DAY_BYTES = exports.DATABASE_HEALTH_MAX_LINE_BYTES = exports.LATENCY_BUCKETS_MS = void 0;
 exports.createDatabaseOperationHealth = createDatabaseOperationHealth;
 exports.composeDatabaseHealthWindow = composeDatabaseHealthWindow;
 exports.fitDatabaseHealthLine = fitDatabaseHealthLine;
@@ -42,6 +42,10 @@ exports.DATABASE_HEALTH_DAY_DEGRADE_SHARE = 0.85;
 exports.DATABASE_HEALTH_MAX_DIRECTORY_BYTES = 1024 * 1024 * 1024;
 exports.DATABASE_HEALTH_CORE_ONLY_FREE_DISK_BYTES = 2 * 1024 * 1024 * 1024;
 exports.DATABASE_HEALTH_STOP_FREE_DISK_BYTES = 1024 * 1024 * 1024;
+// Today always keeps this much of the directory budget: when older days use
+// more, the oldest are deleted first (a whole day of extreme core-only windows
+// from every writer process is ~44 MB, so today can always write).
+exports.DATABASE_HEALTH_TODAY_RESERVE_BYTES = 64 * 1024 * 1024;
 // Processes that load the database pool and so write samples: the API
 // cluster primary and its 2 workers (WEB_CONCURRENCY=2), the build-generation,
 // content-image-optimizer and town-sim workers, plus up to 2 provisional API
@@ -425,15 +429,38 @@ function createDatabaseHealthWriter({ service = 'api', directory = node_path_1.d
                         .toISOString()
                         .slice(0, 10);
                     olderDaysBytes = 0;
+                    const older = [];
                     for (const name of await promises_1.default.readdir(directory)) {
                         const match = /^database-health-(\d{4}-\d{2}-\d{2})\.jsonl$/.exec(name);
                         if (match && match[1] < cutoff)
                             await promises_1.default.unlink(node_path_1.default.join(directory, name)).catch(() => { });
-                        else if (match && match[1] !== day)
-                            olderDaysBytes += await promises_1.default
-                                .stat(node_path_1.default.join(directory, name))
+                        else if (match && match[1] !== day) {
+                            const file = node_path_1.default.join(directory, name);
+                            const size = await promises_1.default
+                                .stat(file)
                                 .then((stat) => stat.size)
                                 .catch(() => 0);
+                            older.push({ day: match[1], file, size });
+                            olderDaysBytes += size;
+                        }
+                    }
+                    // A few heavy days must not starve today down to nothing: delete
+                    // the oldest days until today keeps its reserve.
+                    older.sort((a, b) => a.day.localeCompare(b.day));
+                    while (older.length &&
+                        olderDaysBytes >
+                            exports.DATABASE_HEALTH_MAX_DIRECTORY_BYTES -
+                                exports.DATABASE_HEALTH_TODAY_RESERVE_BYTES) {
+                        const oldest = older.shift();
+                        await promises_1.default.unlink(oldest.file).catch(() => { });
+                        olderDaysBytes -= oldest.size;
+                        try {
+                            warn('[database-health] removed an older day to keep today within the directory budget ' +
+                                JSON.stringify({ day: oldest.day, bytes: oldest.size }));
+                        }
+                        catch {
+                            /* diagnostics only */
+                        }
                     }
                     cleanedDay = day;
                 }
