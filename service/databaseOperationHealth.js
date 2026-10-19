@@ -7,6 +7,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.databaseOperationHealth = exports.DATABASE_HEALTH_MAX_DAY_BYTES = exports.DATABASE_HEALTH_MAX_LINE_BYTES = exports.LATENCY_BUCKETS_MS = void 0;
 exports.createDatabaseOperationHealth = createDatabaseOperationHealth;
+exports.fitDatabaseHealthLine = fitDatabaseHealthLine;
 exports.createDatabaseHealthWriter = createDatabaseHealthWriter;
 const promises_1 = __importDefault(require("node:fs/promises"));
 const node_path_1 = __importDefault(require("node:path"));
@@ -19,7 +20,13 @@ exports.LATENCY_BUCKETS_MS = [5, 20, 50, 100, 250, 500, 1000, 5000, null];
 // Keep the standalone reader's limits in sync (covered by the writer tests).
 // Five processes each write two <=8 KiB windows per minute: <=112.5 MiB/day.
 // The previous 32 MiB host-wide cap exhausted before the end of a normal day.
-exports.DATABASE_HEALTH_MAX_LINE_BYTES = 8192;
+// A writer sample carries every fixed histogram; 10-19 the roadmap stall
+// counter took it to 8,203 bytes and every sample was dropped. With every
+// counter at 11 digits a sample is ~15 KB; a test keeps that under 75% of
+// this cap so a new metric fails CI, and fitDatabaseHealthLine degrades an
+// oversized sample instead of dropping it. A second test keeps a day of
+// extreme writer and reader windows from five processes inside the day cap.
+exports.DATABASE_HEALTH_MAX_LINE_BYTES = 24 * 1024;
 exports.DATABASE_HEALTH_MAX_DAY_BYTES = 128 * 1024 * 1024;
 function emptyNamedQueries() {
     return Object.fromEntries([
@@ -34,12 +41,14 @@ function emptyNamedQueries() {
     ].map((name) => [name, emptyMetric()]));
 }
 function emptyServiceMetrics() {
-    return Object.fromEntries(['minecraftChunkBatch', 'speechAttempt'].map(name => [name, emptyMetric()]));
+    return Object.fromEntries(['minecraftChunkBatch', 'speechAttempt', 'soundtrackRead', 'soundtrackWrite', 'soundtrackDecision', 'soundtrackGate', 'soundtrackRejected'].map(name => [name, emptyMetric()]));
 }
 function emptyProjectMetrics() {
     return Object.fromEntries([
         ['roadmapEvaluation', emptyMetric()],
         ['roadmapMissingEvidence', emptyMetric()],
+        // A Build plan milestone stalled (roadmap.ts loop guard).
+        ['roadmapStall', emptyMetric()],
         ...['preview', 'projectExport', 'assetReferenceScan', 'validation'].flatMap((operation) => ['total', 'queue', 'worker'].map((stage) => [
             `${operation}:${stage}`,
             emptyMetric()
@@ -164,6 +173,10 @@ function createDatabaseOperationHealth({ now = Date.now } = {}) {
                 projectMetrics['roadmapMissingEvidence'].buckets[0]++;
             }
         },
+        observeRoadmapStall() {
+            projectMetrics['roadmapStall'].count++;
+            projectMetrics['roadmapStall'].buckets[0]++;
+        },
         observeResponseText(selection) {
             const metric = responseTextMetrics[`responseText:${selection}`];
             metric.count++;
@@ -267,10 +280,55 @@ exports.databaseOperationHealth = createDatabaseOperationHealth();
 // on the request path. A stalled disk has at most four queued samples.
 // Eight dated files, <=128 MiB each per service/host, remain after log clearing
 // and process restarts. Drops and read gaps are explicit in the daily report.
+function isIdleMetric(metric) {
+    return (metric &&
+        !metric.count &&
+        !metric.failed &&
+        !metric.acquireTimeouts &&
+        !metric.statementTimeouts);
+}
+// 10-19: one new counter pushed a writer sample past the line cap and every
+// sample was dropped for hours. An oversized sample now degrades instead:
+// first all-idle application histograms are left out (lossless: the daily
+// report sums them as zero), then whole optional sections are replaced by a
+// `trimmed` marker the report raises as attention. Only a sample whose core
+// route metrics alone do not fit is dropped.
+function fitDatabaseHealthLine(sample, envelope, maxBytes = exports.DATABASE_HEALTH_MAX_LINE_BYTES) {
+    const render = (body) => JSON.stringify({ ...body, ...envelope }) + '\n';
+    const fits = (line) => Buffer.byteLength(line) <= maxBytes;
+    let line = render(sample);
+    const fullBytes = Buffer.byteLength(line);
+    if (fits(line))
+        return { line, trimmed: [], fullBytes };
+    const body = { ...sample };
+    if (body.applications && typeof body.applications === 'object') {
+        const active = Object.entries(body.applications).filter(([, metric]) => !isIdleMetric(metric));
+        body.idleApplicationsOmitted =
+            Object.keys(body.applications).length - active.length;
+        body.applications = Object.fromEntries(active);
+        line = render(body);
+        if (fits(line))
+            return { line, trimmed: [], fullBytes };
+    }
+    const trimmed = [];
+    for (const section of ['applications', 'monitoring']) {
+        if (body[section] === undefined)
+            continue;
+        delete body[section];
+        if (section === 'applications')
+            delete body.idleApplicationsOmitted;
+        trimmed.push(section);
+        line = render({ ...body, trimmed });
+        if (fits(line))
+            return { line, trimmed, fullBytes };
+    }
+    return { line: null, trimmed, fullBytes };
+}
 function createDatabaseHealthWriter({ service = 'api', directory = node_path_1.default.resolve(process.env.TWINKLE_LOG_DIR || 'logs', 'database-health'), now = Date.now, warn = (message) => console.warn(message) } = {}) {
     const processId = (0, node_crypto_1.randomUUID)();
     const startedAt = new Date(now()).toISOString();
     let pending = 0, dropped = 0, lastWarning = -Infinity, cleanedDay = '';
+    let lastTrimWarning = -Infinity;
     let tail = Promise.resolve(false);
     let revision = null;
     const identity = promises_1.default
@@ -328,8 +386,7 @@ function createDatabaseHealthWriter({ service = 'api', directory = node_path_1.d
                         return 0;
                     throw error;
                 });
-                const line = JSON.stringify({
-                    ...sample,
+                const { line, trimmed, fullBytes } = fitDatabaseHealthLine(sample, {
                     protocol: 1,
                     service,
                     at: new Date(at).toISOString(),
@@ -339,12 +396,26 @@ function createDatabaseHealthWriter({ service = 'api', directory = node_path_1.d
                     processStartedAt: startedAt,
                     revision,
                     dropped: previousDrops
-                }) + '\n';
-                lineBytes = Buffer.byteLength(line);
-                if (lineBytes > exports.DATABASE_HEALTH_MAX_LINE_BYTES) {
+                });
+                if (!line) {
+                    // Even the core route metrics do not fit: the only case that drops.
+                    lineBytes = fullBytes;
                     reason = 'sample_byte_limit';
                     throw new Error('database health storage limit');
                 }
+                // At most hourly, like the drop warning; the daily report also
+                // raises every trimmed window as telemetry_trimmed.
+                if (trimmed.length && at - lastTrimWarning >= 3600_000) {
+                    lastTrimWarning = at;
+                    try {
+                        warn(`[database-health] sample trimmed to fit ${exports.DATABASE_HEALTH_MAX_LINE_BYTES} bytes ` +
+                            JSON.stringify({ sections: trimmed, sampleBytes: fullBytes }));
+                    }
+                    catch {
+                        /* diagnostics only */
+                    }
+                }
+                lineBytes = Buffer.byteLength(line);
                 if (bytes + lineBytes > exports.DATABASE_HEALTH_MAX_DAY_BYTES) {
                     reason = 'daily_byte_limit';
                     throw new Error('database health storage limit');
