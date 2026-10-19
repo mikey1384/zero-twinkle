@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.databaseOperationHealth = exports.DATABASE_HEALTH_WRITER_PROCESSES = exports.DATABASE_HEALTH_DAY_DEGRADE_SHARE = exports.DATABASE_HEALTH_MAX_DAY_BYTES = exports.DATABASE_HEALTH_MAX_LINE_BYTES = exports.LATENCY_BUCKETS_MS = void 0;
+exports.databaseOperationHealth = exports.DATABASE_HEALTH_WRITER_PROCESSES = exports.DATABASE_HEALTH_STOP_FREE_DISK_BYTES = exports.DATABASE_HEALTH_CORE_ONLY_FREE_DISK_BYTES = exports.DATABASE_HEALTH_MAX_DIRECTORY_BYTES = exports.DATABASE_HEALTH_DAY_DEGRADE_SHARE = exports.DATABASE_HEALTH_MAX_DAY_BYTES = exports.DATABASE_HEALTH_MAX_LINE_BYTES = exports.LATENCY_BUCKETS_MS = void 0;
 exports.createDatabaseOperationHealth = createDatabaseOperationHealth;
 exports.composeDatabaseHealthWindow = composeDatabaseHealthWindow;
 exports.fitDatabaseHealthLine = fitDatabaseHealthLine;
@@ -34,6 +34,14 @@ exports.DATABASE_HEALTH_MAX_DAY_BYTES = 256 * 1024 * 1024;
 // Past this share of the day cap, new samples keep only their core route
 // metrics (about 1 KB) instead of reaching the cap and being dropped.
 exports.DATABASE_HEALTH_DAY_DEGRADE_SHARE = 0.85;
+// Disk protection (twinkle-07, 10-19): the API and cron directories share the
+// primary's root disk, and a full disk would hurt the API itself, which is
+// worse than losing telemetry. Each directory keeps at most 1 GiB across its
+// retained days (today gets what the older days leave); below 2 GiB free,
+// windows are written core-only, and below 1 GiB free nothing is written.
+exports.DATABASE_HEALTH_MAX_DIRECTORY_BYTES = 1024 * 1024 * 1024;
+exports.DATABASE_HEALTH_CORE_ONLY_FREE_DISK_BYTES = 2 * 1024 * 1024 * 1024;
+exports.DATABASE_HEALTH_STOP_FREE_DISK_BYTES = 1024 * 1024 * 1024;
 // Processes that load the database pool and so write samples: the API
 // cluster primary and its 2 workers (WEB_CONCURRENCY=2), the build-generation,
 // content-image-optimizer and town-sim workers, plus up to 2 provisional API
@@ -289,8 +297,10 @@ function createDatabaseOperationHealth({ now = Date.now } = {}) {
 exports.databaseOperationHealth = createDatabaseOperationHealth();
 // Append only from the existing minute timers / completed cron slices, never
 // on the request path. A stalled disk has at most four queued samples.
-// Eight dated files, <=128 MiB each per service/host, remain after log clearing
-// and process restarts. Drops and read gaps are explicit in the daily report.
+// Eight dated files per service/host remain after log clearing and process
+// restarts, together at most DATABASE_HEALTH_MAX_DIRECTORY_BYTES, and nothing is
+// written when the disk runs low. Drops, trims and read gaps are explicit in
+// the daily report.
 function isIdleMetric(metric) {
     return (metric &&
         !metric.count &&
@@ -322,7 +332,7 @@ const DATABASE_HEALTH_OPTIONAL_SECTIONS = [
     'monitoring',
     'diagnostics'
 ];
-function fitDatabaseHealthLine(sample, envelope, maxBytes = exports.DATABASE_HEALTH_MAX_LINE_BYTES, { coreOnly = false } = {}) {
+function fitDatabaseHealthLine(sample, envelope, maxBytes = exports.DATABASE_HEALTH_MAX_LINE_BYTES, { coreOnly = false, reason = 'day_budget' } = {}) {
     const render = (body) => JSON.stringify({ ...body, ...envelope }) + '\n';
     const fits = (line) => Buffer.byteLength(line) <= maxBytes;
     let line = render(sample);
@@ -333,7 +343,7 @@ function fitDatabaseHealthLine(sample, envelope, maxBytes = exports.DATABASE_HEA
         for (const section of trimmed)
             delete body[section];
         delete body.idleApplicationsOmitted;
-        line = render({ ...body, trimmed, trimReason: 'day_budget' });
+        line = render({ ...body, trimmed, trimReason: reason });
         return { line: fits(line) ? line : null, trimmed, fullBytes };
     }
     if (fits(line))
@@ -362,11 +372,17 @@ function fitDatabaseHealthLine(sample, envelope, maxBytes = exports.DATABASE_HEA
     }
     return { line: null, trimmed, fullBytes };
 }
-function createDatabaseHealthWriter({ service = 'api', directory = node_path_1.default.resolve(process.env.TWINKLE_LOG_DIR || 'logs', 'database-health'), now = Date.now, warn = (message) => console.warn(message) } = {}) {
+function createDatabaseHealthWriter({ service = 'api', directory = node_path_1.default.resolve(process.env.TWINKLE_LOG_DIR || 'logs', 'database-health'), now = Date.now, warn = (message) => console.warn(message), freeDiskBytes = async (dir) => {
+    const stats = await promises_1.default.statfs(dir);
+    return Number(stats.bavail) * Number(stats.bsize);
+} } = {}) {
     const processId = (0, node_crypto_1.randomUUID)();
     const startedAt = new Date(now()).toISOString();
     let pending = 0, dropped = 0, lastWarning = -Infinity, cleanedDay = '';
     let lastTrimWarning = -Infinity;
+    // Bytes of the retained older days, measured at each day's cleanup.
+    let olderDaysBytes = 0;
+    let dayBudget = exports.DATABASE_HEALTH_MAX_DAY_BYTES;
     let tail = Promise.resolve(false);
     let revision = null;
     const identity = promises_1.default
@@ -408,10 +424,16 @@ function createDatabaseHealthWriter({ service = 'api', directory = node_path_1.d
                     const cutoff = new Date(at - 7 * 86400_000)
                         .toISOString()
                         .slice(0, 10);
+                    olderDaysBytes = 0;
                     for (const name of await promises_1.default.readdir(directory)) {
                         const match = /^database-health-(\d{4}-\d{2}-\d{2})\.jsonl$/.exec(name);
                         if (match && match[1] < cutoff)
                             await promises_1.default.unlink(node_path_1.default.join(directory, name)).catch(() => { });
+                        else if (match && match[1] !== day)
+                            olderDaysBytes += await promises_1.default
+                                .stat(node_path_1.default.join(directory, name))
+                                .then((stat) => stat.size)
+                                .catch(() => 0);
                     }
                     cleanedDay = day;
                 }
@@ -436,12 +458,23 @@ function createDatabaseHealthWriter({ service = 'api', directory = node_path_1.d
                     dropped: previousDrops
                 };
                 let { line, trimmed, fullBytes } = fitDatabaseHealthLine(sample, envelope);
-                // Near the day cap, keep writing core-only windows rather than
-                // reaching the cap and dropping everything for the rest of the day.
+                // Today's budget is the day cap or what the older retained days
+                // leave of the directory budget, whichever is smaller.
+                dayBudget = Math.max(0, Math.min(exports.DATABASE_HEALTH_MAX_DAY_BYTES, exports.DATABASE_HEALTH_MAX_DIRECTORY_BYTES - olderDaysBytes));
+                const freeBytes = await freeDiskBytes(directory).catch(() => null);
+                if (freeBytes !== null && freeBytes < exports.DATABASE_HEALTH_STOP_FREE_DISK_BYTES) {
+                    reason = 'disk_low';
+                    throw new Error('database health storage limit');
+                }
+                // Near the budget or on a low disk, keep writing core-only windows
+                // rather than reaching the limit and dropping everything.
+                const diskLow = freeBytes !== null &&
+                    freeBytes < exports.DATABASE_HEALTH_CORE_ONLY_FREE_DISK_BYTES;
                 if (line &&
-                    bytes + Buffer.byteLength(line) >
-                        exports.DATABASE_HEALTH_MAX_DAY_BYTES * exports.DATABASE_HEALTH_DAY_DEGRADE_SHARE) {
-                    ({ line, trimmed, fullBytes } = fitDatabaseHealthLine(sample, envelope, exports.DATABASE_HEALTH_MAX_LINE_BYTES, { coreOnly: true }));
+                    (diskLow ||
+                        bytes + Buffer.byteLength(line) >
+                            dayBudget * exports.DATABASE_HEALTH_DAY_DEGRADE_SHARE)) {
+                    ({ line, trimmed, fullBytes } = fitDatabaseHealthLine(sample, envelope, exports.DATABASE_HEALTH_MAX_LINE_BYTES, { coreOnly: true, reason: diskLow ? 'disk_low' : 'day_budget' }));
                 }
                 if (!line) {
                     // Even the core route metrics do not fit: the only case that drops.
@@ -462,8 +495,11 @@ function createDatabaseHealthWriter({ service = 'api', directory = node_path_1.d
                     }
                 }
                 lineBytes = Buffer.byteLength(line);
-                if (bytes + lineBytes > exports.DATABASE_HEALTH_MAX_DAY_BYTES) {
-                    reason = 'daily_byte_limit';
+                if (bytes + lineBytes > dayBudget) {
+                    reason =
+                        dayBudget < exports.DATABASE_HEALTH_MAX_DAY_BYTES
+                            ? 'directory_byte_limit'
+                            : 'daily_byte_limit';
                     throw new Error('database health storage limit');
                 }
                 await promises_1.default.appendFile(file, line, { mode: 0o600 });
