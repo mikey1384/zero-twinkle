@@ -5,8 +5,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.databaseOperationHealth = exports.DATABASE_HEALTH_MAX_DAY_BYTES = exports.DATABASE_HEALTH_MAX_LINE_BYTES = exports.LATENCY_BUCKETS_MS = void 0;
+exports.databaseOperationHealth = exports.DATABASE_HEALTH_WRITER_PROCESSES = exports.DATABASE_HEALTH_DAY_DEGRADE_SHARE = exports.DATABASE_HEALTH_MAX_DAY_BYTES = exports.DATABASE_HEALTH_MAX_LINE_BYTES = exports.LATENCY_BUCKETS_MS = void 0;
 exports.createDatabaseOperationHealth = createDatabaseOperationHealth;
+exports.composeDatabaseHealthWindow = composeDatabaseHealthWindow;
 exports.fitDatabaseHealthLine = fitDatabaseHealthLine;
 exports.createDatabaseHealthWriter = createDatabaseHealthWriter;
 const promises_1 = __importDefault(require("node:fs/promises"));
@@ -27,7 +28,17 @@ exports.LATENCY_BUCKETS_MS = [5, 20, 50, 100, 250, 500, 1000, 5000, null];
 // oversized sample instead of dropping it. A second test keeps a day of
 // extreme writer and reader windows from five processes inside the day cap.
 exports.DATABASE_HEALTH_MAX_LINE_BYTES = 24 * 1024;
-exports.DATABASE_HEALTH_MAX_DAY_BYTES = 128 * 1024 * 1024;
+// Sized so a full day of extreme samples from every writer process stays
+// under the degrade share (a test asserts it). Realistic days use ~70 MB.
+exports.DATABASE_HEALTH_MAX_DAY_BYTES = 256 * 1024 * 1024;
+// Past this share of the day cap, new samples keep only their core route
+// metrics (about 1 KB) instead of reaching the cap and being dropped.
+exports.DATABASE_HEALTH_DAY_DEGRADE_SHARE = 0.85;
+// Processes that load the database pool and so write samples: the API
+// cluster primary and its 2 workers (WEB_CONCURRENCY=2), the build-generation,
+// content-image-optimizer and town-sim workers, plus up to 2 provisional API
+// workers during a deploy handoff. The day-budget test uses this count.
+exports.DATABASE_HEALTH_WRITER_PROCESSES = 8;
 function emptyNamedQueries() {
     return Object.fromEntries([
         'noteworthyComments',
@@ -293,11 +304,38 @@ function isIdleMetric(metric) {
 // report sums them as zero), then whole optional sections are replaced by a
 // `trimmed` marker the report raises as attention. Only a sample whose core
 // route metrics alone do not fit is dropped.
-function fitDatabaseHealthLine(sample, envelope, maxBytes = exports.DATABASE_HEALTH_MAX_LINE_BYTES) {
+// One database-health window exactly as pool.ts writes it; the guard tests
+// build their extreme samples through this too.
+function composeDatabaseHealthWindow({ drained, diagnostics, pool, maintenance }) {
+    return {
+        kind: 'database-window',
+        ...drained,
+        ...(diagnostics ? { diagnostics } : {}),
+        pool,
+        maintenance
+    };
+}
+// Optional sections, trimmed in this order; the route operations, pool and
+// maintenance counters are the core every window keeps.
+const DATABASE_HEALTH_OPTIONAL_SECTIONS = [
+    'applications',
+    'monitoring',
+    'diagnostics'
+];
+function fitDatabaseHealthLine(sample, envelope, maxBytes = exports.DATABASE_HEALTH_MAX_LINE_BYTES, { coreOnly = false } = {}) {
     const render = (body) => JSON.stringify({ ...body, ...envelope }) + '\n';
     const fits = (line) => Buffer.byteLength(line) <= maxBytes;
     let line = render(sample);
     const fullBytes = Buffer.byteLength(line);
+    if (coreOnly) {
+        const body = { ...sample };
+        const trimmed = DATABASE_HEALTH_OPTIONAL_SECTIONS.filter((section) => body[section] !== undefined);
+        for (const section of trimmed)
+            delete body[section];
+        delete body.idleApplicationsOmitted;
+        line = render({ ...body, trimmed, trimReason: 'day_budget' });
+        return { line: fits(line) ? line : null, trimmed, fullBytes };
+    }
     if (fits(line))
         return { line, trimmed: [], fullBytes };
     const body = { ...sample };
@@ -311,7 +349,7 @@ function fitDatabaseHealthLine(sample, envelope, maxBytes = exports.DATABASE_HEA
             return { line, trimmed: [], fullBytes };
     }
     const trimmed = [];
-    for (const section of ['applications', 'monitoring']) {
+    for (const section of DATABASE_HEALTH_OPTIONAL_SECTIONS) {
         if (body[section] === undefined)
             continue;
         delete body[section];
@@ -386,7 +424,7 @@ function createDatabaseHealthWriter({ service = 'api', directory = node_path_1.d
                         return 0;
                     throw error;
                 });
-                const { line, trimmed, fullBytes } = fitDatabaseHealthLine(sample, {
+                const envelope = {
                     protocol: 1,
                     service,
                     at: new Date(at).toISOString(),
@@ -396,7 +434,15 @@ function createDatabaseHealthWriter({ service = 'api', directory = node_path_1.d
                     processStartedAt: startedAt,
                     revision,
                     dropped: previousDrops
-                });
+                };
+                let { line, trimmed, fullBytes } = fitDatabaseHealthLine(sample, envelope);
+                // Near the day cap, keep writing core-only windows rather than
+                // reaching the cap and dropping everything for the rest of the day.
+                if (line &&
+                    bytes + Buffer.byteLength(line) >
+                        exports.DATABASE_HEALTH_MAX_DAY_BYTES * exports.DATABASE_HEALTH_DAY_DEGRADE_SHARE) {
+                    ({ line, trimmed, fullBytes } = fitDatabaseHealthLine(sample, envelope, exports.DATABASE_HEALTH_MAX_LINE_BYTES, { coreOnly: true }));
+                }
                 if (!line) {
                     // Even the core route metrics do not fit: the only case that drops.
                     lineBytes = fullBytes;
