@@ -75,7 +75,7 @@ function emptyProjectMetrics() {
         ['roadmapMissingEvidence', emptyMetric()],
         // A Build plan milestone stalled (roadmap.ts loop guard).
         ['roadmapStall', emptyMetric()],
-        ...['preview', 'projectExport', 'assetReferenceScan', 'validation'].flatMap((operation) => ['total', 'queue', 'worker'].map((stage) => [
+        ...['preview', 'projectExport', 'assetReferenceScan', 'validation', 'rewardConfig'].flatMap((operation) => ['total', 'queue', 'worker'].map((stage) => [
             `${operation}:${stage}`,
             emptyMetric()
         ]))
@@ -113,6 +113,7 @@ function emptyMetric() {
     };
 }
 function createDatabaseOperationHealth({ now = Date.now } = {}) {
+    let transactionFailures = {};
     let namedQueries = emptyNamedQueries();
     let serviceMetrics = emptyServiceMetrics();
     let storyStyleValidation = emptyMetric();
@@ -238,6 +239,10 @@ function createDatabaseOperationHealth({ now = Date.now } = {}) {
             metric.buckets[exports.LATENCY_BUCKETS_MS.findIndex((upper) => upper === null || ms <= upper)]++;
             monitoringStatus[operation] = failed ? 'unavailable' : 'ready';
         },
+        observeTransactionFailure(phase, kind) {
+            const key = `${phase}:${kind}`;
+            transactionFailures[key] = (transactionFailures[key] || 0) + 1;
+        },
         observe(route, operation, durationMs, errorCode, failed = false) {
             const metric = get(route).metrics[operation];
             const ms = Math.max(0, Number.isFinite(durationMs) ? durationMs : 0);
@@ -263,6 +268,7 @@ function createDatabaseOperationHealth({ now = Date.now } = {}) {
             });
             const monitorWindow = route === 'writer'
                 ? {
+                    transactionFailures,
                     monitoring,
                     monitoringStatus: { ...monitoringStatus },
                     applications: {
@@ -277,6 +283,7 @@ function createDatabaseOperationHealth({ now = Date.now } = {}) {
                 }
                 : {};
             if (route === 'writer') {
+                transactionFailures = {};
                 namedQueries = emptyNamedQueries();
                 serviceMetrics = emptyServiceMetrics();
                 storyStyleValidation = emptyMetric();
