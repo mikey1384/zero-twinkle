@@ -63,7 +63,8 @@ function emptyNamedQueries() {
         'latestBoardMessages',
         'reflectionChatHistory',
         'contributionLiveStates',
-        'chatMessagePage'
+        'chatMessagePage',
+        'chatTopicRange'
     ].map((name) => [name, emptyMetric()]));
 }
 function emptyServiceMetrics() {
