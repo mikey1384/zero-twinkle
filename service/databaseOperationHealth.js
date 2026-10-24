@@ -64,7 +64,11 @@ function emptyNamedQueries() {
         'reflectionChatHistory',
         'contributionLiveStates',
         'chatMessagePage',
-        'chatTopicRange'
+        'chatTopicRange',
+        'xpAcquisition',
+        'wordMasterFeed',
+        'wordMasterFeedDefinitions',
+        'videoRecommendations'
     ].map((name) => [name, emptyApplicationMetric()]));
 }
 function emptyServiceMetrics() {
