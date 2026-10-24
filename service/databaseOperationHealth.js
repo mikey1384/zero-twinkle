@@ -65,20 +65,20 @@ function emptyNamedQueries() {
         'contributionLiveStates',
         'chatMessagePage',
         'chatTopicRange'
-    ].map((name) => [name, emptyMetric()]));
+    ].map((name) => [name, emptyApplicationMetric()]));
 }
 function emptyServiceMetrics() {
-    return Object.fromEntries(['minecraftChunkBatch', 'speechAttempt', 'soundtrackRead', 'soundtrackWrite', 'soundtrackDecision', 'soundtrackGate', 'soundtrackRejected', 'leaderboardRanking', 'videoHistoryFilter', 'videoContinueFinish'].map(name => [name, emptyMetric()]));
+    return Object.fromEntries(['minecraftChunkBatch', 'speechAttempt', 'soundtrackRead', 'soundtrackWrite', 'soundtrackDecision', 'soundtrackGate', 'soundtrackRejected', 'leaderboardRanking', 'videoHistoryFilter', 'videoContinueFinish'].map(name => [name, emptyApplicationMetric()]));
 }
 function emptyProjectMetrics() {
     return Object.fromEntries([
-        ['roadmapEvaluation', emptyMetric()],
-        ['roadmapMissingEvidence', emptyMetric()],
+        ['roadmapEvaluation', emptyApplicationMetric()],
+        ['roadmapMissingEvidence', emptyApplicationMetric()],
         // A Build plan milestone stalled (roadmap.ts loop guard).
-        ['roadmapStall', emptyMetric()],
+        ['roadmapStall', emptyApplicationMetric()],
         ...['preview', 'projectExport', 'assetReferenceScan', 'validation', 'rewardConfig'].flatMap((operation) => ['total', 'queue', 'worker'].map((stage) => [
             `${operation}:${stage}`,
-            emptyMetric()
+            emptyApplicationMetric()
         ]))
     ]);
 }
@@ -91,16 +91,16 @@ function emptyLumineApplyMetrics() {
         'saveFailed',
         'retryReused',
         'invalidArguments'
-    ].map((outcome) => [`lumineApply:${outcome}`, emptyMetric()]));
+    ].map((outcome) => [`lumineApply:${outcome}`, emptyApplicationMetric()]));
 }
 function emptyLumineNoOpMetrics() {
     return Object.fromEntries(['already_satisfied', 'blocked'].map((outcome) => [
         `lumineNoOp:${outcome}`,
-        emptyMetric()
+        emptyApplicationMetric()
     ]));
 }
 function emptyResponseTextMetrics() {
-    return Object.fromEntries(['structured', 'topLevel', 'stream', 'empty', 'toolOnly'].map((selection) => [`responseText:${selection}`, emptyMetric()]));
+    return Object.fromEntries(['structured', 'topLevel', 'stream', 'empty', 'toolOnly'].map((selection) => [`responseText:${selection}`, emptyApplicationMetric()]));
 }
 function emptyMetric() {
     return {
@@ -113,18 +113,32 @@ function emptyMetric() {
         buckets: exports.LATENCY_BUCKETS_MS.map(() => 0)
     };
 }
+// Only the pool's acquire/query/transaction metrics can record database
+// timeouts. Application and monitoring metrics never did, so they leave the
+// two always-zero counters out (10-24: they were 2/7 of every worst-case
+// sample and pushed the extreme day past the degrade share). The daily
+// report reads a missing counter as zero, so older rows stay comparable.
+function emptyApplicationMetric() {
+    return {
+        count: 0,
+        failed: 0,
+        durationMs: 0,
+        maxMs: 0,
+        buckets: exports.LATENCY_BUCKETS_MS.map(() => 0)
+    };
+}
 function createDatabaseOperationHealth({ now = Date.now } = {}) {
     let transactionFailures = {};
     let namedQueries = emptyNamedQueries();
     let serviceMetrics = emptyServiceMetrics();
-    let storyStyleValidation = emptyMetric();
+    let storyStyleValidation = emptyApplicationMetric();
     let projectMetrics = emptyProjectMetrics();
     let responseTextMetrics = emptyResponseTextMetrics();
     let lumineApplyMetrics = emptyLumineApplyMetrics();
     let lumineNoOpMetrics = emptyLumineNoOpMetrics();
     let monitoring = {
-        heapSample: emptyMetric(),
-        cpuProfileRotation: emptyMetric()
+        heapSample: emptyApplicationMetric(),
+        cpuProfileRotation: emptyApplicationMetric()
     };
     const monitoringStatus = {
         heapSample: 'not_started',
@@ -287,7 +301,7 @@ function createDatabaseOperationHealth({ now = Date.now } = {}) {
                 transactionFailures = {};
                 namedQueries = emptyNamedQueries();
                 serviceMetrics = emptyServiceMetrics();
-                storyStyleValidation = emptyMetric();
+                storyStyleValidation = emptyApplicationMetric();
                 projectMetrics = emptyProjectMetrics();
                 responseTextMetrics = emptyResponseTextMetrics();
                 lumineApplyMetrics = emptyLumineApplyMetrics();
@@ -295,8 +309,8 @@ function createDatabaseOperationHealth({ now = Date.now } = {}) {
             }
             if (route === 'writer')
                 monitoring = {
-                    heapSample: emptyMetric(),
-                    cpuProfileRotation: emptyMetric()
+                    heapSample: emptyApplicationMetric(),
+                    cpuProfileRotation: emptyApplicationMetric()
                 };
             return {
                 route,
