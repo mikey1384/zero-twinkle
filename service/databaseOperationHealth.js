@@ -61,6 +61,8 @@ function emptyNamedQueries() {
         'wordMasterMonth',
         'wordMasterYear',
         'latestBoardMessages',
+        'latestOmokBoardMessages',
+        'wordMasterDodge',
         'reflectionChatHistory',
         'contributionLiveStates',
         'chatMessagePage',
