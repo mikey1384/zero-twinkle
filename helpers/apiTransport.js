@@ -3,7 +3,7 @@ const path = require("node:path");
 
 // Explicit bootstrap opt-in. No POST retry or public-NLB fallback after enable.
 function apiTransport(endpoint) {
-  if (!["/zero/news/process", "/zero/reward/card"].includes(endpoint)) {
+  if (!["/zero/news/process", "/zero/reward/card", "/zero/minecraft/visitor-requests/process"].includes(endpoint)) {
     throw new Error("Unsupported Zero API endpoint");
   }
   const appDirectory = process.env.TWINKLE_API_HOST_DIRECTORY;

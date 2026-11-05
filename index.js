@@ -7,6 +7,7 @@ const {
   setPlaylistRewardLevel,
   checkAndTriggerRewardCard,
   processTwinkleNewspaper,
+  processVisitorBuildReviews,
   updateWordMasterRankings,
   refreshAiStoryChapterStats,
   reconcileEarnCommentCandidates,
@@ -43,6 +44,11 @@ const tasks = [
   {
     name: "processTwinkleNewspaper",
     fn: processTwinkleNewspaper,
+    intervalSeconds: 30,
+  },
+  {
+    name: "processVisitorBuildReviews",
+    fn: processVisitorBuildReviews,
     intervalSeconds: 30,
   },
   {
