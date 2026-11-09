@@ -74,7 +74,7 @@ function emptyNamedQueries() {
     ].map((name) => [name, emptyApplicationMetric()]));
 }
 function emptyServiceMetrics() {
-    return Object.fromEntries(['minecraftChunkBatch', 'speechAttempt', 'soundtrackRead', 'soundtrackWrite', 'soundtrackDecision', 'soundtrackGate', 'soundtrackRejected', 'leaderboardRanking', 'videoHistoryFilter', 'videoContinueFinish'].map(name => [name, emptyApplicationMetric()]));
+    return Object.fromEntries(['minecraftChunkBatch', 'speechAttempt', 'soundtrackRead', 'soundtrackWrite', 'soundtrackDecision', 'soundtrackGate', 'soundtrackRejected', 'leaderboardRanking', 'videoHistoryFilter', 'videoContinueFinish', 'landEdit', 'landEditRefused', 'landCreditCapped', 'landThrottled', 'landRead'].map(name => [name, emptyApplicationMetric()]));
 }
 function emptyProjectMetrics() {
     return Object.fromEntries([
