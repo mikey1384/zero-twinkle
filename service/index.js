@@ -6,6 +6,7 @@ const { syncChessPuzzles } = require("./chess");
 const { updateWordMasterRankings } = require("./leaderboards/wordMaster");
 const { refreshAiStoryChapterStats } = require("./aiStories/chapterStats");
 const { reconcileEarnCommentCandidates } = require("./earnCandidates");
+const { pruneBuildRewardRuns } = require("./buildRewardRuns");
 const {
   runEchoNotifications,
   purgeExpiredPendingEchoSignups,
@@ -24,6 +25,7 @@ module.exports = {
   updateWordMasterRankings,
   refreshAiStoryChapterStats,
   reconcileEarnCommentCandidates,
+  pruneBuildRewardRuns,
   runEchoNotifications,
   purgeExpiredPendingEchoSignups,
   reconcileExpiredEchoSubscriptions,

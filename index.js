@@ -11,6 +11,7 @@ const {
   updateWordMasterRankings,
   refreshAiStoryChapterStats,
   reconcileEarnCommentCandidates,
+  pruneBuildRewardRuns,
   runEchoNotifications,
   purgeExpiredPendingEchoSignups,
   reconcileEchoSubscriptions,
@@ -26,6 +27,13 @@ const HEARTBEAT_INTERVAL_SECONDS = Number(
 const EXIT_ON_FATAL = process.env.AIZERO_EXIT_ON_FATAL !== "0";
 const SHUTDOWN_DRAIN_TIMEOUT_MS = 30_000;
 const tasks = [
+  {
+    name: "pruneBuildRewardRuns",
+    fn: pruneBuildRewardRuns,
+    intervalSeconds: 60,
+    alignToInterval: true,
+    alignmentGraceSeconds: 10,
+  },
   {
     name: "tagVideosToPlaylist",
     fn: tagVideosToPlaylist,
