@@ -9,7 +9,7 @@ function splitCredentials(env) {
     env.MYSQL_CREDENTIAL_MODE === 'split' ||
     [env.MYSQL_USER, env.MYSQL_USER_PROXY].some((user) =>
       /^twinkle_(runtime|energy_jobs|operator|energy_retention)$/.test(
-        user || ''
+        (user || '').trim()
       )
     ) ||
     Object.keys(env).some((key) =>
@@ -138,7 +138,10 @@ function resolveDatabaseConfig(
   };
 }
 async function verifyDatabasePrincipal(conn, config) {
-  const [rows] = await conn.query({ sql: 'SELECT CURRENT_USER() AS principal', timeout: 5000 });
+  const [rows] = await conn.query({
+    sql: 'SELECT CURRENT_USER() AS principal',
+    timeout: 5000
+  });
   const principal = rows?.[0]?.principal;
   const expected = config.expectedPrincipal;
   if (
@@ -229,16 +232,21 @@ function guardDatabasePool(pool, credentialClass = 'runtime', config) {
   if (config?.expectedPrincipal) {
     const acquire = pool.getConnection.bind(pool);
     const verified = new WeakSet();
-    pool.getConnection = (callback) => acquire((error, connection) => {
-      if (error || verified.has(connection)) return callback(error, connection);
-      verifyDatabasePrincipal(connection.promise(), config).then(() => {
-        verified.add(connection);
-        callback(null, connection);
-      }, (failure) => {
-        connection.destroy();
-        callback(failure);
+    pool.getConnection = (callback) =>
+      acquire((error, connection) => {
+        if (error || verified.has(connection))
+          return callback(error, connection);
+        verifyDatabasePrincipal(connection.promise(), config).then(
+          () => {
+            verified.add(connection);
+            callback(null, connection);
+          },
+          (failure) => {
+            connection.destroy();
+            callback(failure);
+          }
+        );
       });
-    });
   }
   return pool;
 }
@@ -339,3 +347,86 @@ async function createDatabasePool(
   return pool;
 }
 module.exports.createDatabasePool = createDatabasePool;
+
+// A transaction/named lock must stay on one physical connection without losing
+// the acquisition and statement deadlines used by ordinary query helpers.
+async function acquireBoundedConnection(
+  pool,
+  { acquireTimeoutMs, statementTimeoutMs }
+) {
+  const timeoutError = (phase) =>
+    Object.assign(new Error(`Database ${phase} deadline exceeded`), {
+      code:
+        phase === 'acquisition'
+          ? 'TWINKLE_DB_ACQUIRE_TIMEOUT'
+          : 'TWINKLE_DB_STATEMENT_TIMEOUT'
+    });
+  let expired = false,
+    timer;
+  const acquiring = pool.getConnection().then((conn) => {
+    if (expired) {
+      conn.release();
+      throw timeoutError('acquisition');
+    }
+    return conn;
+  });
+  let conn;
+  try {
+    conn = await Promise.race([
+      acquiring,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => {
+          expired = true;
+          reject(timeoutError('acquisition'));
+        }, acquireTimeoutMs);
+      })
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+  let destroyed = false;
+  const destroy = () => {
+    if (!destroyed) {
+      destroyed = true;
+      conn.destroy();
+    }
+  };
+  return new Proxy(conn, {
+    get(target, property) {
+      if (property === 'destroy') return destroy;
+      if (property === 'release')
+        return () => {
+          if (!destroyed) target.release();
+        };
+      if (
+        ['query', 'execute', 'beginTransaction', 'commit', 'rollback'].includes(
+          property
+        )
+      )
+        return async (...args) => {
+          if (destroyed) throw timeoutError('statement');
+          let deadline;
+          try {
+            return await Promise.race([
+              Promise.resolve().then(() => target[property](...args)),
+              new Promise((_, reject) => {
+                deadline = setTimeout(() => {
+                  try {
+                    destroy();
+                  } catch {
+                    /* already disconnected */
+                  }
+                  reject(timeoutError('statement'));
+                }, statementTimeoutMs);
+              })
+            ]);
+          } finally {
+            clearTimeout(deadline);
+          }
+        };
+      const value = target[property];
+      return typeof value === 'function' ? value.bind(target) : value;
+    }
+  });
+}
+module.exports.acquireBoundedConnection = acquireBoundedConnection;

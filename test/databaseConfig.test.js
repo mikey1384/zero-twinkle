@@ -14,7 +14,23 @@ test('Zero resolves runtime proxy writer/direct reader with one password before 
 test('Zero preserves its production TLS default and rejects private class material',()=>{
   assert.equal(resolveDatabaseConfig({},'runtime','writer',{defaultSslProfile:'Amazon RDS'}).options.ssl,'Amazon RDS');
   assert.throws(()=>assertRuntimeDatabaseEnvironment({MYSQL_OPERATOR_PASSWORD:'private'}),/private_database/);
+  assert.throws(()=>assertRuntimeDatabaseEnvironment({MYSQL_USER:'twinkle_operator',MYSQL_PASSWORD:'private'}),/private_database/);
 });
 test('Zero runtime refuses DDL used by former leaderboard rotation',()=>{
   for(const sql of ['TRUNCATE TABLE x','RENAME TABLE x TO y','CREATE TEMPORARY TABLE x(id INT)'])assert.throws(()=>assertDatabaseSql(sql),/ddl_forbidden/);
+});
+test('every legacy credential class preserves writer and reader resolution in Zero', () => {
+  const base = { MYSQL_HOST: 'writer', MYSQL_USER: 'Administrator', MYSQL_PASSWORD: 'fixture' };
+  assert.equal(resolveDatabaseConfig({ ...base, MYSQL_HOST_PROXY: 'proxy', MYSQL_USER_PROXY: ' twinkle_runtime ' }).legacy, false);
+  for (const kind of ['runtime', 'energy', 'operator']) {
+    for (const topology of [{}, { MYSQL_HOST_PROXY: 'proxy' }, { MYSQL_HOST_PROXY: 'proxy', MYSQL_HOST_READER: 'reader' }, { MYSQL_HOST_READER_PROXY: 'reader-proxy' }]) {
+      const env = { ...base, ...topology };
+      const config = resolveDatabaseConfig(env, kind);
+      assert.equal(config.legacy, true);
+      assert.equal(config.options.user, 'Administrator');
+      assert.equal(config.options.password, 'fixture');
+      assert.equal(config.options.host, topology.MYSQL_HOST_PROXY || 'writer');
+      if (kind !== 'operator') assert.equal(resolveDatabaseConfig(env, kind, 'reader').options.host, topology.MYSQL_HOST_READER_PROXY || topology.MYSQL_HOST_READER || topology.MYSQL_HOST_PROXY || 'writer');
+    }
+  }
 });

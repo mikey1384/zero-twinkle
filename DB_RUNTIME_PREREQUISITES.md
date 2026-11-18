@@ -15,7 +15,8 @@ MYSQL_PASSWORD (or MYSQL_RUNTIME_PASSWORD). MYSQL_PASSWORD_PROXY and the obsolet
 MYSQL_HOST_READ spelling are not consulted. Explicit class configuration and
 restricted base usernames disable legacy cross-class fallback. Existing Zero
 production Amazon RDS TLS default is preserved, with the shared CA/port handling.
-IAM is not enabled; Zero refuses an unsupported IAM setting instead of silently
+Known private account names in ordinary runtime username fields are rejected
+before configuration distribution as well as at runtime. IAM is not enabled; Zero refuses an unsupported IAM setting instead of silently
 attempting password authentication. Private operator/job/retention env is rejected.
 
 The pool guard rejects runtime DDL before it reaches MySQL. The existing Word
@@ -31,3 +32,9 @@ reads retain MVCC visibility. Verify refresh duration during later live acceptan
 Tests cover routing/TLS, private-config rejection, runtime DDL refusal, atomic
 refresh and rollback. This change requires its own commit deployment and restart;
 it is not shipped by deploying the API worktree.
+
+Rollup replacements preserve the prior 10-second acquisition and 10-minute
+statement deadlines on one pinned connection, including BEGIN/COMMIT/ROLLBACK
+and lock release. Timeout destroys the connection; an uncertain commit is not
+replayed. Real local MySQL coverage is in `test/runtimeRollupSql.test.js` (run with
+the existing local test environment loaded, never production credentials).

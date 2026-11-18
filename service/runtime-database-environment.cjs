@@ -8,7 +8,19 @@ function isPrivateDatabaseKey(key) {
   );
 }
 function assertRuntimeDatabaseEnvironment(env) {
-  if (Object.keys(env).some(isPrivateDatabaseKey))
+  // A private account can also be accidentally put in the legacy runtime keys.
+  // Reject that before snapshot/export, not only after opening its connection.
+  const privateUser = [
+    'MYSQL_USER',
+    'MYSQL_USER_PROXY',
+    'MYSQL_RUNTIME_USER',
+    'MYSQL_RUNTIME_USER_PROXY'
+  ].some((key) =>
+    /^twinkle_(operator|energy_jobs|energy_retention)$/.test(
+      (env[key] || '').trim()
+    )
+  );
+  if (privateUser || Object.keys(env).some(isPrivateDatabaseKey))
     throw new Error('private_database_credentials_in_runtime_environment');
 }
 function validateRuntimeEnvironmentBytes(bytes) {
