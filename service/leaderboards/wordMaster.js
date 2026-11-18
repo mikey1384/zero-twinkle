@@ -1,21 +1,15 @@
-const { poolQuery } = require("../helpers");
-const { rotatePersistentStagingTable } = require("../helpers/tableRotation");
-
-const TABLE = "content_words_rankings_all_time";
-// These names deliberately do not overlap the legacy worker's _next/_prev
-// tables, which makes the prerequisite migration safe during a rolling cutover.
-const NEXT_TABLE = "content_words_rankings_all_time_staging";
-const PREV_TABLE = "content_words_rankings_all_time_swap";
+const { writePool } = require('../pool');
+const { replaceTableContents } = require('../helpers/tableRotation');
+const TABLE = 'content_words_rankings_all_time';
 
 let isRunning = false;
 
-async function refreshWordMasterRankings(query = poolQuery) {
+async function refreshWordMasterRankings(pool = writePool.promise()) {
   const updatedAt = Math.floor(Date.now() / 1000);
 
-  await query(`TRUNCATE TABLE ${NEXT_TABLE}`, null, true);
-
-  await query(
-    `INSERT INTO ${NEXT_TABLE} (userId, numWords, globalRank, updatedAt)
+  await replaceTableContents({ pool, table: TABLE, populate: async conn => {
+    await conn.query(
+    `INSERT INTO ${TABLE} (userId, numWords, globalRank, updatedAt)
      SELECT userId, numWords, globalRank, ? AS updatedAt
      FROM (
        SELECT
@@ -29,16 +23,9 @@ async function refreshWordMasterRankings(query = poolQuery) {
          GROUP BY cw.userId
        ) counts
      ) ranked`,
-    [updatedAt],
-    true,
-  );
-
-  await rotatePersistentStagingTable({
-    query,
-    liveTable: TABLE,
-    stagingTable: NEXT_TABLE,
-    swapTable: PREV_TABLE,
-  });
+      [updatedAt]
+    );
+  }});
 }
 
 async function updateWordMasterRankings() {

@@ -14,37 +14,19 @@ const writeDatabaseHealth =
 // queued or delays an acquisition long enough to be operationally meaningful.
 const DB_POOL_QUEUED_WAIT_PRESSURE_MS = 250;
 
-const mysqlProxyHost = process.env.MYSQL_HOST_PROXY || "";
-const mysqlReaderProxyHost = process.env.MYSQL_HOST_READER_PROXY || "";
-const mysqlDirectReaderHost = process.env.MYSQL_HOST_READER || "";
-const mysqlProxyUser = process.env.MYSQL_USER_PROXY || "";
-const mysqlDirectUser = process.env.MYSQL_USER;
-const mysqlHost = mysqlProxyHost || process.env.MYSQL_HOST;
-const mysqlReaderHost =
-  mysqlReaderProxyHost || mysqlDirectReaderHost || mysqlHost;
-const mysqlWriteUser =
-  (mysqlProxyHost ? mysqlProxyUser : "") || mysqlDirectUser;
-const mysqlReadUser = mysqlReaderProxyHost
-  ? mysqlProxyUser || mysqlDirectUser
-  : mysqlDirectReaderHost
-    ? mysqlDirectUser
-    : mysqlWriteUser;
-const mysqlSslProfile = (
-  process.env.MYSQL_SSL_PROFILE ||
-  (process.env.NODE_ENV === "production" ? "Amazon RDS" : "")
-).trim();
-const mysqlSsl = mysqlSslProfile || undefined;
+const { resolveDatabaseConfig, guardDatabasePool } = require('./database-connection.cjs');
+require('./runtime-database-environment.cjs').assertRuntimeDatabaseEnvironment(process.env);
+const defaults = { defaultSslProfile: process.env.NODE_ENV === 'production' ? 'Amazon RDS' : undefined };
+const writerConfig = resolveDatabaseConfig(process.env, 'runtime', 'writer', defaults);
+const readerConfig = resolveDatabaseConfig(process.env, 'runtime', 'reader', defaults);
+if (writerConfig.useIamAuth) throw new Error('Zero does not support MYSQL_USE_IAM_AUTH');
 
 // Idle retirement is handled below with a warm floor. mysql2's idleTimeout
 // alone does not start a cleanup timer with its default maxIdle setting.
 const writePool = mysql.createPool({
   connectionLimit: 5,
   maxPreparedStatements: 256,
-  host: mysqlHost,
-  user: mysqlWriteUser,
-  password: process.env.MYSQL_PASSWORD,
-  database: process.env.MYSQL_DATABASE,
-  ssl: mysqlSsl,
+  ...writerConfig.options,
   supportBigNumbers: true,
   bigNumberStrings: true,
   charset: "utf8mb4",
@@ -54,11 +36,7 @@ const writePool = mysql.createPool({
 const readPool = mysql.createPool({
   connectionLimit: 5,
   maxPreparedStatements: 256,
-  host: mysqlReaderHost,
-  user: mysqlReadUser,
-  password: process.env.MYSQL_PASSWORD,
-  database: process.env.MYSQL_DATABASE,
-  ssl: mysqlSsl,
+  ...readerConfig.options,
   supportBigNumbers: true,
   bigNumberStrings: true,
   charset: "utf8mb4",
@@ -164,6 +142,8 @@ function attachPoolPressureTelemetry(pool, route) {
   timer.unref();
 }
 
+guardDatabasePool(writePool, 'runtime', writerConfig);
+guardDatabasePool(readPool, 'runtime', readerConfig);
 attachPoolPressureTelemetry(writePool, "writer");
 attachPoolPressureTelemetry(readPool, "reader");
 
