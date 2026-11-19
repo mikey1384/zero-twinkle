@@ -10,6 +10,37 @@ const {
 const { replaceTableContents } = require("../service/helpers/tableRotation");
 const { writePool, readPool } = require("../service/pool");
 
+test("a rollup with uncertain transaction cleanup disconnects before unlocking", async () => {
+  const events = [];
+  const failure = new Error("rollup write failed");
+  const conn = {
+    query: async (sql) => {
+      if (sql.includes("GET_LOCK")) return [[{ owned: 1 }]];
+      if (sql.includes("RELEASE_LOCK")) {
+        events.push("unlock");
+        return [[{ released: 1 }]];
+      }
+      throw failure;
+    },
+    beginTransaction: async () => {},
+    rollback: async () => {
+      events.push("rollback");
+      throw new Error("rollback rejected");
+    },
+    release: () => events.push("release"),
+    destroy: () => events.push("destroy"),
+  };
+  await assert.rejects(
+    replaceTableContents({
+      pool: { getConnection: async () => conn },
+      table: "fixture",
+      populate: async () => {},
+    }),
+    (error) => error === failure,
+  );
+  assert.deepEqual(events, ["rollback", "destroy"]);
+});
+
 test("real Zero rollup preserves ranking ties, atomic reader visibility, rollback and named-lock exclusion", async () => {
   assert.ok(["localhost", "127.0.0.1"].includes(process.env.MYSQL_HOST));
   assert.ok(!process.env.MYSQL_HOST_PROXY);
