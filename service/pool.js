@@ -24,7 +24,7 @@ if (writerConfig.useIamAuth) throw new Error('Zero does not support MYSQL_USE_IA
 // Idle retirement is handled below with a warm floor. mysql2's idleTimeout
 // alone does not start a cleanup timer with its default maxIdle setting.
 const writePool = mysql.createPool({
-  connectionLimit: 5,
+  connectionLimit: 4,
   maxPreparedStatements: 256,
   ...writerConfig.options,
   supportBigNumbers: true,
@@ -34,7 +34,7 @@ const writePool = mysql.createPool({
 });
 
 const readPool = mysql.createPool({
-  connectionLimit: 5,
+  connectionLimit: 4,
   maxPreparedStatements: 256,
   ...readerConfig.options,
   supportBigNumbers: true,

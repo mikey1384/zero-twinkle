@@ -34,3 +34,15 @@ test('every legacy credential class preserves writer and reader resolution in Ze
     }
   }
 });
+
+test('both Zero routes allow a fourth concurrent checkout above the three observed at peak', async () => {
+  const { writePool, readPool } = require('../service/pool');
+  try {
+    for (const pool of [writePool, readPool]) {
+      assert.equal(pool.config.connectionLimit, 4);
+      assert.equal(pool.config.waitForConnections, true);
+    }
+  } finally {
+    await Promise.all([writePool.promise().end(), readPool.promise().end()]);
+  }
+});
