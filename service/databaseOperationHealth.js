@@ -14,6 +14,12 @@ const promises_1 = __importDefault(require("node:fs/promises"));
 const node_path_1 = __importDefault(require("node:path"));
 const node_os_1 = __importDefault(require("node:os"));
 const node_crypto_1 = require("node:crypto");
+// No local runtime imports: sync-database-health.cjs copies this file into
+// zero-twinkle, which has no dbDeadlines module. Each service's own deadline
+// codes count: the API's (dbDeadlines.ts, checked in the tests) and
+// zero-twinkle's (service/helpers/database.js).
+const DB_ACQUIRE_TIMEOUT_CODES = new Set(['TWINKLE_DB_ACQUIRE_TIMEOUT', 'DB_ACQUIRE_TIMEOUT']);
+const DB_STATEMENT_TIMEOUT_CODES = new Set(['TWINKLE_DB_STATEMENT_TIMEOUT', 'DB_STATEMENT_TIMEOUT']);
 // Shared wire format with zero-twinkle/service/databaseOperationHealth.js.
 // Fixed buckets keep per-operation work and memory constant, at any traffic
 // level. No SQL, parameters, member identifiers, or unbounded labels enter it.
@@ -269,8 +275,8 @@ function createDatabaseOperationHealth({ now = Date.now } = {}) {
             const ms = Math.max(0, Number.isFinite(durationMs) ? durationMs : 0);
             metric.count++;
             metric.failed += Number(failed);
-            metric.acquireTimeouts += Number(errorCode === 'DB_ACQUIRE_TIMEOUT');
-            metric.statementTimeouts += Number(errorCode === 'DB_STATEMENT_TIMEOUT');
+            metric.acquireTimeouts += Number(DB_ACQUIRE_TIMEOUT_CODES.has(String(errorCode)));
+            metric.statementTimeouts += Number(DB_STATEMENT_TIMEOUT_CODES.has(String(errorCode)));
             metric.durationMs += ms;
             metric.maxMs = Math.max(metric.maxMs, ms);
             metric.buckets[exports.LATENCY_BUCKETS_MS.findIndex((upper) => upper === null || ms <= upper)]++;
